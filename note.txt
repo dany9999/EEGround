@@ -1,0 +1,44 @@
+
+
+Pre-training 
+
+dataset: TUH
+
+1. split del dataset in training set validation set
+2. segmentation dei segnali in segnali di 10 secondi (alternativa 20s o 30s) 
+
+3. preprocessing dei segnali 
+    
+    a. normalization
+    b. filtering ???
+    c. ulteriore preprocessing ???
+
+4. casual masking degli embedding di BIOTEncoder
+
+5. calcolo LOSS casual masking (quale LOSS???)
+
+6. validation del modello sul validation set
+
+
+Fine-tuning
+
+datset: CHB-MIT
+
+1. split del dataset in training, validation e test set
+
+2. segmentation dei segnali in segnali di 10 secondi (alternativa 20s o 30s) 
+
+
+3. preprocessing
+
+4. calcolo LOSS in base al task (binary cross entropy o cross entropy in caso di utilizzo della terza classe di pre-seizure)
+
+5. validation del modello su validation set tramite leave-one out cross validation
+
+6. testing on test set e calcolo delle metriche
+
+    a. Balanced Accuracy
+    b. AUROC 
+    c. AUC-PR 
+    d. Cohen’s Kappa
+
