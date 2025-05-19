@@ -109,7 +109,7 @@ class BIOTEncoder(nn.Module):
         )
         return torch.abs(spectral)
 
-    def forward(self, x, n_channel_offset=0, perturb=False):
+    def forward(self, x, n_channel_offset=0, mask=False):
         """
         x: [batch_size, channel, ts]
         output: [batch_size, emb_size]
@@ -129,12 +129,16 @@ class BIOTEncoder(nn.Module):
             # (batch_size, ts, emb)
             channel_emb = self.positional_encoding(channel_spec_emb + channel_token_emb)
 
-            # perturb
-            if perturb:
-                ts = channel_emb.shape[1]
-                ts_new = np.random.randint(ts // 2, ts)
-                selected_ts = np.random.choice(range(ts), ts_new, replace=False)
-                channel_emb = channel_emb[:, selected_ts]
+            # masking
+            if mask:
+                # random masking
+                mask_ratio = 0.15  # 15% of the sequence will be masked
+                seq_len = channel_emb.size(1)
+                num_masked = int(seq_len * mask_ratio)
+                mask_indices = torch.randperm(seq_len)[:num_masked]
+                channel_emb[:, mask_indices, :] = 0  # set masked positions to zero
+                            
+
             emb_seq.append(channel_emb)
 
         # (batch_size, 16 * ts, emb)
@@ -169,7 +173,7 @@ class UnsupervisedPretrain(nn.Module):
         )
 
     def forward(self, x, n_channel_offset=0):
-        emb = self.biot(x, n_channel_offset, perturb=True)
+        emb = self.biot(x, n_channel_offset, mask=True)
         emb = self.prediction(emb)
         pred_emb = self.biot(x, n_channel_offset)
         return emb, pred_emb    
