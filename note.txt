@@ -28,7 +28,6 @@ datset: CHB-MIT
 
 2. segmentation dei segnali in segnali di 10 secondi (alternativa 20s o 30s) 
 
-
 3. preprocessing
 
 4. calcolo LOSS in base al task (binary cross entropy o cross entropy in caso di utilizzo della terza classe di pre-seizure)

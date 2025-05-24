@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-def main():
+def make_dataset():
     # Root path del dataset
     dataset_root = "./CHB-MIT/"
     processed_root = os.path.join(dataset_root, "processed_numpy")
@@ -77,6 +77,9 @@ def main():
 
     print("Segmenti salvati con successo.")
 
+
+def main():
+    make_dataset()
 
 if __name__ == "__main__":
     main()

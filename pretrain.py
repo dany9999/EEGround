@@ -20,40 +20,29 @@ from model import UnsupervisedPretrain
 
 
 
-class LitModel_supervised_pretrain(pl.LightningModule):
+class LitModel_self_supervised_pretrain(pl.LightningModule):
     def __init__(self, args, save_path):
         super().__init__()
         self.args = args
         self.save_path = save_path
         self.T = 0.2
-        self.model = UnsupervisedPretrain(emb_size=256, heads=8, depth=4, n_channels=18) # 16 for PREST (resting) + 2 for SHHS (sleeping)
+        self.model = UnsupervisedPretrain(emb_size=256, heads=8, depth=4, n_channels=18) 
         
     def training_step(self, batch, batch_idx):
-
-        # store the checkpoint every 5000 steps
+        # Salvataggio del checkpoint ogni N passi
         if self.global_step % 2000 == 0:
             self.trainer.save_checkpoint(
                 filepath=f"{self.save_path}/epoch={self.current_epoch}_step={self.global_step}.ckpt"
             )
 
-        samples = batch
-        contrastive_loss = 0
+        samples = batch  # [B, C, T] 
+        original , mask, reconstruction = self.model(samples) 
 
-  
-        masked_emb, samples_emb = self.model(samples, 0)
+        # Calcola la MSE solo sulle posizioni mascherate
+        loss = F.mse_loss(reconstruction[mask], original[mask])
 
-        # L2 normalize
-        samples_emb = F.normalize(samples_emb, dim=1, p=2)
-        masked_emb = F.normalize(masked_emb, dim=1, p=2)
-        N = samples.shape[0]
-
-        # representation similarity matrix, NxN
-        logits = torch.mm(samples_emb, masked_emb.t()) / self.T
-        labels = torch.arange(N).to(logits.device)
-        contrastive_loss += F.cross_entropy(logits, labels, reduction="mean")
-
-        self.log("train_loss", contrastive_loss)
-        return contrastive_loss
+        self.log("train_loss", loss)
+        return loss
     
 
 
@@ -110,3 +99,5 @@ def pretrain(args):
 
     # train the model
     trainer.fit(model, train_loader)
+
+    
