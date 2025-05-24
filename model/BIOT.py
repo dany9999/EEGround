@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from linear_attention_transformer import LinearAttentionTransformer
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 
 class PatchFrequencyEmbedding(nn.Module):
@@ -40,7 +42,7 @@ class ClassificationHead(nn.Sequential):
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 1000):
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
+    
 
         # Compute the positional encodings once in log space.
         pe = torch.zeros(max_len, d_model)
@@ -61,7 +63,7 @@ class PositionalEncoding(nn.Module):
             `encoder input`, shape (batch, max_len, d_model)
         """
         x = x + self.pe[:, : x.size(1)]
-        return self.dropout(x)
+        return x
     
 class BIOTEncoder(nn.Module):
     def __init__(
@@ -69,7 +71,7 @@ class BIOTEncoder(nn.Module):
         emb_size=256,
         heads=8,
         depth=4,
-        n_channels=16,
+        n_channels=23,
         n_fft=200,
         hop_length=100,
         **kwargs
@@ -108,44 +110,79 @@ class BIOTEncoder(nn.Module):
             return_complex = True,
         )
         return torch.abs(spectral)
+    
+    def random_masking(self, x, mask_ratio=0.15):
+        """
+        Azzeramento casuale globale di valori in un tensore [B, C, T],
+        secondo una percentuale `mask_ratio` dei valori totali.
+        """
+        # Crea una maschera booleana con valori True dove si vuole azzerare
+        mask = torch.rand_like(x) < mask_ratio  # stessa shape di x
+        x_masked = x.clone()
+        x_masked[mask] = 0.0
+        return x_masked, mask
 
-    def forward(self, x, n_channel_offset=0, mask=False):
+
+
+    def forward(self, x, n_channel_offset=0, mask=False,  verbose=False):
         """
         x: [batch_size, channel, ts]
         output: [batch_size, emb_size]
         """
+     
         emb_seq = []
         for i in range(x.shape[1]):
             channel_spec_emb = self.stft(x[:, i : i + 1, :])
+            if verbose:
+                print(f" emb after stft stft -> {channel_spec_emb.shape}")
+           
             channel_spec_emb = self.patch_embedding(channel_spec_emb)
+            if verbose:
+                print(f" emb after patch_embedding -> {channel_spec_emb.shape}")
+            
             batch_size, ts, _ = channel_spec_emb.shape
             # (batch_size, ts, emb)
+            
             channel_token_emb = (
                 self.channel_tokens(self.index[i + n_channel_offset])
                 .unsqueeze(0)
                 .unsqueeze(0)
                 .repeat(batch_size, ts, 1)
             )
+
+            if verbose:
+                print(f" emb after channel_token -> {channel_token_emb.shape}")
             # (batch_size, ts, emb)
+
             channel_emb = self.positional_encoding(channel_spec_emb + channel_token_emb)
-
-            # masking
-            if mask:
-                # random masking
-                mask_ratio = 0.15  # 15% of the sequence will be masked
-                seq_len = channel_emb.size(1)
-                num_masked = int(seq_len * mask_ratio)
-                mask_indices = torch.randperm(seq_len)[:num_masked]
-                channel_emb[:, mask_indices, :] = 0  # set masked positions to zero
-                            
-
+            #print(f" emb after positional_encoding -> {channel_emb.shape}")
+            
             emb_seq.append(channel_emb)
+            
+        
+      
+        emb = torch.cat(emb_seq, dim=1) # (batch_size, n_channels * ts, emb)
+        
 
-        # (batch_size, 16 * ts, emb)
-        emb = torch.cat(emb_seq, dim=1)
-        # (batch_size, emb)
-        emb = self.transformer(emb).mean(dim=1)
-        return emb
+        if verbose:
+            print(f" emb concat -> {emb.shape}")
+        
+        # random masking
+        masked_emb = emb.clone() 
+        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.3)
+        if verbose:
+            print(f"mask prima di passare nel transformer -> {masked_emb.shape}")
+        
+
+
+        out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
+        if verbose:
+            print(f"mask dopo il transformer -> {masked_emb.shape}")
+        
+        
+        
+
+        return emb, masked_emb, out_biot,  mask
     
 
 # supervised classifier module
@@ -161,9 +198,12 @@ class BIOTClassifier(nn.Module):
         return x
 
 
+
+
+
 # unsupervised pre-train module
 class UnsupervisedPretrain(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_channels=18, **kwargs):
+    def __init__(self, emb_size=256, heads=8, depth=4, n_channels=23, **kwargs):
         super(UnsupervisedPretrain, self).__init__()
         self.biot = BIOTEncoder(emb_size, heads, depth, n_channels, **kwargs)
         self.prediction = nn.Sequential(
@@ -173,18 +213,54 @@ class UnsupervisedPretrain(nn.Module):
         )
 
     def forward(self, x, n_channel_offset=0):
-        emb = self.biot(x, n_channel_offset, mask=True)
-        emb = self.prediction(emb)
-        pred_emb = self.biot(x, n_channel_offset)
-        return emb, pred_emb    
+        emb, masked_emb, out_biot,  mask = self.biot(x, n_channel_offset, mask=True)
+        
+        pred_emb = self.prediction(out_biot)
+        self.visualize_masked_embedding(emb, "original Embedding")
+        self.visualize_masked_embedding(masked_emb, "Masked Embedding")
+        self.visualize_masked_embedding(pred_emb, titolo="Predicted Embedding")
+    
+        
+        return emb, mask, pred_emb   
+    
+
+
+    def visualize_masked_embedding(self, masked_emb, titolo):
+        """
+        Visualizza una griglia binaria dell'embedding mascherato:
+        celle blu per valori zero, bianche altrimenti.
+        """
+        
+        # Converti in numpy
+        masked_emb_np = masked_emb.detach().cpu().numpy()
+
+        # Rimuovi la dimensione di batch se presente (es. da [1, T, D] a [T, D])
+        if masked_emb_np.ndim == 3 and masked_emb_np.shape[0] == 1:
+            masked_emb_np = masked_emb_np[0]
+
+        # Crea maschera binaria: 1 se valore è zero, 0 altrimenti
+        binary_mask = (masked_emb_np == 0.0).astype(int)
+
+        # Colori: 0 → bianco, 1 → blu
+        cmap = ListedColormap(["white", "blue"])
+
+        plt.figure(figsize=(12, 6))
+        plt.imshow(binary_mask, aspect='auto', cmap=cmap)
+        plt.title(titolo)
+        plt.xlabel("Dimensione dell'Embedding")
+        plt.ylabel("Sequenza Temporale")
+        plt.grid(True, color='gray', linewidth=0.5, linestyle='--')
+        plt.xticks(np.arange(masked_emb_np.shape[1]))
+        plt.yticks(np.arange(masked_emb_np.shape[0]))
+        plt.tight_layout()
+        plt.show()   
     
 
 if __name__ == "__main__":
-    x = torch.randn(16, 2, 2000)
-    model = BIOTClassifier(n_fft=200, hop_length=200, depth=4, heads=8)
-    out = model(x)
-    print(out.shape)
+    x = torch.randn(1, 23, 2560)
 
     model = UnsupervisedPretrain(n_fft=200, hop_length=200, depth=4, heads=8)
-    out1, out2 = model(x)
-    print(out1.shape, out2.shape)
+    original, mask, reconstruction  = model(x)
+    print(f"original shape: {original.shape}")
+    print(f"mask shape: {mask.shape}")
+    print(f"reconstruction shape: {reconstruction.shape}") 
