@@ -6,10 +6,9 @@ import numpy as np
 from tqdm import tqdm
 
 
-def make_dataset():
+def make_dataset(patient_folders, processed_root):
     # Root path del dataset
     dataset_root = "./CHB-MIT/"
-    processed_root = os.path.join(dataset_root, "processed_numpy")
     os.makedirs(processed_root, exist_ok=True)
 
     # Parametri noti
@@ -21,10 +20,10 @@ def make_dataset():
     all_segments = []
     all_sources = []  # per tracciare da dove viene ogni segmento
 
-    # Scorri tutte le cartelle dei pazienti
-    for patient_folder in sorted(os.listdir(dataset_root)):
+    # Scorri solo le cartelle specificate
+    for patient_folder in patient_folders:
         patient_path = os.path.join(dataset_root, patient_folder)
-        if not os.path.isdir(patient_path) or not patient_folder.startswith("chb"):
+        if not os.path.isdir(patient_path):
             continue
 
         print(f"\nProcessing paziente: {patient_folder}")
@@ -79,7 +78,10 @@ def make_dataset():
 
 
 def main():
-    make_dataset()
+    # Training set: chb01, chb02
+    make_dataset(["chb01", "chb02"], "./CHB-MIT/train_numpy")
+    # Validation set: chb03
+    make_dataset(["chb03"], "./CHB-MIT/validation_numpy")
 
 if __name__ == "__main__":
     main()

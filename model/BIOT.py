@@ -180,7 +180,6 @@ class BIOTEncoder(nn.Module):
             print(f"mask dopo il transformer -> {masked_emb.shape}")
         
         
-        
 
         return emb, masked_emb, out_biot,  mask
     
