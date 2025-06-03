@@ -15,7 +15,7 @@ dataset: TUH
 
 4. casual masking degli embedding di BIOTEncoder
 
-5. calcolo LOSS casual masking (quale LOSS???)
+5. calcolo LOSS casual masking (quale LOSS???) MSE su i pixel masked
 
 6. validation del modello sul validation set
 
