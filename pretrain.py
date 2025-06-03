@@ -15,7 +15,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from model.BIOT import UnsupervisedPretrain
-from utils import UnsupervisedPretrainLoader
+from preprocessing import percentile_95_normalize
 
 
 
@@ -30,12 +30,14 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         # Salvataggio del checkpoint ogni N passi
-        if self.global_step % 2000 == 0:
+        if self.global_step % 200 == 0:
             self.trainer.save_checkpoint(
                 filepath=f"{self.save_path}/epoch={self.current_epoch}_step={self.global_step}.ckpt"
             )
 
-        samples = batch  # [B, C, T] 
+        samples = batch[0]  # [B, C, T]
+        # Normalizza i campioni
+        samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
         original , mask, reconstruction = self.model(samples) 
 
         # Calcola la MSE solo sulle posizioni mascherate
@@ -47,13 +49,15 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         
-        samples = batch  # [B, C, T] 
+        samples = batch[0]  # [B, C, T]
+        # Normalizza i campioni
+        samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
         original , mask, reconstruction = self.model(samples) 
 
         # Calcola la MSE solo sulle posizioni mascherate
         loss = F.mse_loss(reconstruction[mask], original[mask])
 
-        self.log("train_loss", loss)
+        self.log("val_loss", loss)
         return loss
 
 
@@ -167,7 +171,8 @@ def pretrain(args):
     #     max_epochs=args.epochs,
     # )
 
-    # trainer cpu
+
+    #trainer cpu
     trainer = pl.Trainer(
     accelerator="cpu",
     max_epochs=args.epochs,
@@ -175,6 +180,8 @@ def pretrain(args):
     logger=logger,
     )
 
+
+                        
 
 
     # train the model

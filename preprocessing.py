@@ -4,15 +4,25 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, filtfilt
+import torch
 
 # --- Funzioni di preprocessing ---
 
 def z_score_normalize(signal):
     return (signal - np.mean(signal)) / np.std(signal)
 
-def percentile_95_normalize(signal):
-    p95 = np.percentile(np.abs(signal), 95)
-    return signal / p95 if p95 != 0 else signal
+def percentile_95_normalize(x):
+    """
+    Normalizza ogni campione nel batch dividendo per il 95° percentile.
+    Assunzione: x è un tensore di forma [B, C, T]
+    """
+    # Calcola il 95° percentile lungo l'asse del tempo (T)
+    p95 = torch.quantile(x.abs(), 0.95, dim=-1, keepdim=True)
+    
+    # Evita la divisione per zero
+    p95[p95 == 0] = 1e-6
+
+    return x / p95
 
 def bandpass_filter(signal, lowcut, highcut, fs, order=4):
     nyquist = 0.5 * fs

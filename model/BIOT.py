@@ -215,10 +215,7 @@ class UnsupervisedPretrain(nn.Module):
         emb, masked_emb, out_biot,  mask = self.biot(x, n_channel_offset, mask=True)
         
         pred_emb = self.prediction(out_biot)
-        self.visualize_masked_embedding(emb, "original Embedding")
-        self.visualize_masked_embedding(masked_emb, "Masked Embedding")
-        self.visualize_masked_embedding(pred_emb, titolo="Predicted Embedding")
-    
+
         
         return emb, mask, pred_emb   
     
