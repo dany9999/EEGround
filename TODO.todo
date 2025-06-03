@@ -16,3 +16,6 @@ def make_dataset_finetuning(patient_folders, processed_root):
 [] " devo splittare TUH in train e validation set, successivamente dividere i singoli segnali in segmenti di 10 secondi per ogni subset"
     def make_dataset_pretrain(patient_folders, processed_root):
          pass
+
+
+✔ xdwscsc @done (03/06/2025, 17:45:26)
