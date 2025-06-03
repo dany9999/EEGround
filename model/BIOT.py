@@ -1,5 +1,5 @@
 
-import time
+
 import math
 
 import torch
@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from linear_attention_transformer import LinearAttentionTransformer
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
+
+from utils import visualize_masked_embedding
 
 
 class PatchFrequencyEmbedding(nn.Module):
@@ -40,7 +40,7 @@ class ClassificationHead(nn.Sequential):
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 1000):
+    def __init__(self, d_model: int, max_len: int = 1000):
         super(PositionalEncoding, self).__init__()
     
 
@@ -169,7 +169,7 @@ class BIOTEncoder(nn.Module):
         
         # random masking
         masked_emb = emb.clone() 
-        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.3)
+        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.9)
         if verbose:
             print(f"mask prima di passare nel transformer -> {masked_emb.shape}")
         
@@ -220,36 +220,6 @@ class UnsupervisedPretrain(nn.Module):
         return emb, mask, pred_emb   
     
 
-
-    def visualize_masked_embedding(self, masked_emb, titolo):
-        """
-        Visualizza una griglia binaria dell'embedding mascherato:
-        celle blu per valori zero, bianche altrimenti.
-        """
-        
-        # Converti in numpy
-        masked_emb_np = masked_emb.detach().cpu().numpy()
-
-        # Rimuovi la dimensione di batch se presente (es. da [1, T, D] a [T, D])
-        if masked_emb_np.ndim == 3 and masked_emb_np.shape[0] == 1:
-            masked_emb_np = masked_emb_np[0]
-
-        # Crea maschera binaria: 1 se valore è zero, 0 altrimenti
-        binary_mask = (masked_emb_np == 0.0).astype(int)
-
-        # Colori: 0 → bianco, 1 → blu
-        cmap = ListedColormap(["white", "blue"])
-
-        plt.figure(figsize=(12, 6))
-        plt.imshow(binary_mask, aspect='auto', cmap=cmap)
-        plt.title(titolo)
-        plt.xlabel("Dimensione dell'Embedding")
-        plt.ylabel("Sequenza Temporale")
-        plt.grid(True, color='gray', linewidth=0.5, linestyle='--')
-        plt.xticks(np.arange(masked_emb_np.shape[1]))
-        plt.yticks(np.arange(masked_emb_np.shape[0]))
-        plt.tight_layout()
-        plt.show()   
     
 
 if __name__ == "__main__":

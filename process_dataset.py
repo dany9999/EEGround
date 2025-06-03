@@ -77,6 +77,15 @@ def make_dataset(patient_folders, processed_root):
     print("Segmenti salvati con successo.")
 
 
+def make_dataset_pretrain(patient_folders, processed_root):
+    " devo splittare TUH in train e validation set, successivamente"
+
+    pass
+
+def make_dataset_finetuning(patient_folders, processed_root):
+    pass
+
+
 def main():
     # Training set: chb01, chb02
     make_dataset(["chb01", "chb02"], "./CHB-MIT/train_numpy")
@@ -85,3 +94,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

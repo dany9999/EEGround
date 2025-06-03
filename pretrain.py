@@ -1,9 +1,8 @@
 import os
 import argparse
-import pickle
 
 import torch
-from tqdm import tqdm
+
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,14 +16,14 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from model.BIOT import UnsupervisedPretrain
 from preprocessing import percentile_95_normalize
 
-
+from utils import load_config
 
 
 
 class LitModel_self_supervised_pretrain(pl.LightningModule):
-    def __init__(self, args, save_path):
+    def __init__(self, config, save_path):
         super().__init__()
-        self.args = args
+        self.config = config
         self.save_path = save_path
         self.model = UnsupervisedPretrain(emb_size=256, heads=8, depth=4, n_channels=18) 
         
@@ -66,7 +65,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
     def configure_optimizers(self):
         # set optimizer
         optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay
+            self.model.parameters(), lr=self.config["lr"], weight_decay=float(self.config["weight_decay"])
         )
 
         # set learning rate scheduler
@@ -78,8 +77,8 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
     
 
 
-def prepare_dataloader_train(args):
-    # Imposta il seed per la riproducibilità
+def prepare_dataloader_train(config):
+    
     seed = 12345
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -95,9 +94,9 @@ def prepare_dataloader_train(args):
     # DataLoader
     train_loader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
+        batch_size=config["batch_size"],
         shuffle=True,
-        num_workers=args.num_workers,
+        num_workers=config["num_workers"],
         persistent_workers=True,
         drop_last=True,
     )
@@ -105,8 +104,8 @@ def prepare_dataloader_train(args):
     return train_loader
 
 
-def prepare_dataloader_validation(args):
-    # Imposta il seed per la riproducibilità
+def prepare_dataloader_validation(config):
+    
     seed = 12345
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -122,9 +121,9 @@ def prepare_dataloader_validation(args):
     # DataLoader
     val_loader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
+        batch_size=config["batch_size"],
         shuffle=False,
-        num_workers=args.num_workers,
+        num_workers=config["num_workers"],
         persistent_workers=True,
         drop_last=False,
     )
@@ -133,31 +132,45 @@ def prepare_dataloader_validation(args):
    
    
 
-def pretrain(args):
+def pretrain(config):
     
 
 
     # get data loaders
-    train_loader = prepare_dataloader_train(args)
-    valid_loader = prepare_dataloader_validation(args)
+    train_loader = prepare_dataloader_train(config)
+    valid_loader = prepare_dataloader_validation(config)
+
 
     
-    # define the trainer
+   
     os.makedirs("log-pretrain", exist_ok=True)
     N_version = (
         len(os.listdir(os.path.join("log-pretrain"))) + 1
     )
-    # define the model
-    save_path = f"log-pretrain/{N_version}-unsupervised/checkpoints"
+    
+    # Definizione del path per il salvataggio
+    output_dir = "log-pretrain"
+    save_path = os.path.join(output_dir, "checkpoints")
     os.makedirs(save_path, exist_ok=True)
     
-    model = LitModel_self_supervised_pretrain(args, save_path)
+    # define the model
+    model = LitModel_self_supervised_pretrain(config, save_path)
     
-    logger = TensorBoardLogger(
-        save_dir="log-pretrain",
-        version=f"{N_version}/checkpoints",
-        name="unsupervised",
-    )
+    
+    checkpoint_callback = ModelCheckpoint(
+    dirpath=save_path,
+    filename="model-{epoch:02d}-{val_loss:.4f}",
+    save_top_k=3,                 # salva i 3 migliori modelli
+    monitor="val_loss",           # metrica da monitorare
+    mode="min",                   # più piccolo è meglio
+    save_last=True,               # salva sempre l'ultimo
+    every_n_train_steps=200       # opzionale: salva ogni N step
+)
+
+
+    logger = TensorBoardLogger(save_dir=output_dir, name="logs")
+
+     # define the trainer
 
     # trainer in distributed mode
     # trainer = pl.Trainer(
@@ -168,34 +181,39 @@ def pretrain(args):
     #     benchmark=True,
     #     enable_checkpointing=True,
     #     logger=logger,
-    #     max_epochs=args.epochs,
+    #     max_epochs=config["epochs"],
     # )
 
 
     #trainer cpu
     trainer = pl.Trainer(
     accelerator="cpu",
-    max_epochs=args.epochs,
+    max_epochs=config["epochs"],
     enable_checkpointing=True,
+    callbacks=[checkpoint_callback],
     logger=logger,
     )
 
 
-                        
-
-
     # train the model
-    trainer.fit(model, train_loader, valid_loader)
+    latest_ckpt_path = os.path.join(save_path, "last.ckpt")
+
+    if os.path.exists(latest_ckpt_path):
+        print(f"Resuming from checkpoint: {latest_ckpt_path}")
+        trainer.fit(model, train_loader, valid_loader, ckpt_path=latest_ckpt_path)
+    
+    else:
+        trainer.fit(model, train_loader, valid_loader)  
+
+
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=100, help="number of epochs")
-    parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
-    parser.add_argument("--weight_decay", type=float, default=1e-5, help="weight decay")
-    parser.add_argument("--batch_size", type=int, default=1024, help="batch size")
-    parser.add_argument("--num_workers", type=int, default=32, help="number of workers")
-    args = parser.parse_args()
-    print (args)
 
-    pretrain(args)    
+    config = load_config("configs/pretraining.yml")
+    
+
+   
+    print (config)
+
+    pretrain(config)    

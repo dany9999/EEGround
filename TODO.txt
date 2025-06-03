@@ -1,0 +1,18 @@
+
+[] procedura finetuning
+
+
+
+
+[]  "splitto CHB-MIT in train e test set, solitamente si usa "
+
+
+def make_dataset_finetuning(patient_folders, processed_root):
+    "splitto CHB-MIT in train e "
+    pass
+
+
+
+[] " devo splittare TUH in train e validation set, successivamente dividere i singoli segnali in segmenti di 10 secondi per ogni subset"
+    def make_dataset_pretrain(patient_folders, processed_root):
+         pass
