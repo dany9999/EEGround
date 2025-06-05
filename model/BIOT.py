@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 from linear_attention_transformer import LinearAttentionTransformer
 
-from utils import visualize_masked_embedding
+#from ..utils import visualize_masked_embedding
 
 
 class PatchFrequencyEmbedding(nn.Module):
@@ -24,19 +24,6 @@ class PatchFrequencyEmbedding(nn.Module):
         x = x.permute(0, 2, 1)
         x = self.projection(x)
         return x
-
-
-class ClassificationHead(nn.Sequential):
-    def __init__(self, emb_size, n_classes):
-        super().__init__()
-        self.clshead = nn.Sequential(
-            nn.ELU(),
-            nn.Linear(emb_size, n_classes),
-        )
-
-    def forward(self, x):
-        out = self.clshead(x)
-        return out
 
 
 class PositionalEncoding(nn.Module):
@@ -124,7 +111,7 @@ class BIOTEncoder(nn.Module):
 
 
 
-    def forward(self, x, n_channel_offset=0, mask=False,  verbose=False):
+    def forward(self, x, n_channel_offset=0,  verbose=False):
         """
         x: [batch_size, channel, ts]
         output: [batch_size, emb_size]
@@ -169,7 +156,7 @@ class BIOTEncoder(nn.Module):
         
         # random masking
         masked_emb = emb.clone() 
-        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.9)
+        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.3)
         if verbose:
             print(f"mask prima di passare nel transformer -> {masked_emb.shape}")
         
@@ -182,51 +169,5 @@ class BIOTEncoder(nn.Module):
         
 
         return emb, masked_emb, out_biot,  mask
-    
-
-# supervised classifier module
-class BIOTClassifier(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_classes=6, **kwargs):
-        super().__init__()
-        self.biot = BIOTEncoder(emb_size=emb_size, heads=heads, depth=depth, **kwargs)
-        self.classifier = ClassificationHead(emb_size, n_classes)
-
-    def forward(self, x):
-        x = self.biot(x)
-        x = self.classifier(x)
-        return x
 
 
-
-
-
-# unsupervised pre-train module
-class UnsupervisedPretrain(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_channels=23, **kwargs):
-        super(UnsupervisedPretrain, self).__init__()
-        self.biot = BIOTEncoder(emb_size, heads, depth, n_channels, **kwargs)
-        self.prediction = nn.Sequential(
-            nn.Linear(256, 256),
-            nn.GELU(),
-            nn.Linear(256, 256),
-        )
-
-    def forward(self, x, n_channel_offset=0):
-        emb, masked_emb, out_biot,  mask = self.biot(x, n_channel_offset, mask=True)
-        
-        pred_emb = self.prediction(out_biot)
-
-        
-        return emb, mask, pred_emb   
-    
-
-    
-
-if __name__ == "__main__":
-    x = torch.randn(1, 23, 2560)
-
-    model = UnsupervisedPretrain(n_fft=200, hop_length=200, depth=4, heads=8)
-    original, mask, reconstruction  = model(x)
-    print(f"original shape: {original.shape}")
-    print(f"mask shape: {mask.shape}")
-    print(f"reconstruction shape: {reconstruction.shape}") 

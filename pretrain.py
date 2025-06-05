@@ -13,7 +13,7 @@ from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
-from model.BIOT import UnsupervisedPretrain
+from model.SelfSupervisedPretrain import UnsupervisedPretrain
 from preprocessing import percentile_95_normalize
 
 from utils import load_config
@@ -25,7 +25,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
         super().__init__()
         self.config = config
         self.save_path = save_path
-        self.model = UnsupervisedPretrain(emb_size=256, heads=8, depth=4, n_channels=18) 
+        self.model = UnsupervisedPretrain(emb_size=256, heads=8, depth=4, n_channels=23) 
         
     def training_step(self, batch, batch_idx):
         # Salvataggio del checkpoint ogni N passi
@@ -212,7 +212,6 @@ if __name__ == "__main__":
 
     config = load_config("configs/pretraining.yml")
     
-
    
     print (config)
 
