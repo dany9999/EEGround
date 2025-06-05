@@ -27,7 +27,7 @@ class LitModel_finetune(pl.LightningModule):
         super().__init__()
         self.model = BIOTClassifier()
         self.threshold = 0.5
-        self.cofig = config
+        self.config = config
 
     def training_step(self, batch, batch_idx):
         X, y = batch
