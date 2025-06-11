@@ -159,11 +159,12 @@ def pretrain(config):
     trainer = pl.Trainer(
         devices=[1],
         accelerator="gpu",
-        strategy=DDPStrategy(find_unused_parameters=False),
+        #strategy=DDPStrategy(find_unused_parameters=False),
         #auto_select_gpus=True,
         benchmark=True,
         enable_checkpointing=True,
         logger=logger,
+        callbacks=[checkpoint_callback],
         max_epochs=config["epochs"],
     )
 

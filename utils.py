@@ -16,26 +16,28 @@ from torch.utils.data import Dataset, DataLoader, random_split
 
 class EEGDataset(Dataset):
     def __init__(self, root_dirs):
-        self.segments = []
+        self.file_paths = []
+        self.idx_map = []  # (file_idx, segment_idx)
+
         for root_dir in root_dirs:
             for fname in sorted(os.listdir(root_dir)):
                 if fname.endswith(".h5"):
                     path = os.path.join(root_dir, fname)
                     with h5py.File(path, 'r') as f:
-                        data = f["signals"][:]  # assume 'data' key
-                        self.segments.append(torch.tensor(data, dtype=torch.float32))
-        self.data = torch.cat(self.segments, dim=0)  # shape (total_N, 19, 1000)
+                        n_segments = f["signals"].shape[0]
+                        self.file_paths.append(path)
+                        self.idx_map.extend([(len(self.file_paths)-1, i) for i in range(n_segments)])
 
     def __len__(self):
-        return self.data.shape[0]
+        return len(self.idx_map)
 
     def __getitem__(self, idx):
-        return self.data[idx]
-
-def load_config(path):
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
+        file_idx, seg_idx = self.idx_map[idx]
+        path = self.file_paths[file_idx]
+        with h5py.File(path, 'r') as f:
+            data = f["signals"][seg_idx]
+            tensor = torch.tensor(data, dtype=torch.float32)
+        return tensor
 
 
 
