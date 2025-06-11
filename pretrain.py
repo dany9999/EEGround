@@ -86,11 +86,11 @@ def prepare_dataloader_TUAB(config):
     abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
     normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
 
-    dataset = EEGDataset([abnormal_dir, normal_dir])
+    dataset = EEGDataset([normal_dir])
 
     # Split 80/20
     total_len = len(dataset)
-    val_len = int(0.2 * total_len)
+    val_len = int(0.3 * total_len)
     train_len = total_len - val_len
     train_ds, val_ds = random_split(dataset, [train_len, val_len])
 
