@@ -8,6 +8,30 @@ import torch
 import pickle
 import os
 
+import os
+import h5py
+import torch
+import numpy as np
+from torch.utils.data import Dataset, DataLoader, random_split
+
+class EEGDataset(Dataset):
+    def __init__(self, root_dirs):
+        self.segments = []
+        for root_dir in root_dirs:
+            for fname in sorted(os.listdir(root_dir)):
+                if fname.endswith(".h5"):
+                    path = os.path.join(root_dir, fname)
+                    with h5py.File(path, 'r') as f:
+                        data = f["signals"][:]  # assume 'data' key
+                        self.segments.append(torch.tensor(data, dtype=torch.float32))
+        self.data = torch.cat(self.segments, dim=0)  # shape (total_N, 19, 1000)
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
 def load_config(path):
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -83,3 +107,5 @@ class CHBMITLoader(torch.utils.data.Dataset):
         Y = sample["y"]
         X = torch.FloatTensor(X)
         return X, Y
+
+

@@ -16,7 +16,8 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from model.SelfSupervisedPretrain import UnsupervisedPretrain
 from preprocessing import percentile_95_normalize
 
-from utils import load_config
+from utils import load_config, EEGDataset
+from torch.utils.data import DataLoader, random_split
 
 
 
@@ -77,23 +78,25 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
     
 
 
-def prepare_dataloader_train(config):
-    
-    seed = 12345
-    torch.manual_seed(seed)
-    np.random.seed(seed)
 
-    # Percorso al file numpy
-    npy_path = "./CHB-MIT/train_numpy/all_segments.npy"
-    data = np.load(npy_path)  # shape: (N, C, T)
-    tensor_data = torch.tensor(data, dtype=torch.float32)
 
-    # Crea un dataset PyTorch
-    dataset = torch.utils.data.TensorDataset(tensor_data)
+def prepare_dataloader_TUAB(config):
+    # Percorsi a entrambe le cartelle
 
-    # DataLoader
-    train_loader = torch.utils.data.DataLoader(
-        dataset,
+    abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
+    normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
+
+    dataset = EEGDataset([abnormal_dir, normal_dir])
+
+    # Split 80/20
+    total_len = len(dataset)
+    val_len = int(0.2 * total_len)
+    train_len = total_len - val_len
+    train_ds, val_ds = random_split(dataset, [train_len, val_len])
+
+    # DataLoaders
+    train_loader = DataLoader(
+        train_ds,
         batch_size=config["batch_size"],
         shuffle=True,
         num_workers=config["num_workers"],
@@ -101,26 +104,8 @@ def prepare_dataloader_train(config):
         drop_last=True,
     )
 
-    return train_loader
-
-
-def prepare_dataloader_validation(config):
-    
-    seed = 12345
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-
-    # Percorso al file numpy di validazione
-    npy_path = "./CHB-MIT/validation_numpy/all_segments.npy"
-    data = np.load(npy_path)  # shape: (N, C, T)
-    tensor_data = torch.tensor(data, dtype=torch.float32)
-
-    # Crea un dataset PyTorch
-    dataset = torch.utils.data.TensorDataset(tensor_data)
-
-    # DataLoader
-    val_loader = torch.utils.data.DataLoader(
-        dataset,
+    val_loader = DataLoader(
+        val_ds,
         batch_size=config["batch_size"],
         shuffle=False,
         num_workers=config["num_workers"],
@@ -128,7 +113,7 @@ def prepare_dataloader_validation(config):
         drop_last=False,
     )
 
-    return val_loader
+    return train_loader, val_loader
    
    
 
@@ -137,10 +122,8 @@ def pretrain(config):
 
 
     # get data loaders
-    train_loader = prepare_dataloader_train(config)
-    valid_loader = prepare_dataloader_validation(config)
-
-
+    train_loader, valid_loader = prepare_dataloader_TUAB(config)
+     
     
    
     os.makedirs("log-pretrain", exist_ok=True)
@@ -173,26 +156,26 @@ def pretrain(config):
      # define the trainer
 
     # trainer in distributed mode
-    # trainer = pl.Trainer(
-    #     devices=[1],
-    #     accelerator="cpu",
-    #     strategy=DDPStrategy(find_unused_parameters=False),
-    #     #auto_select_gpus=True,
-    #     benchmark=True,
-    #     enable_checkpointing=True,
-    #     logger=logger,
-    #     max_epochs=config["epochs"],
-    # )
+    trainer = pl.Trainer(
+        devices=[1],
+        accelerator="gpu",
+        strategy=DDPStrategy(find_unused_parameters=False),
+        #auto_select_gpus=True,
+        benchmark=True,
+        enable_checkpointing=True,
+        logger=logger,
+        max_epochs=config["epochs"],
+    )
 
 
     #trainer cpu
-    trainer = pl.Trainer(
-    accelerator="cpu",
-    max_epochs=config["epochs"],
-    enable_checkpointing=True,
-    callbacks=[checkpoint_callback],
-    logger=logger,
-    )
+    # trainer = pl.Trainer(
+    # accelerator="cpu",
+    # max_epochs=config["epochs"],
+    # enable_checkpointing=True,
+    # callbacks=[checkpoint_callback],
+    # logger=logger,
+    # )
 
 
     # train the model
