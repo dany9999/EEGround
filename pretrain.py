@@ -30,10 +30,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         # Salvataggio del checkpoint ogni N passi
-        if self.global_step % 200 == 0:
-            self.trainer.save_checkpoint(
-                filepath=f"{self.save_path}/epoch={self.current_epoch}_step={self.global_step}.ckpt"
-            )
+      
 
         samples = batch  # [B, C, T]
         # Normalizza i campioni
@@ -115,7 +112,7 @@ def prepare_dataloader_TUAB(config):
 
     return train_loader, val_loader
    
-   
+
 
 def pretrain(config):
     
@@ -187,14 +184,7 @@ def pretrain(config):
 
 
     # train the model
-    latest_ckpt_path = os.path.join(save_path, "last.ckpt")
-
-    if os.path.exists(latest_ckpt_path):
-        print(f"Resuming from checkpoint: {latest_ckpt_path}")
-        trainer.fit(model, train_loader, valid_loader, ckpt_path=latest_ckpt_path)
-    
-    else:
-        trainer.fit(model, train_loader, valid_loader)  
+    trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
 
 
 
