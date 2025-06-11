@@ -110,6 +110,8 @@ def prepare_dataloader_TUAB(config):
         drop_last=False,
     )
 
+    print(f"Train dataset size: {len(train_ds)}")
+    print(f"Validation dataset size: {len(val_ds)}")
     return train_loader, val_loader
    
 
