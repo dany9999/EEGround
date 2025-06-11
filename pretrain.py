@@ -35,7 +35,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
                 filepath=f"{self.save_path}/epoch={self.current_epoch}_step={self.global_step}.ckpt"
             )
 
-        samples = batch[0]  # [B, C, T]
+        samples = batch  # [B, C, T]
         # Normalizza i campioni
         samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
         original , mask, reconstruction = self.model(samples) 
@@ -49,7 +49,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         
-        samples = batch[0]  # [B, C, T]
+        samples = batch  # [B, C, T]
         # Normalizza i campioni
         samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
         original , mask, reconstruction = self.model(samples) 
