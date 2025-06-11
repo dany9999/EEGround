@@ -1,8 +1,12 @@
 
+from scipy.signal import resample
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+import torch
+import pickle
+import os
 
 def load_config(path):
     with open(path, "r") as f:
@@ -39,4 +43,43 @@ def visualize_masked_embedding(self, masked_emb, titolo):
     plt.xticks(np.arange(masked_emb_np.shape[1]))
     plt.yticks(np.arange(masked_emb_np.shape[0]))
     plt.tight_layout()
-    plt.show()   
+    plt.show()  
+
+# define binary cross entropy loss
+def BCE(y_hat, y):
+    # y_hat: (N, 1)
+    # y: (N, 1)
+    y_hat = y_hat.view(-1, 1)
+    y = y.view(-1, 1)
+    loss = (
+        -y * y_hat
+        + torch.log(1 + torch.exp(-torch.abs(y_hat)))
+        + torch.max(y_hat, torch.zeros_like(y_hat))
+    )
+    return loss.mean()
+
+class CHBMITLoader(torch.utils.data.Dataset):
+    def __init__(self, root, files, sampling_rate=200):
+        self.root = root
+        self.files = files
+        self.default_rate = 256
+        self.sampling_rate = sampling_rate
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, index):
+        sample = pickle.load(open(os.path.join(self.root, self.files[index]), "rb"))
+        X = sample["X"]
+        # 2560 -> 2000, from 256Hz to ?
+        if self.sampling_rate != self.default_rate:
+            X = resample(X, 10 * self.sampling_rate, axis=-1)
+        
+
+        X = X / (
+            np.quantile(np.abs(X), q=0.95, method="linear", axis=-1, keepdims=True)
+            + 1e-8
+        )
+        Y = sample["y"]
+        X = torch.FloatTensor(X)
+        return X, Y

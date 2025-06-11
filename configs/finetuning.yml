@@ -5,4 +5,5 @@ lr: 0.001
 weight_decay: 1e-5
 batch_size: 32
 num_workers: 8
+sampling_rate: 260
 
