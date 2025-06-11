@@ -156,27 +156,27 @@ def pretrain(config):
      # define the trainer
 
     # trainer in distributed mode
-    trainer = pl.Trainer(
-        devices=[1],
-        accelerator="gpu",
-        #strategy=DDPStrategy(find_unused_parameters=False),
-        #auto_select_gpus=True,
-        benchmark=True,
-        enable_checkpointing=True,
-        logger=logger,
-        callbacks=[checkpoint_callback],
-        max_epochs=config["epochs"],
-    )
+    # trainer = pl.Trainer(
+    #     devices=[1],
+    #     accelerator="gpu",
+    #     #strategy=DDPStrategy(find_unused_parameters=False),
+    #     #auto_select_gpus=True,
+    #     benchmark=True,
+    #     enable_checkpointing=True,
+    #     logger=logger,
+    #     callbacks=[checkpoint_callback],
+    #     max_epochs=config["epochs"],
+    # )
 
 
     #trainer cpu
-    # trainer = pl.Trainer(
-    # accelerator="cpu",
-    # max_epochs=config["epochs"],
-    # enable_checkpointing=True,
-    # callbacks=[checkpoint_callback],
-    # logger=logger,
-    # )
+    trainer = pl.Trainer(
+    accelerator="cpu",
+    max_epochs=config["epochs"],
+    enable_checkpointing=True,
+    callbacks=[checkpoint_callback],
+    logger=logger,
+    )
 
 
     # train the model
