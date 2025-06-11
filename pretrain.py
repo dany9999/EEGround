@@ -86,9 +86,9 @@ def prepare_dataloader_TUAB(config):
     abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
     normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
 
-    dataset = EEGDataset([normal_dir])
+    dataset = EEGDataset([abnormal_dir, normal_dir])
 
-    # Split 80/20
+    # Split 70/30
     total_len = len(dataset)
     val_len = int(0.3 * total_len)
     train_len = total_len - val_len
@@ -127,9 +127,7 @@ def pretrain(config):
     
    
     os.makedirs("log-pretrain", exist_ok=True)
-    N_version = (
-        len(os.listdir(os.path.join("log-pretrain"))) + 1
-    )
+   
     
     # Definizione del path per il salvataggio
     output_dir = "log-pretrain"
@@ -140,43 +138,52 @@ def pretrain(config):
     model = LitModel_self_supervised_pretrain(config, save_path)
     
     
-    checkpoint_callback = ModelCheckpoint(
-    dirpath=save_path,
-    filename="model-{epoch:02d}-{val_loss:.4f}",
-    save_top_k=3,                 # salva i 3 migliori modelli
-    monitor="val_loss",           # metrica da monitorare
-    mode="min",                   # più piccolo è meglio
-    save_last=True,               # salva sempre l'ultimo
-    every_n_train_steps=200       # opzionale: salva ogni N step
-)
+    # Checkpoint dei 3 migliori modelli + l'ultimo (basato su val_loss)
+    best_ckpt = ModelCheckpoint(
+        dirpath=os.path.join(save_path, "best"),
+        filename="best-{epoch:02d}-{val_loss:.4f}",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=3,
+        save_last=True
+    )
 
+    # Checkpoint frequenti: salva ogni 200 step, per recuperare se crasha
+    step_ckpt = ModelCheckpoint(
+        dirpath=os.path.join(save_path, "step"),
+        filename="step-{step}",
+        every_n_train_steps=200,
+        save_top_k=-1  # salva tutti i checkpoint di step
+    )
 
+  
+    # define the logger
     logger = TensorBoardLogger(save_dir=output_dir, name="logs")
 
-     # define the trainer
+
 
     #trainer in distributed mode
-    trainer = pl.Trainer(
-        devices=[1],
-        accelerator="gpu",
-        #strategy=DDPStrategy(find_unused_parameters=False),
-        #auto_select_gpus=True,
-        benchmark=True,
-        enable_checkpointing=True,
-        logger=logger,
-        callbacks=[checkpoint_callback],
-        max_epochs=config["epochs"],
-    )
+    # trainer = pl.Trainer(
+    #     devices=[1],
+    #     accelerator="gpu",
+    #     benchmark=True,
+    #     #strategy=DDPStrategy(find_unused_parameters=False),
+    #     #auto_select_gpus=True,
+    #     enable_checkpointing=True,
+    #     logger=logger,
+    #     callbacks=[best_ckpt, step_ckpt],
+    #     max_epochs=config["epochs"]
+    # )
 
 
     #trainer cpu
-    # trainer = pl.Trainer(
-    # accelerator="cpu",
-    # max_epochs=config["epochs"],
-    # enable_checkpointing=True,
-    # callbacks=[checkpoint_callback],
-    # logger=logger,
-    # )
+    trainer = pl.Trainer(
+    accelerator="cpu",
+    max_epochs=config["epochs"],
+    enable_checkpointing=True,
+    callbacks=[best_ckpt, step_ckpt],
+    logger=logger,
+    )
 
 
     # train the model
