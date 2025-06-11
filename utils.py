@@ -14,6 +14,9 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader, random_split
 
+
+
+
 class EEGDataset(Dataset):
     def __init__(self, root_dirs):
         self.file_paths = []
@@ -71,6 +74,10 @@ def visualize_masked_embedding(self, masked_emb, titolo):
     plt.tight_layout()
     plt.show()  
 
+
+
+
+
 # define binary cross entropy loss
 def BCE(y_hat, y):
     # y_hat: (N, 1)
@@ -83,6 +90,11 @@ def BCE(y_hat, y):
         + torch.max(y_hat, torch.zeros_like(y_hat))
     )
     return loss.mean()
+
+
+
+
+
 
 class CHBMITLoader(torch.utils.data.Dataset):
     def __init__(self, root, files, sampling_rate=200):

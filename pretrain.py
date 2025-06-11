@@ -151,7 +151,7 @@ def pretrain(config):
     step_ckpt = ModelCheckpoint(
         dirpath=os.path.join(save_path, "step"),
         filename="step-{step}",
-        every_n_train_steps=200,
+        every_n_train_steps=2000,
         save_top_k=-1  # salva tutti i checkpoint di step
     )
 

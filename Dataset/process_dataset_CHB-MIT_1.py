@@ -1,12 +1,9 @@
 
 import os
 from collections import defaultdict
-import pyedflib
 import pyedflib.highlevel as hl
 import numpy as np
-import copy
-import shutil
-import bz2
+
 import pickle
 import _pickle as cPickle
 import multiprocessing as mp
