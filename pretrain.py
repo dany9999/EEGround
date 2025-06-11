@@ -160,7 +160,7 @@ def pretrain(config):
         devices=[1],
         accelerator="gpu",
         #strategy=DDPStrategy(find_unused_parameters=False),
-        auto_select_gpus=True,
+        #auto_select_gpus=True,
         benchmark=True,
         enable_checkpointing=True,
         logger=logger,
