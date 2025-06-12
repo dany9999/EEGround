@@ -163,11 +163,10 @@ def pretrain(config):
 
     #trainer in distributed mode
     trainer = pl.Trainer(
-        devices=[1],
         accelerator="gpu",
         benchmark=True,
-        strategy=DDPStrategy(find_unused_parameters=False),
-        #auto_select_gpus=True,
+        strategy= "auto",
+        auto_select_gpus=True,
         enable_checkpointing=True,
         logger=logger,
         callbacks=[best_ckpt, step_ckpt],
