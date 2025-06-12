@@ -25,9 +25,11 @@ from itertools import combinations
 class LitModel_finetune(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
-        self.model = BIOTClassifier()
+        
         self.config = config
 
+
+        self.model = BIOTClassifier()
         self.criterion = nn.BCEWithLogitsLoss()
 
         self.val_acc   = BinaryAccuracy(threshold=0.5)
@@ -51,6 +53,8 @@ class LitModel_finetune(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
+        print("samples :\n",x )
+        print("labels :\n",y )
         logits = self(x)
         print("logit shape:", logits.shape)
         print("y shape:", y.shape)

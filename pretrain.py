@@ -26,7 +26,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
         super().__init__()
         self.config = config
         self.save_path = save_path
-        self.model = UnsupervisedPretrain(emb_size=256, heads=8, depth=4, n_channels=23) 
+        self.model = UnsupervisedPretrain(self.config["emb_size"], self.config["heads"], self.config["depth"], self.config["n_channels"]) 
         
     def training_step(self, batch, batch_idx):
         # Salvataggio del checkpoint ogni N passi
@@ -162,27 +162,27 @@ def pretrain(config):
 
 
     #trainer in distributed mode
-    # trainer = pl.Trainer(
-    #     devices=[1],
-    #     accelerator="gpu",
-    #     benchmark=True,
-    #     #strategy=DDPStrategy(find_unused_parameters=False),
-    #     #auto_select_gpus=True,
-    #     enable_checkpointing=True,
-    #     logger=logger,
-    #     callbacks=[best_ckpt, step_ckpt],
-    #     max_epochs=config["epochs"]
-    # )
+    trainer = pl.Trainer(
+        devices=[1],
+        accelerator="gpu",
+        benchmark=True,
+        #strategy=DDPStrategy(find_unused_parameters=False),
+        #auto_select_gpus=True,
+        enable_checkpointing=True,
+        logger=logger,
+        callbacks=[best_ckpt, step_ckpt],
+        max_epochs=config["epochs"]
+    )
 
 
     #trainer cpu
-    trainer = pl.Trainer(
-    accelerator="cpu",
-    max_epochs=config["epochs"],
-    enable_checkpointing=True,
-    callbacks=[best_ckpt, step_ckpt],
-    logger=logger,
-    )
+    # trainer = pl.Trainer(
+    # accelerator="cpu",
+    # max_epochs=config["epochs"],
+    # enable_checkpointing=True,
+    # callbacks=[best_ckpt, step_ckpt],
+    # logger=logger,
+    # )
 
 
     # train the model

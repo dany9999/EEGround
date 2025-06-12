@@ -6,4 +6,10 @@ weight_decay: 1e-5
 batch_size: 64
 num_workers: 8
 sampling_rate: 260
+emb_size: 256
+heads: 8
+depth: 4
+n_channels: 23
+n_classes: 1
+
 
