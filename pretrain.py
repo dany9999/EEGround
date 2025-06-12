@@ -147,13 +147,7 @@ def pretrain(config):
         save_last=True
     )
 
-    # Checkpoint frequenti: salva ogni 200 step, per recuperare se crasha
-    step_ckpt = ModelCheckpoint(
-        dirpath=os.path.join(save_path, "step"),
-        filename="step-{step}",
-        every_n_train_steps=2000,
-        save_top_k=-1  # salva tutti i checkpoint di step
-    )
+
 
   
     # define the logger
@@ -168,7 +162,7 @@ def pretrain(config):
         benchmark=True,
         enable_checkpointing=True,
         logger=logger,
-        callbacks=[best_ckpt, step_ckpt],
+        callbacks=[best_ckpt],
         max_epochs=config["epochs"]
     )
 
