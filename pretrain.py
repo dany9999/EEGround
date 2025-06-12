@@ -163,7 +163,8 @@ def pretrain(config):
 
     #trainer in distributed mode
     trainer = pl.Trainer(
-        accelerator="gpu",
+        devices="auto",
+        accelerator="auto",
         benchmark=True,
         strategy= "auto",
         auto_select_gpus=True,
