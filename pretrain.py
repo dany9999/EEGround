@@ -166,7 +166,6 @@ def pretrain(config):
         devices="auto",
         accelerator="auto",
         benchmark=True,
-        strategy= "auto",
         enable_checkpointing=True,
         logger=logger,
         callbacks=[best_ckpt, step_ckpt],
