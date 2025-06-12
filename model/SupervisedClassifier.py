@@ -28,7 +28,6 @@ class BIOTClassifier(nn.Module):
 
     def forward(self, x, n_channel_offset=0):
         _, _, out_biot, _ = self.biot(x, n_channel_offset)
-        print(f"out_biot shape: {out_biot.shape}")
 
         out_biot = out_biot.mean(dim=1)
         x = self.classifier(out_biot)

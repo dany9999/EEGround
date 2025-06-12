@@ -12,7 +12,10 @@ import os
 import h5py
 import torch
 import numpy as np
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset
+
+from torchmetrics import Metric
+from sklearn.metrics import balanced_accuracy_score
 
 
 
@@ -76,26 +79,6 @@ def visualize_masked_embedding(self, masked_emb, titolo):
 
 
 
-
-
-# define binary cross entropy loss
-def BCE(y_hat, y):
-    # y_hat: (N, 1)
-    # y: (N, 1)
-    y_hat = y_hat.view(-1, 1)
-    y = y.view(-1, 1)
-    loss = (
-        -y * y_hat
-        + torch.log(1 + torch.exp(-torch.abs(y_hat)))
-        + torch.max(y_hat, torch.zeros_like(y_hat))
-    )
-    return loss.mean()
-
-
-
-
-
-
 class CHBMITLoader(torch.utils.data.Dataset):
     def __init__(self, root, files, sampling_rate=200):
         self.root = root
@@ -127,3 +110,25 @@ def load_config(config_path):
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
+
+
+
+
+class BinaryBalancedAccuracy(Metric):
+    def __init__(self, dist_sync_on_step=False):
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state("preds", default=[], dist_reduce_fx="cat")
+        self.add_state("targets", default=[], dist_reduce_fx="cat")
+
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        self.preds.append(preds.detach().cpu())
+        self.targets.append(target.detach().cpu())
+
+    def compute(self):
+        preds = torch.cat(self.preds).numpy()
+        targets = torch.cat(self.targets).numpy()
+        return balanced_accuracy_score(targets, preds >= 0.5)  # soglia binaria
+
+    def reset(self):
+        self.preds.clear()
+        self.targets.clear()

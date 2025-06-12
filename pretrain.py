@@ -25,6 +25,7 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
     def __init__(self, config, save_path):
         super().__init__()
         self.config = config
+        self.save_hyperparameters()
         self.save_path = save_path
         self.model = UnsupervisedPretrain(self.config["emb_size"], self.config["heads"], self.config["depth"], self.config["n_channels"]) 
         
@@ -163,7 +164,8 @@ def pretrain(config):
         enable_checkpointing=True,
         logger=logger,
         callbacks=[best_ckpt],
-        max_epochs=config["epochs"]
+        max_epochs=config["epochs"],
+        profiler= "simple",
     )
 
 
@@ -179,6 +181,7 @@ def pretrain(config):
 
     # train the model
     trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
+    
 
 
 
