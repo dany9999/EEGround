@@ -73,7 +73,7 @@ class LitModel_finetune(pl.LightningModule):
         # Probabilità per le metriche
         probs = torch.sigmoid(logits)
 
-        # ⚠️ y deve essere int per torchmetrics
+        # y deve essere int per torchmetrics
         y_int = y.long().view(-1)
 
         # Se probs è shape (batch_size, 1), rimuovi la seconda dimensione
@@ -104,7 +104,7 @@ class LitModel_finetune(pl.LightningModule):
         x, y = batch
         logits = self(x)
 
-        # Per le metriche, y deve essere long (int64)
+        # Per le metriche, y deve essere long (int64) 
         y_int = y.long().view(-1)
 
         # Probabilità

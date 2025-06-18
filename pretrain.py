@@ -76,87 +76,163 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
     
 
 
-
-
 def prepare_dataloader_TUAB(config):
-    # Percorsi a entrambe le cartelle
-
     abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
     normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
 
-    dataset = EEGDataset([abnormal_dir, normal_dir])
+    all_files = []
 
-    # Split 70/30
-    total_len = len(dataset)
-    val_len = int(0.3 * total_len)
-    train_len = total_len - val_len
-    train_ds, val_ds = random_split(dataset, [train_len, val_len])
+    for root_dir in [abnormal_dir, normal_dir]:
+        for fname in sorted(os.listdir(root_dir)):
+            if fname.endswith(".h5"):
+                all_files.append(os.path.join(root_dir, fname))
 
-    # DataLoaders
+    # Split 70% train, 30% val
+    all_files.sort()
+    total_files = len(all_files)
+    split_idx = int(0.7 * total_files)
+    train_files = all_files[:split_idx]
+    val_files = all_files[split_idx:]
+
+    train_dataset = EEGDataset(train_files)
+    val_dataset = EEGDataset(val_files)
+
     train_loader = DataLoader(
-        train_ds,
+        train_dataset,
         batch_size=config["batch_size"],
         shuffle=True,
         num_workers=config["num_workers"],
         persistent_workers=True,
         drop_last=True,
+        pin_memory=True,
     )
 
     val_loader = DataLoader(
-        val_ds,
+        val_dataset,
         batch_size=config["batch_size"],
         shuffle=False,
         num_workers=config["num_workers"],
         persistent_workers=True,
         drop_last=False,
+        pin_memory=True,
     )
 
-    print(f"Train dataset size: {len(train_ds)}")
-    print(f"Validation dataset size: {len(val_ds)}")
+    print(f"Train dataset size: {len(train_dataset)}")
+    print(f"Validation dataset size: {len(val_dataset)}")
+
     return train_loader, val_loader
+
+# def prepare_dataloader_TUAB(config):
+    
+
+#     abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
+#     normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
+
+#     dataset = EEGDataset([abnormal_dir, normal_dir])
+
+#     # Split 70/30
+#     total_len = len(dataset)
+#     val_len = int(0.3 * total_len)
+#     train_len = total_len - val_len
+#     train_ds, val_ds = random_split(dataset, [train_len, val_len])
+
+#     # DataLoaders
+#     train_loader = DataLoader(
+#         train_ds,
+#         batch_size=config["batch_size"],
+#         shuffle=True,
+#         num_workers=config["num_workers"],
+#         persistent_workers=True,
+#         drop_last=True,
+#     )
+
+#     val_loader = DataLoader(
+#         val_ds,
+#         batch_size=config["batch_size"],
+#         shuffle=False,
+#         num_workers=config["num_workers"],
+#         persistent_workers=True,
+#         drop_last=False,
+#     )
+
+#     print(f"Train dataset size: {len(train_ds)}")
+#     print(f"Validation dataset size: {len(val_ds)}")
+#     return train_loader, val_loader
    
 
 
-def pretrain(config):
+# def pretrain(config):
     
 
 
-    # get data loaders
-    train_loader, valid_loader = prepare_dataloader_TUAB(config)
+#     # get data loaders
+#     train_loader, valid_loader = prepare_dataloader_TUAB(config)
      
     
    
-    os.makedirs("log-pretrain", exist_ok=True)
+#     os.makedirs("log-pretrain", exist_ok=True)
    
     
-    # Definizione del path per il salvataggio
+#     # Definizione del path per il salvataggio
+#     output_dir = "log-pretrain"
+#     save_path = os.path.join(output_dir, "checkpoints")
+#     os.makedirs(save_path, exist_ok=True)
+    
+#     # define the model
+#     model = LitModel_self_supervised_pretrain(config, save_path)
+    
+    
+#     # Checkpoint dei 3 migliori modelli + l'ultimo (basato su val_loss)
+#     best_ckpt = ModelCheckpoint(
+#         dirpath=os.path.join(save_path, "best"),
+#         filename="best-{epoch:02d}-{val_loss:.4f}",
+#         monitor="val_loss",
+#         mode="min",
+#         save_top_k=3,
+#         save_last=True
+#     )
+  
+#     # define the logger
+#     logger = TensorBoardLogger(save_dir=output_dir, name="logs")
+
+#     #trainer in distributed mode
+#     trainer = pl.Trainer(
+#         devices="auto",
+#         accelerator="auto",
+#         benchmark=True,
+#         enable_checkpointing=True,
+#         logger=logger,
+#         callbacks=[best_ckpt],
+#         max_epochs=config["epochs"],
+#         profiler= "simple",
+#     )
+
+#     # train the model
+#     trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
+    
+
+def pretrain(config):
+    train_loader, valid_loader = prepare_dataloader_TUAB(config)
+
+    os.makedirs("log-pretrain", exist_ok=True)
     output_dir = "log-pretrain"
     save_path = os.path.join(output_dir, "checkpoints")
     os.makedirs(save_path, exist_ok=True)
+
     
-    # define the model
     model = LitModel_self_supervised_pretrain(config, save_path)
-    
-    
-    # Checkpoint dei 3 migliori modelli + l'ultimo (basato su val_loss)
+
     best_ckpt = ModelCheckpoint(
         dirpath=os.path.join(save_path, "best"),
         filename="best-{epoch:02d}-{val_loss:.4f}",
         monitor="val_loss",
         mode="min",
         save_top_k=3,
-        save_last=True
+        save_last=True,
     )
 
-
-
-  
-    # define the logger
     logger = TensorBoardLogger(save_dir=output_dir, name="logs")
 
-
-
-    #trainer in distributed mode
     trainer = pl.Trainer(
         devices="auto",
         accelerator="auto",
@@ -165,24 +241,10 @@ def pretrain(config):
         logger=logger,
         callbacks=[best_ckpt],
         max_epochs=config["epochs"],
-        profiler= "simple",
+        profiler="simple",
     )
 
-
-    #trainer cpu
-    # trainer = pl.Trainer(
-    # accelerator="cpu",
-    # max_epochs=config["epochs"],
-    # enable_checkpointing=True,
-    # callbacks=[best_ckpt, step_ckpt],
-    # logger=logger,
-    # )
-
-
-    # train the model
     trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
-    
-
 
 
 
