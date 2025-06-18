@@ -35,13 +35,13 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
 
         samples = batch  # [B, C, T]
         # Normalizza i campioni
-        samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
+        #samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
         original , mask, reconstruction = self.model(samples) 
 
         # Calcola la MSE solo sulle posizioni mascherate
         loss = F.mse_loss(reconstruction[mask], original[mask])
 
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, sync_dist=True, on_epoch=True)
         return loss
     
 
@@ -49,13 +49,13 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
         
         samples = batch  # [B, C, T]
         # Normalizza i campioni
-        samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
+        #samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
         original , mask, reconstruction = self.model(samples) 
 
         # Calcola la MSE solo sulle posizioni mascherate
         loss = F.mse_loss(reconstruction[mask], original[mask])
 
-        self.log("val_loss", loss)
+        self.log("val_loss", loss, sync_dist=True, on_epoch=True) 
         return loss
 
 
@@ -212,6 +212,7 @@ def prepare_dataloader_TUAB(config):
     
 
 def pretrain(config):
+    torch.set_float32_matmul_precision('high')
     train_loader, valid_loader = prepare_dataloader_TUAB(config)
 
     os.makedirs("log-pretrain", exist_ok=True)
