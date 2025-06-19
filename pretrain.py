@@ -235,16 +235,14 @@ def pretrain(config):
     logger = TensorBoardLogger(save_dir=output_dir, name="logs")
 
     trainer = pl.Trainer(
-        devices=2,                        # esplicita: usa entrambe le GPU
-        accelerator="gpu",               # evita ambiguità con "auto"
-        strategy="ddp",                  # usa DistributedDataParallel classico (il più performante)
-        precision="16-mixed",            # mixed precision con float16 per boost velocità
-        benchmark=True,                  # utile se le forme di input sono costanti
+        devices="auto",
+        accelerator="auto",
+        benchmark=True,
         enable_checkpointing=True,
         logger=logger,
         callbacks=[best_ckpt],
         max_epochs=config["epochs"],
-        profiler="simple",               # puoi anche usare "advanced" se vuoi più dettagli
+        profiler="simple",
     )
 
     trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
