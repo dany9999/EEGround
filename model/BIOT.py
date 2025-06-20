@@ -61,12 +61,14 @@ class BIOTEncoder(nn.Module):
         n_channels=23,
         n_fft=200,
         hop_length=100,
+        mask_ratio=0.15,
         **kwargs
     ):
         super().__init__()
 
         self.n_fft = n_fft
         self.hop_length = hop_length
+        self.mask_ratio = mask_ratio
 
         self.patch_embedding = PatchFrequencyEmbedding(
             emb_size=emb_size, n_freq=self.n_fft // 2 + 1
@@ -98,16 +100,22 @@ class BIOTEncoder(nn.Module):
         )
         return torch.abs(spectral)
     
-    def random_masking(self, x, mask_ratio=0.15):
+    def random_masking(self, x):
         """
         Azzeramento casuale globale di valori in un tensore [B, C, T],
         secondo una percentuale `mask_ratio` dei valori totali.
         """
         # Crea una maschera booleana con valori True dove si vuole azzerare
-        mask = torch.rand_like(x) < mask_ratio  # stessa shape di x
+        mask = torch.rand_like(x) < self.mask_ratio  # stessa shape di x
         x_masked = x.clone()
         x_masked[mask] = 0.0
         return x_masked, mask
+    
+    def set_mask_ratio(self, mask_ratio):
+        """
+        Imposta il rapporto di mascheramento per la maschera casuale.
+        """
+        self.mask_ratio = mask_ratio
 
 
 
@@ -156,7 +164,7 @@ class BIOTEncoder(nn.Module):
         
         # random masking
         masked_emb = emb.clone() 
-        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.3)
+        masked_emb, mask = self.random_masking(masked_emb)
         if verbose:
             print(f"mask prima di passare nel transformer -> {masked_emb.shape}")
         
