@@ -9,6 +9,7 @@ emb_size: 256
 heads: 8
 depth: 4
 n_channels: 19
+mask_ratio: 0.90
 
 
 
