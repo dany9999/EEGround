@@ -102,6 +102,7 @@ def prepare_dataloader_TUAB(config):
         batch_size=config["batch_size"],
         shuffle=True,
         num_workers=config["num_workers"],
+        prefetch_factor=4,
         persistent_workers=True,
         drop_last=True,
         pin_memory=True,
@@ -235,8 +236,10 @@ def pretrain(config):
     logger = TensorBoardLogger(save_dir=output_dir, name="logs")
 
     trainer = pl.Trainer(
-        devices="auto",
-        accelerator="auto",
+        accelerator="gpu",
+        devices=2,
+        strategy=DDPStrategy(find_unused_parameters=False),
+        precision="16-mixed",
         benchmark=True,
         enable_checkpointing=True,
         logger=logger,
