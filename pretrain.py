@@ -28,7 +28,15 @@ class LitModel_self_supervised_pretrain(pl.LightningModule):
         self.save_hyperparameters()
         self.save_path = save_path
         self.model = UnsupervisedPretrain(self.config["emb_size"], self.config["heads"], self.config["depth"], self.config["n_channels"], self.config["mask_ratio"]) 
-        
+    
+
+    def on_train_start(self):
+        print(f"World size: {self.trainer.world_size}")
+        print(f"Global rank: {self.trainer.global_rank}")
+        print(f"Local rank: {self.trainer.local_rank}")
+        print(f"Accelerator: {self.trainer.accelerator}")
+
+
     def training_step(self, batch, batch_idx):
         # Salvataggio del checkpoint ogni N passi
       
