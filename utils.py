@@ -49,6 +49,16 @@ class EEGDataset(Dataset):
 
 
 
+def get_all_h5_files_from_tuh(base_path, sub_datasets):
+    all_files = []
+    for sub in sub_datasets:
+        for label in ['Normal', 'Abnormal']:
+            ref_path = os.path.join(base_path, sub, label, "REF")
+            if os.path.exists(ref_path):
+                files = [os.path.join(ref_path, f) for f in sorted(os.listdir(ref_path)) if f.endswith(".h5")]
+                all_files.extend(files)
+    return all_files
+
 def visualize_masked_embedding(self, masked_emb, titolo):
     """
     Visualizza una griglia binaria dell'embedding mascherato:
