@@ -113,7 +113,7 @@ def prepare_dataloader_TUAB(config):
         prefetch_factor=4,
         persistent_workers=True,
         drop_last=True,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     val_loader = DataLoader(
@@ -123,7 +123,7 @@ def prepare_dataloader_TUAB(config):
         num_workers=config["num_workers"],
         persistent_workers=True,
         drop_last=False,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     print(f"Train dataset size: {len(train_dataset)}")
@@ -131,94 +131,7 @@ def prepare_dataloader_TUAB(config):
 
     return train_loader, val_loader
 
-# def prepare_dataloader_TUAB(config):
-    
 
-#     abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
-#     normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
-
-#     dataset = EEGDataset([abnormal_dir, normal_dir])
-
-#     # Split 70/30
-#     total_len = len(dataset)
-#     val_len = int(0.3 * total_len)
-#     train_len = total_len - val_len
-#     train_ds, val_ds = random_split(dataset, [train_len, val_len])
-
-#     # DataLoaders
-#     train_loader = DataLoader(
-#         train_ds,
-#         batch_size=config["batch_size"],
-#         shuffle=True,
-#         num_workers=config["num_workers"],
-#         persistent_workers=True,
-#         drop_last=True,
-#     )
-
-#     val_loader = DataLoader(
-#         val_ds,
-#         batch_size=config["batch_size"],
-#         shuffle=False,
-#         num_workers=config["num_workers"],
-#         persistent_workers=True,
-#         drop_last=False,
-#     )
-
-#     print(f"Train dataset size: {len(train_ds)}")
-#     print(f"Validation dataset size: {len(val_ds)}")
-#     return train_loader, val_loader
-   
-
-
-# def pretrain(config):
-    
-
-
-#     # get data loaders
-#     train_loader, valid_loader = prepare_dataloader_TUAB(config)
-     
-    
-   
-#     os.makedirs("log-pretrain", exist_ok=True)
-   
-    
-#     # Definizione del path per il salvataggio
-#     output_dir = "log-pretrain"
-#     save_path = os.path.join(output_dir, "checkpoints")
-#     os.makedirs(save_path, exist_ok=True)
-    
-#     # define the model
-#     model = LitModel_self_supervised_pretrain(config, save_path)
-    
-    
-#     # Checkpoint dei 3 migliori modelli + l'ultimo (basato su val_loss)
-#     best_ckpt = ModelCheckpoint(
-#         dirpath=os.path.join(save_path, "best"),
-#         filename="best-{epoch:02d}-{val_loss:.4f}",
-#         monitor="val_loss",
-#         mode="min",
-#         save_top_k=3,
-#         save_last=True
-#     )
-  
-#     # define the logger
-#     logger = TensorBoardLogger(save_dir=output_dir, name="logs")
-
-#     #trainer in distributed mode
-#     trainer = pl.Trainer(
-#         devices="auto",
-#         accelerator="auto",
-#         benchmark=True,
-#         enable_checkpointing=True,
-#         logger=logger,
-#         callbacks=[best_ckpt],
-#         max_epochs=config["epochs"],
-#         profiler= "simple",
-#     )
-
-#     # train the model
-#     trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
-    
 
 def pretrain(config):
     torch.set_float32_matmul_precision('high')
@@ -262,9 +175,11 @@ def pretrain(config):
 
 if __name__ == "__main__":
 
-    config = load_config("configs/pretraining.yml")
-    
-   
-    print (config)
 
-    pretrain(config)    
+    # Imposta GPU corretta per ogni processo
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    torch.cuda.set_device(local_rank)
+
+    config = load_config("configs/pretraining.yml")
+    print(config)
+    pretrain(config)
