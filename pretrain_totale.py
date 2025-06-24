@@ -108,7 +108,7 @@ def prepare_dataloader_TUH(config):
         prefetch_factor=4,
         persistent_workers=True,
         drop_last=True,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     val_loader = DataLoader(
@@ -118,7 +118,7 @@ def prepare_dataloader_TUH(config):
         num_workers=config["num_workers"],
         persistent_workers=True,
         drop_last=False,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     print(f"Train dataset size: {len(train_dataset)}")
@@ -171,9 +171,11 @@ def pretrain(config):
 
 if __name__ == "__main__":
 
-    config = load_config("configs/pretraining.yml")
-    
-   
-    print (config)
 
-    pretrain(config)    
+    # Imposta GPU corretta per ogni processo
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    torch.cuda.set_device(local_rank)
+
+    config = load_config("configs/pretraining.yml")
+    print(config)
+    pretrain(config)
