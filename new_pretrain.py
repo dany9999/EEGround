@@ -111,7 +111,7 @@ def train_model(config):
         mask_ratio=config["mask_ratio"]
     ).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+    optimizer = optim.Adam(model.parameters(), lr= float(config["lr"]), weight_decay= float(config["weight_decay"]))
 
     log_dir = config.get("log_dir", "/tmp/tuh_logs")
     os.makedirs(log_dir, exist_ok=True)
