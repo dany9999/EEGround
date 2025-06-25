@@ -1,15 +1,23 @@
 
 
 epochs: 1
+batch_size: 256
+
+
 lr: 0.001
 weight_decay: 1e-5
-batch_size: 256
+
 num_workers: 24
+
+
 emb_size: 256
 heads: 8
 depth: 4
 n_channels: 19
 mask_ratio: 0.15
 
+save_every: 1
 
+
+log_dir: /tmp/tuh_logs
 
