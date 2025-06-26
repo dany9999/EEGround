@@ -19,5 +19,4 @@ mask_ratio: 0.15
 save_every: 1
 
 
-log_dir: /tmp/tuh_logs
-
+log_dir: ./logs/pretrain
