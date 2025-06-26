@@ -113,7 +113,7 @@ def train_model(config):
 
     optimizer = optim.Adam(model.parameters(), lr= float(config["lr"]), weight_decay= float(config["weight_decay"]))
 
-    log_dir = config.get("log_dir", "/tmp/tuh_logs")
+    log_dir = config.get("log_dir", "./logs/pretrain")
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
 
