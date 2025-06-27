@@ -63,8 +63,8 @@ def train_one_file(model, optimizer, file_path, batch_size, device):
     for batch in dataloader:
         batch = batch.to(device)
         optimizer.zero_grad()
-        original, mask, reconstruction = model(batch)
-        loss = F.mse_loss(reconstruction[mask], original[mask])
+        emb_clean_all, reconstruction = model(batch)
+        loss = F.mse_loss(emb_clean_all, reconstruction)
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
@@ -83,8 +83,8 @@ def validate_one_file(model, file_path, batch_size, device):
     with torch.no_grad():
         for batch in dataloader:
             batch = batch.to(device)
-            original, mask, reconstruction = model(batch)
-            loss = F.mse_loss(reconstruction[mask], original[mask])
+            emb_clean_all, reconstruction = model(batch)
+            loss = F.mse_loss(emb_clean_all, reconstruction)
             running_loss += loss.item()
 
     return running_loss / len(dataloader)
