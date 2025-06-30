@@ -206,8 +206,12 @@ class MeanStdLoader:
             mean_path = os.path.join(folder, "mean.npy")
             std_path = os.path.join(folder, "standard_deviation.npy")
 
-            mean_all = np.load(mean_path)
-            std_all = np.load(std_path)
+            mean_all = np.load(mean_path)   # shape (1, 19, 1)
+            std_all = np.load(std_path)     # shape (1, 19, 1)
+
+            # squeeze per avere shape (19,) canali
+            mean_all = mean_all.squeeze()  # ora shape (19,)
+            std_all = std_all.squeeze()    # ora shape (19,)
 
             h5_files_in_folder = sorted([os.path.abspath(f) for f in glob(os.path.join(folder, "*.h5"))])
             self.cache[folder] = {
@@ -218,10 +222,11 @@ class MeanStdLoader:
 
         cached = self.cache[folder]
 
-        idx = cached["files"].index(file_path)
+        # Non serve l'indice, mean e std sono per canale fissi e uguali per tutti i file nella cartella
+        # Quindi ritorniamo solo mean_all e std_all
 
-        mean = torch.tensor(cached["mean_all"][idx], dtype=torch.float32).to(device)
-        std = torch.tensor(cached["std_all"][idx], dtype=torch.float32).to(device)
+        mean = torch.tensor(cached["mean_all"], dtype=torch.float32).to(device)  # shape (19,)
+        std = torch.tensor(cached["std_all"], dtype=torch.float32).to(device)    # shape (19,)
 
         return mean, std
 
@@ -229,8 +234,17 @@ class MeanStdLoader:
 
 class EEGDataset(Dataset):
     def __init__(self, data_array, mean, std):
-        self.data = (data_array - mean.cpu().numpy()) / std.cpu().numpy()
-        self.data = torch.tensor(self.data, dtype=torch.float32)
+        # data_array shape: (N_samples, channels, 1000)
+        # mean, std shape: (channels,)
+
+        # espandi mean/std per broadcast: (1, C, 1)
+        mean = mean.view(1, -1, 1).cpu().numpy()
+        std = std.view(1, -1, 1).cpu().numpy()
+
+        # normalizza dati
+        normalized = (data_array - mean) / std
+
+        self.data = torch.tensor(normalized, dtype=torch.float32)
 
     def __len__(self):
         return len(self.data)
@@ -242,9 +256,9 @@ class EEGDataset(Dataset):
 
 def train_one_file(model, optimizer, file_path, batch_size, device, writer, global_step, mean_std_loader):
     with h5py.File(file_path, 'r') as f:
-        data = f["signals"][:]
+        data = f["signals"][:]  # shape (N, C, 1000)
 
-    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)  # shape (C,)
 
     dataset = EEGDataset(data, mean, std)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -252,17 +266,25 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     model.train()
     running_loss = 0.0
 
+    # espandi mean/std per broadcasting nel tensore (1, C, 1)
+    mean_exp = mean.view(1, -1, 1)
+    std_exp = std.view(1, -1, 1)
+
     for batch in dataloader:
-        batch = batch.to(device)
+        batch = batch.to(device)  # shape (B, C, 1000)
+
         optimizer.zero_grad()
-        raw_reconstructed = model(batch)
-        raw_reconstructed_denorm = raw_reconstructed * std + mean
-        batch_denorm = batch * std + mean
+        raw_reconstructed = model(batch)  # output shape (B, C, 1000)
+
+        # denormalizza per calcolare la loss nello spazio originale
+        raw_reconstructed_denorm = raw_reconstructed * std_exp + mean_exp
+        batch_denorm = batch * std_exp + mean_exp
+
         loss = F.mse_loss(raw_reconstructed_denorm, batch_denorm)
         loss.backward()
         optimizer.step()
-        running_loss += loss.item()
 
+        running_loss += loss.item()
         writer.add_scalar("BatchLoss/Train", loss.item(), global_step)
         global_step += 1
 
@@ -280,12 +302,15 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
     model.eval()
     running_loss = 0.0
 
+    mean_exp = mean.view(1, -1, 1)
+    std_exp = std.view(1, -1, 1)
+
     with torch.no_grad():
         for batch in dataloader:
             batch = batch.to(device)
             raw_reconstructed = model(batch)
-            raw_reconstructed_denorm = raw_reconstructed * std + mean
-            batch_denorm = batch * std + mean
+            raw_reconstructed_denorm = raw_reconstructed * std_exp + mean_exp
+            batch_denorm = batch * std_exp + mean_exp
             loss = F.mse_loss(raw_reconstructed_denorm, batch_denorm)
             running_loss += loss.item()
 
