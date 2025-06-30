@@ -155,9 +155,10 @@ import os
 import random
 import yaml
 import h5py
+import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import nn, optim
+from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import Dataset, DataLoader
 from glob import glob
@@ -191,61 +192,103 @@ def split_dataset(files, train_ratio=0.7, seed=42):
     split_idx = int(len(files) * train_ratio)
     return files[:split_idx], files[split_idx:]
 
+# ==== Mean/Std Loader ====
+
+class MeanStdLoader:
+    def __init__(self):
+        self.cache = {}
+
+    def get_mean_std_for_file(self, file_path, device):
+        file_path = os.path.abspath(file_path)
+        folder = os.path.dirname(file_path)
+
+        if folder not in self.cache:
+            mean_path = os.path.join(folder, "mean.npy")
+            std_path = os.path.join(folder, "standard_deviation.npy")
+
+            mean_all = np.load(mean_path)
+            std_all = np.load(std_path)
+
+            h5_files_in_folder = sorted([os.path.abspath(f) for f in glob(os.path.join(folder, "*.h5"))])
+            self.cache[folder] = {
+                "mean_all": mean_all,
+                "std_all": std_all,
+                "files": h5_files_in_folder
+            }
+
+        cached = self.cache[folder]
+
+        idx = cached["files"].index(file_path)
+
+        mean = torch.tensor(cached["mean_all"][idx], dtype=torch.float32).to(device)
+        std = torch.tensor(cached["std_all"][idx], dtype=torch.float32).to(device)
+
+        return mean, std
+
 # ==== Dataset ====
 
 class EEGDataset(Dataset):
-    def __init__(self, data_array):
-        self.data = data_array
+    def __init__(self, data_array, mean, std):
+        self.data = (data_array - mean.cpu().numpy()) / std.cpu().numpy()
+        self.data = torch.tensor(self.data, dtype=torch.float32)
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return torch.tensor(self.data[idx], dtype=torch.float32)
+        return self.data[idx]
 
 # ==== Training ====
 
-def train_one_file(model, optimizer, file_path, batch_size, device, writer, global_step):
+def train_one_file(model, optimizer, file_path, batch_size, device, writer, global_step, mean_std_loader):
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]
-    dataset = EEGDataset(data)
+
+    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+
+    dataset = EEGDataset(data, mean, std)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
     model.train()
     running_loss = 0.0
 
-    for i, batch in enumerate(dataloader):
+    for batch in dataloader:
         batch = batch.to(device)
         optimizer.zero_grad()
-        emb_clean_all, reconstruction = model(batch)
-        loss = F.mse_loss(emb_clean_all, reconstruction)
+        raw_reconstructed = model(batch)
+        raw_reconstructed_denorm = raw_reconstructed * std + mean
+        batch_denorm = batch * std + mean
+        loss = F.mse_loss(raw_reconstructed_denorm, batch_denorm)
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
 
-        # Logging per batch
         writer.add_scalar("BatchLoss/Train", loss.item(), global_step)
         global_step += 1
 
     return running_loss / len(dataloader), global_step
 
-def validate_one_file(model, file_path, batch_size, device, writer, global_step_val):
+def validate_one_file(model, file_path, batch_size, device, writer, global_step_val, mean_std_loader):
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]
-    dataset = EEGDataset(data)
+
+    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+
+    dataset = EEGDataset(data, mean, std)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     model.eval()
     running_loss = 0.0
 
     with torch.no_grad():
-        for i, batch in enumerate(dataloader):
+        for batch in dataloader:
             batch = batch.to(device)
-            emb_clean_all, reconstruction = model(batch)
-            loss = F.mse_loss(emb_clean_all, reconstruction)
+            raw_reconstructed = model(batch)
+            raw_reconstructed_denorm = raw_reconstructed * std + mean
+            batch_denorm = batch * std + mean
+            loss = F.mse_loss(raw_reconstructed_denorm, batch_denorm)
             running_loss += loss.item()
 
-            # Logging per batch
             writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)
             global_step_val += 1
 
@@ -278,6 +321,8 @@ def train_model(config):
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
 
+    mean_std_loader = MeanStdLoader()
+
     global_step = 0
     global_step_val = 0
 
@@ -286,12 +331,12 @@ def train_model(config):
 
         train_losses = []
         for path in tqdm(train_files, desc="Training"):
-            loss, global_step = train_one_file(model, optimizer, path, config["batch_size"], device, writer, global_step)
+            loss, global_step = train_one_file(model, optimizer, path, config["batch_size"], device, writer, global_step, mean_std_loader)
             train_losses.append(loss)
 
         val_losses = []
         for path in tqdm(val_files, desc="Validation"):
-            loss, global_step_val = validate_one_file(model, path, config["batch_size"], device, writer, global_step_val)
+            loss, global_step_val = validate_one_file(model, path, config["batch_size"], device, writer, global_step_val, mean_std_loader)
             val_losses.append(loss)
 
         train_loss = sum(train_losses) / len(train_losses)
@@ -307,8 +352,6 @@ def train_model(config):
             print(f"Saved model checkpoint to {save_path}")
 
     writer.close()
-
-# ==== Entry Point ====
 
 if __name__ == "__main__":
     config = load_config("configs/pretraining.yml")

@@ -19,45 +19,45 @@ from sklearn.metrics import balanced_accuracy_score
 
 
 
-class EEGDataset(Dataset):
-    def __init__(self, h5_paths):
-        self.file_paths = []
-        self.idx_map = []  # (file_idx, segment_idx)
-        self.h5_files = None  # sarà inizializzato nel worker
+# class EEGDataset(Dataset):
+#     def __init__(self, h5_paths):
+#         self.file_paths = []
+#         self.idx_map = []  # (file_idx, segment_idx)
+#         self.h5_files = None  # sarà inizializzato nel worker
 
-        for path in h5_paths:
-            with h5py.File(path, 'r') as f:
-                n_segments = f["signals"].shape[0]
-                self.file_paths.append(path)
-                self.idx_map.extend([(len(self.file_paths) - 1, i) for i in range(n_segments)])
+#         for path in h5_paths:
+#             with h5py.File(path, 'r') as f:
+#                 n_segments = f["signals"].shape[0]
+#                 self.file_paths.append(path)
+#                 self.idx_map.extend([(len(self.file_paths) - 1, i) for i in range(n_segments)])
 
-    def _init_files(self):
-        self.h5_files = [h5py.File(path, 'r') for path in self.file_paths]
+#     def _init_files(self):
+#         self.h5_files = [h5py.File(path, 'r') for path in self.file_paths]
 
-    def __len__(self):
-        return len(self.idx_map)
+#     def __len__(self):
+#         return len(self.idx_map)
 
-    def __getitem__(self, idx):
-        if self.h5_files is None:
-            self._init_files()
+#     def __getitem__(self, idx):
+#         if self.h5_files is None:
+#             self._init_files()
 
-        file_idx, seg_idx = self.idx_map[idx]
-        f = self.h5_files[file_idx]
-        data = f["signals"][seg_idx]
-        tensor = torch.tensor(data, dtype=torch.float32)
-        return tensor
+#         file_idx, seg_idx = self.idx_map[idx]
+#         f = self.h5_files[file_idx]
+#         data = f["signals"][seg_idx]
+#         tensor = torch.tensor(data, dtype=torch.float32)
+#         return tensor
 
 
 
-def get_all_h5_files_from_tuh(base_path, sub_datasets):
-    all_files = []
-    for sub in sub_datasets:
-        for label in ['Normal', 'Abnormal']:
-            ref_path = os.path.join(base_path, sub, label, "REF")
-            if os.path.exists(ref_path):
-                files = [os.path.join(ref_path, f) for f in sorted(os.listdir(ref_path)) if f.endswith(".h5")]
-                all_files.extend(files)
-    return all_files
+# def get_all_h5_files_from_tuh(base_path, sub_datasets):
+#     all_files = []
+#     for sub in sub_datasets:
+#         for label in ['Normal', 'Abnormal']:
+#             ref_path = os.path.join(base_path, sub, label, "REF")
+#             if os.path.exists(ref_path):
+#                 files = [os.path.join(ref_path, f) for f in sorted(os.listdir(ref_path)) if f.endswith(".h5")]
+#                 all_files.extend(files)
+#     return all_files
 
 def visualize_masked_embedding(self, masked_emb, titolo):
     """
