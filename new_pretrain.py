@@ -163,7 +163,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import Dataset, DataLoader
 from glob import glob
 from tqdm import tqdm
-from model.SelfSupervisedPretrain import UnsupervisedPretrain  # verifica il path
+from model.SelfSupervisedPretrain import UnsupervisedPretrain
 
 # ==== Utils ====
 
@@ -206,51 +206,30 @@ class MeanStdLoader:
             mean_path = os.path.join(folder, "mean.npy")
             std_path = os.path.join(folder, "standard_deviation.npy")
 
-            mean_all = np.load(mean_path)   # shape (1, 19, 1)
-            std_all = np.load(std_path)     # shape (1, 19, 1)
+            mean_all = np.load(mean_path).squeeze()  # shape (19,)
+            std_all = np.load(std_path).squeeze()    # shape (19,)
 
-            # squeeze per avere shape (19,) canali
-            mean_all = mean_all.squeeze()  # ora shape (19,)
-            std_all = std_all.squeeze()    # ora shape (19,)
-
-            h5_files_in_folder = sorted([os.path.abspath(f) for f in glob(os.path.join(folder, "*.h5"))])
             self.cache[folder] = {
                 "mean_all": mean_all,
-                "std_all": std_all,
-                "files": h5_files_in_folder
+                "std_all": std_all
             }
 
-        cached = self.cache[folder]
-
-        # Non serve l'indice, mean e std sono per canale fissi e uguali per tutti i file nella cartella
-        # Quindi ritorniamo solo mean_all e std_all
-
-        mean = torch.tensor(cached["mean_all"], dtype=torch.float32).to(device)  # shape (19,)
-        std = torch.tensor(cached["std_all"], dtype=torch.float32).to(device)    # shape (19,)
-
+        mean = torch.tensor(self.cache[folder]["mean_all"], dtype=torch.float32).to(device)
+        std = torch.tensor(self.cache[folder]["std_all"], dtype=torch.float32).to(device)
         return mean, std
 
 # ==== Dataset ====
 
 class EEGDataset(Dataset):
-    def __init__(self, data_array, mean, std):
-        # data_array shape: (N_samples, channels, 1000)
-        # mean, std shape: (channels,)
-
-        # espandi mean/std per broadcast: (1, C, 1)
-        mean = mean.view(1, -1, 1).cpu().numpy()
-        std = std.view(1, -1, 1).cpu().numpy()
-
-        # normalizza dati
-        normalized = (data_array - mean) / std
-
-        self.data = torch.tensor(normalized, dtype=torch.float32)
+    def __init__(self, data_array):
+        # data_array shape: (N, C, 1000)
+        self.data = torch.tensor(data_array, dtype=torch.float32)
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        return self.data[idx]  # raw
 
 # ==== Training ====
 
@@ -258,29 +237,23 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]  # shape (N, C, 1000)
 
-    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)  # shape (C,)
+    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean_exp = mean.view(1, -1, 1)
+    std_exp = std.view(1, -1, 1)
 
-    dataset = EEGDataset(data, mean, std)
+    dataset = EEGDataset(data)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
     model.train()
     running_loss = 0.0
 
-    # espandi mean/std per broadcasting nel tensore (1, C, 1)
-    mean_exp = mean.view(1, -1, 1)
-    std_exp = std.view(1, -1, 1)
-
-    for batch in dataloader:
-        batch = batch.to(device)  # shape (B, C, 1000)
+    for batch_raw in dataloader:
+        batch_raw = batch_raw.to(device)
+        batch_norm = (batch_raw - mean_exp) / std_exp
 
         optimizer.zero_grad()
-        raw_reconstructed = model(batch)  # output shape (B, C, 1000)
-
-        # denormalizza per calcolare la loss nello spazio originale
-        raw_reconstructed_denorm = raw_reconstructed * std_exp + mean_exp
-        batch_denorm = batch * std_exp + mean_exp
-
-        loss = F.mse_loss(raw_reconstructed_denorm, batch_denorm)
+        output = model(batch_norm)
+        loss = F.mse_loss(output, batch_raw)  # confronto con raw
         loss.backward()
         optimizer.step()
 
@@ -292,28 +265,27 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
 
 def validate_one_file(model, file_path, batch_size, device, writer, global_step_val, mean_std_loader):
     with h5py.File(file_path, 'r') as f:
-        data = f["signals"][:]
+        data = f["signals"][:]  # shape (N, C, 1000)
 
     mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean_exp = mean.view(1, -1, 1)
+    std_exp = std.view(1, -1, 1)
 
-    dataset = EEGDataset(data, mean, std)
+    dataset = EEGDataset(data)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     model.eval()
     running_loss = 0.0
 
-    mean_exp = mean.view(1, -1, 1)
-    std_exp = std.view(1, -1, 1)
-
     with torch.no_grad():
-        for batch in dataloader:
-            batch = batch.to(device)
-            raw_reconstructed = model(batch)
-            raw_reconstructed_denorm = raw_reconstructed * std_exp + mean_exp
-            batch_denorm = batch * std_exp + mean_exp
-            loss = F.mse_loss(raw_reconstructed_denorm, batch_denorm)
-            running_loss += loss.item()
+        for batch_raw in dataloader:
+            batch_raw = batch_raw.to(device)
+            batch_norm = (batch_raw - mean_exp) / std_exp
 
+            output = model(batch_norm)
+            loss = F.mse_loss(output, batch_raw)
+
+            running_loss += loss.item()
             writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)
             global_step_val += 1
 
