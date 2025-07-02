@@ -1,25 +1,35 @@
 
-import numpy as np
 import os
+import glob
+import random
 
-def check_mean_std_shapes(folder_path):
-    mean_path = os.path.join(folder_path, "mean.npy")
-    std_path = os.path.join(folder_path, "standard_deviation.npy")
+def collect_h5_files(root_dir):
+    all_files = []
+    subdatasets = ['TUAB', 'TUEP', 'TUEV', 'TUSZ']
+    for sub in subdatasets:
+        sub_path = os.path.join(root_dir, sub)
+        if not os.path.exists(sub_path):
+            continue
+        for condition in ['Normal', 'Abnormal']:
+            cond_path = os.path.join(sub_path, condition, 'REF')
+            if os.path.exists(cond_path):
+                files = glob(os.path.join(cond_path, "*.h5"))
+                files = [f for f in files if not f.endswith(('mean.npy', 'standard_deviation.npy'))]
+                all_files.extend(files)
+    return sorted(all_files)
 
-    if os.path.exists(mean_path):
-        mean = np.load(mean_path)
-        print(f"mean.npy shape: {mean.shape}")
-        print(f"mean.npy sample data:\n{mean if mean.size < 10 else mean[:10]}")
-    else:
-        print("mean.npy not found!")
+def split_dataset(files, train_ratio=0.7, seed=42):
+    random.seed(seed)
+    random.shuffle(files)
+    split_idx = int(len(files) * train_ratio)
+    return files[:split_idx], files[split_idx:]
 
-    if os.path.exists(std_path):
-        std = np.load(std_path)
-        print(f"standard_deviation.npy shape: {std.shape}")
-        print(f"standard_deviation.npy sample data:\n{std if std.size < 10 else std[:10]}")
-    else:
-        print("standard_deviation.npy not found!")
 
-if __name__ == "__main__":
-    folder = "/home/inbit/Scrivania/Datasets/TUH/TUAB/Abnormal/REF"  # cambia con la tua cartella
-    check_mean_std_shapes(folder)
+
+dataset_path = os.path.abspath(os.path.join("..", "..", "Datasets/TUH"))
+all_files = collect_h5_files(dataset_path)
+train_files, val_files = split_dataset(all_files, train_ratio=0.7)
+print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
+print("Sample training files:", train_files)
+print("Sample validation files:", val_files)
+
