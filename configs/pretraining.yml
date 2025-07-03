@@ -1,6 +1,6 @@
 
 
-epochs: 5
+epochs: 6
 batch_size: 256
 
 
@@ -16,7 +16,7 @@ depth: 4
 n_channels: 19
 mask_ratio: 0.3
 
-save_every: 1
+save_every: 2
 
 dataset_path: "../../Datasets/TUH"
 log_dir: ./logs/pretrain

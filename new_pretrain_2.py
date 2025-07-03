@@ -34,21 +34,6 @@ def collect_h5_files(root_dir):
                 all_files.extend(files)
     return sorted(all_files)
 
-def split_dataset(files, train_ratio=0.7, seed=42):
-    random.seed(seed)
-    random.shuffle(files)
-    split_idx = int(len(files) * train_ratio)
-    return files[:split_idx], files[split_idx:]
-
-def save_seen_files(json_path, seen_list):
-    with open(json_path, 'w') as f:
-        json.dump(sorted(seen_list), f)
-
-def load_seen_files(json_path):
-    if os.path.exists(json_path):
-        with open(json_path, 'r') as f:
-            return set(json.load(f))
-    return set()
 
 # ==== Mean/Std Loader ====
 
@@ -117,8 +102,10 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
         running_loss += loss.item()
         writer.add_scalar("BatchLoss/Train", loss.item(), global_step)
         global_step += 1
+    
+    avg_loss = running_loss / len(dataloader)
 
-    return running_loss / len(dataloader), global_step
+    return avg_loss, global_step
 
 def validate_one_file(model, file_path, batch_size, device, writer, global_step_val, mean_std_loader):
     with h5py.File(file_path, 'r') as f:
@@ -145,8 +132,8 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
             running_loss += loss.item()
             writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)
             global_step_val += 1
-
-    return running_loss / len(dataloader), global_step_val
+    avg_loss = running_loss / len(dataloader)
+    return avg_loss, global_step_val
 
 # ==== Main Training Loop ====
 
@@ -158,17 +145,14 @@ def train_model(config):
     print("Collecting h5 files...")
     dataset_path = os.path.abspath(config["dataset_path"])
     all_files = collect_h5_files(dataset_path)
-    train_files, val_files = split_dataset(all_files, train_ratio=0.7)
+    train_files = all_files[:int(0.7 * len(all_files))]
+    val_files = all_files[int(0.7 * len(all_files)):]
     print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
 
     log_dir = config.get("log_dir", "./logs/pretrain")
     os.makedirs(log_dir, exist_ok=True)
 
-    seen_train_json = os.path.join(log_dir, "train_files_seen.json")
-    seen_val_json = os.path.join(log_dir, "val_files_seen.json")
 
-    train_files_seen = load_seen_files(seen_train_json)
-    val_files_seen = load_seen_files(seen_val_json)
 
     model = UnsupervisedPretrain(
         emb_size=config["emb_size"],
@@ -200,43 +184,34 @@ def train_model(config):
     for epoch in range(start_epoch, config["epochs"]):
         print(f"\nEpoch {epoch+1}/{config['epochs']}")
 
-        train_files_to_process = [f for f in train_files if f not in train_files_seen]
-        val_files_to_process = [f for f in val_files if f not in val_files_seen]
-
-        if not train_files_to_process and not val_files_to_process:
-            print("All files already processed. Training complete.")
-            break
 
         train_losses = []
-        for path in tqdm(train_files_to_process, desc="Training"):
-            loss, global_step = train_one_file(model, optimizer, path, config["batch_size"], device, writer, global_step, mean_std_loader)
+        for f in tqdm(train_files, desc="Training"):
+            loss, global_step = train_one_file(model, optimizer, f, config["batch_size"], device, writer, global_step, mean_std_loader)
             train_losses.append(loss)
-            train_files_seen.add(path)
-            save_seen_files(seen_train_json, train_files_seen)
 
         val_losses = []
-        for path in tqdm(val_files_to_process, desc="Validation"):
-            loss, global_step_val = validate_one_file(model, path, config["batch_size"], device, writer, global_step_val, mean_std_loader)
+        for f in tqdm(val_files, desc="Validation"):
+            loss, global_step_val = validate_one_file(model, f, config["batch_size"], device, writer, global_step_val, mean_std_loader)
             val_losses.append(loss)
-            val_files_seen.add(path)
-            save_seen_files(seen_val_json, val_files_seen)
 
-        train_loss = sum(train_losses) / len(train_losses) if train_losses else 0.0
-        val_loss = sum(val_losses) / len(val_losses) if val_losses else 0.0
+        train_loss = sum(train_losses) / len(train_losses) 
+        val_loss = sum(val_losses) / len(val_losses) 
 
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
         writer.add_scalar("Loss/Train", train_loss, epoch + 1)
         writer.add_scalar("Loss/Val", val_loss, epoch + 1)
 
-        save_path = os.path.join(log_dir, f"model_epoch_{epoch+1}.pt")
-        torch.save({
-            'epoch': epoch + 1,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'global_step': global_step,
-            'global_step_val': global_step_val
-        }, save_path)
-        print(f"Saved model checkpoint to {save_path}")
+        if (epoch + 1) % config.get("save_every", 1) == 0:
+            save_path = os.path.join(log_dir, f"model_epoch_{epoch+1}.pt")
+            torch.save({
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'global_step': global_step,
+                'global_step_val': global_step_val
+            }, save_path)
+            print(f"Saved model checkpoint to {save_path}")
 
     writer.close()
 
