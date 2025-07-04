@@ -12,11 +12,15 @@ dataset: TUH
     a. normalization
 
 
-4. casual masking degli embedding di BIOTEncoder
+4. casual masking degli eeg_raw
 
-5. calcolo LOSS casual masking (quale LOSS???) MSE su i pixel masked
+5. calcolo LOSS casual masking (quale LOSS???) MSE tra eeg_raw e segnale ricostruito
 
 6. validation del modello sul validation set
+
+
+
+
 
 
 Fine-tuning
