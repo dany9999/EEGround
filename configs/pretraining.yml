@@ -16,7 +16,7 @@ depth: 4
 n_channels: 19
 mask_ratio: 0.3
 
-save_every: 2
+save_every: 3
 
 dataset_path: "../../Datasets/TUH"
 log_dir: ./logs/pretrain
