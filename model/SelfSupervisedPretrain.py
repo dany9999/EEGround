@@ -3,28 +3,6 @@ from model.BIOT import BIOTEncoder
 import torch.nn as nn
 import torch
 
-# versione vecchia
-
-
-# # unsupervised pre-train module
-# class UnsupervisedPretrain(nn.Module):
-#     def __init__(self, emb_size=256, heads=8, depth=4, n_channels=23, mask_ratio=0.15, **kwargs):
-#         super(UnsupervisedPretrain, self).__init__()
-#         self.biot = BIOTEncoder(emb_size, heads, depth, n_channels, mask_ratio=mask_ratio, **kwargs)
-#         self.prediction = nn.Sequential(
-#             nn.Linear(256, 256),
-#             nn.GELU(),
-#             nn.Linear(256, 256),
-#         )
-
-#     def forward(self, x, n_channel_offset=0):
-#         emb_clean_all, out  = self.biot(x, n_channel_offset)
-        
-#         pred_emb = self.prediction(out)
-
-        
-#         return emb_clean_all, out   
-    
 
 
 
@@ -79,9 +57,9 @@ class UnsupervisedPretrain(nn.Module):
             heads=heads,
             depth=depth,
             n_channels=n_channels,
-            mask_ratio=mask_ratio,
             **kwargs
         )
+        self.mask_ratio = mask_ratio
 
         self.decoder = EEGDecoder(
             emb_size=emb_size,

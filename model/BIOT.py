@@ -61,14 +61,13 @@ class BIOTEncoder(nn.Module):
         n_channels=23,
         n_fft=200,
         hop_length=100,
-        mask_ratio=0.15,
         **kwargs
     ):
         super().__init__()
 
         self.n_fft = n_fft
         self.hop_length = hop_length
-        self.mask_ratio = mask_ratio
+        
 
         self.patch_embedding = PatchFrequencyEmbedding(
             emb_size=emb_size, n_freq=self.n_fft // 2 + 1
