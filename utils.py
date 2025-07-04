@@ -13,7 +13,7 @@ import h5py
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-import glob
+from glob import glob
 from torchmetrics import Metric
 from sklearn.metrics import balanced_accuracy_score
 
