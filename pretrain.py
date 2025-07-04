@@ -1,185 +1,167 @@
 import os
-import argparse
-
-import torch
-
+import json
+import random
+import yaml
+import h5py
 import numpy as np
-import torch.nn as nn
+import torch
 import torch.nn.functional as F
-
-import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-
+from torch import optim
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import Dataset, DataLoader
+from glob import glob
+from tqdm import tqdm
 from model.SelfSupervisedPretrain import UnsupervisedPretrain
-from preprocessing import percentile_95_normalize
-
-from utils import load_config, EEGDataset
-from torch.utils.data import DataLoader, random_split
+from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 
 
 
-class LitModel_self_supervised_pretrain(pl.LightningModule):
-    def __init__(self, config, save_path):
-        super().__init__()
-        self.config = config
-        self.save_hyperparameters()
-        self.save_path = save_path
-        self.model = UnsupervisedPretrain(self.config["emb_size"], self.config["heads"], self.config["depth"], self.config["n_channels"], self.config["mask_ratio"]) 
+# ==== Training ====
+
+def train_one_file(model, optimizer, file_path, batch_size, device, writer, global_step, mean_std_loader):
+    with h5py.File(file_path, 'r') as f:
+        data = f["signals"][:]
+
+    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean_exp = mean.view(1, -1, 1)
+    std_exp = std.view(1, -1, 1)
+
+    dataset = EEGDataset(data)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+    model.train()
+    running_loss = 0.0
+
+    for batch_raw in dataloader:
+        batch_raw = batch_raw.to(device)
+        batch_norm = (batch_raw - mean_exp) / std_exp
+
+        optimizer.zero_grad()
+        output = model(batch_norm)
+        loss = F.mse_loss(output, batch_raw)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        writer.add_scalar("BatchLoss/Train", loss.item(), global_step)
+        global_step += 1
     
+    avg_loss = running_loss / len(dataloader)
 
-    def on_train_start(self):
-        print(f"World size: {self.trainer.world_size}")
-        print(f"Global rank: {self.trainer.global_rank}")
-        print(f"Local rank: {self.trainer.local_rank}")
-        print(f"Accelerator: {self.trainer.accelerator}")
+    return avg_loss, global_step
 
+def validate_one_file(model, file_path, batch_size, device, writer, global_step_val, mean_std_loader):
+    with h5py.File(file_path, 'r') as f:
+        data = f["signals"][:]
 
-    def training_step(self, batch, batch_idx):
-        # Salvataggio del checkpoint ogni N passi
-      
+    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean_exp = mean.view(1, -1, 1)
+    std_exp = std.view(1, -1, 1)
 
-        samples = batch  # [B, C, T]
-        # Normalizza i campioni
-        #samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
-        original , mask, reconstruction = self.model(samples) 
+    dataset = EEGDataset(data)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-        # Calcola la MSE solo sulle posizioni mascherate
-        loss = F.mse_loss(reconstruction[mask], original[mask])
+    model.eval()
+    running_loss = 0.0
 
-        self.log("train_loss", loss, sync_dist=True, on_epoch=True)
-        return loss
-    
+    with torch.no_grad():
+        for batch_raw in dataloader:
+            batch_raw = batch_raw.to(device)
+            batch_norm = (batch_raw - mean_exp) / std_exp
 
-    def validation_step(self, batch, batch_idx):
-        
-        samples = batch  # [B, C, T]
-        # Normalizza i campioni
-        #samples = percentile_95_normalize(samples)  # Normalizzazione al 95° percentile 
-        original , mask, reconstruction = self.model(samples) 
+            output = model(batch_norm)
+            loss = F.mse_loss(output, batch_raw)
 
-        # Calcola la MSE solo sulle posizioni mascherate
-        loss = F.mse_loss(reconstruction[mask], original[mask])
+            running_loss += loss.item()
+            writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)
+            global_step_val += 1
+    avg_loss = running_loss / len(dataloader)
+    return avg_loss, global_step_val
 
-        self.log("val_loss", loss, sync_dist=True, on_epoch=True) 
-        return loss
+# ==== Main Training Loop ====
 
-
-
-
-    def configure_optimizers(self):
-        # set optimizer
-        optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.config["lr"], weight_decay=float(self.config["weight_decay"])
-        )
-
-        # set learning rate scheduler
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=10000, gamma=0.3
-        )
-
-        return [optimizer], [scheduler]
-    
-
-
-def prepare_dataloader_TUAB(config):
-    abnormal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Abnormal/REF"))
-    normal_dir = os.path.abspath(os.path.join("..", "..", "Datasets/TUH/TUAB/Normal/REF"))
-
-    all_files = []
-
-    for root_dir in [abnormal_dir, normal_dir]:
-        for fname in sorted(os.listdir(root_dir)):
-            if fname.endswith(".h5"):
-                all_files.append(os.path.join(root_dir, fname))
-
-    # Split 70% train, 30% val
-    all_files.sort()
-    total_files = len(all_files)
-    split_idx = int(0.7 * total_files)
-    train_files = all_files[:split_idx]
-    val_files = all_files[split_idx:]
-
-    train_dataset = EEGDataset(train_files)
-    val_dataset = EEGDataset(val_files)
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config["batch_size"],
-        shuffle=True,
-        num_workers=config["num_workers"],
-        prefetch_factor=4,
-        persistent_workers=True,
-        drop_last=True,
-        pin_memory=False,
-    )
-
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config["batch_size"],
-        shuffle=False,
-        num_workers=config["num_workers"],
-        persistent_workers=True,
-        drop_last=False,
-        pin_memory=False,
-    )
-
-    print(f"Train dataset size: {len(train_dataset)}")
-    print(f"Validation dataset size: {len(val_dataset)}")
-
-    return train_loader, val_loader
-
-
-
-def pretrain(config):
+def train_model(config):
     torch.set_float32_matmul_precision('high')
-    train_loader, valid_loader = prepare_dataloader_TUAB(config)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.backends.cudnn.benchmark = True
 
-    os.makedirs("log-pretrain", exist_ok=True)
-    output_dir = "log-pretrain"
-    save_path = os.path.join(output_dir, "checkpoints")
-    os.makedirs(save_path, exist_ok=True)
+    print("Collecting h5 files...")
+    dataset_path = os.path.abspath(config["dataset_path"])
+    all_files = collect_h5_files(dataset_path)
+    train_files = all_files[:int(0.7 * len(all_files))]
+    val_files = all_files[int(0.7 * len(all_files)):]
+    print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
 
-    
-    model = LitModel_self_supervised_pretrain(config, save_path)
-
-    best_ckpt = ModelCheckpoint(
-        dirpath=os.path.join(save_path, "best"),
-        filename="best-{epoch:02d}-{val_loss:.4f}",
-        monitor="val_loss",
-        mode="min",
-        save_top_k=3,
-        save_last=True,
-    )
-
-    logger = TensorBoardLogger(save_dir=output_dir, name="logs")
-
-    trainer = pl.Trainer(
-        accelerator="gpu",
-        devices=2,
-        strategy=DDPStrategy(find_unused_parameters=False),
-        precision="16-mixed",
-        benchmark=True,
-        enable_checkpointing=True,
-        logger=logger,
-        callbacks=[best_ckpt],
-        max_epochs=config["epochs"],
-        profiler="simple",
-    )
-
-    trainer.fit(model, train_loader, valid_loader, ckpt_path="last")
+    log_dir = config.get("log_dir", "./logs/pretrain")
+    os.makedirs(log_dir, exist_ok=True)
 
 
+
+    model = UnsupervisedPretrain(
+        emb_size=config["emb_size"],
+        heads=config["heads"],
+        depth=config["depth"],
+        n_channels=config["n_channels"],
+        mask_ratio=config["mask_ratio"]
+    ).to(device)
+
+    optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+    writer = SummaryWriter(log_dir=log_dir)
+    mean_std_loader = MeanStdLoader()
+
+    start_epoch = 0
+    global_step = 0
+    global_step_val = 0
+
+    checkpoints = sorted(glob(os.path.join(log_dir, "model_epoch_*.pt")))
+    if checkpoints:
+        latest_ckpt = checkpoints[-1]
+        print(f"Loading checkpoint: {latest_ckpt}")
+        checkpoint = torch.load(latest_ckpt, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint.get('epoch', 0)
+        global_step = checkpoint.get('global_step', 0)
+        global_step_val = checkpoint.get('global_step_val', 0)
+
+    for epoch in range(start_epoch, config["epochs"]):
+        print(f"\nEpoch {epoch+1}/{config['epochs']}")
+
+
+        train_losses = []
+        for f in tqdm(train_files, desc="Training"):
+            loss, global_step = train_one_file(model, optimizer, f, config["batch_size"], device, writer, global_step, mean_std_loader)
+            train_losses.append(loss)
+
+        val_losses = []
+        for f in tqdm(val_files, desc="Validation"):
+            loss, global_step_val = validate_one_file(model, f, config["batch_size"], device, writer, global_step_val, mean_std_loader)
+            val_losses.append(loss)
+
+        train_loss = sum(train_losses) / len(train_losses) 
+        val_loss = sum(val_losses) / len(val_losses) 
+
+        print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+        writer.add_scalar("Loss/Train", train_loss, epoch + 1)
+        writer.add_scalar("Loss/Val", val_loss, epoch + 1)
+
+        if (epoch + 1) % config.get("save_every", 1) == 0:
+            save_path = os.path.join(log_dir, f"model_epoch_{epoch+1}.pt")
+            torch.save({
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'global_step': global_step,
+                'global_step_val': global_step_val
+            }, save_path)
+            print(f"Saved model checkpoint to {save_path}")
+
+    writer.close()
+
+# ==== Run ====
 
 if __name__ == "__main__":
-
-
-    # Imposta GPU corretta per ogni processo
-    local_rank = int(os.environ.get("LOCAL_RANK", 0))
-    torch.cuda.set_device(local_rank)
-
     config = load_config("configs/pretraining.yml")
-    print(config)
-    pretrain(config)
+    train_model(config)
+
+

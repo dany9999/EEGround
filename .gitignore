@@ -4,4 +4,7 @@ pretrained-models/EEG-six-datasets-18-channels.ckpt
 prova.ipynb
 test_masking.ipynb
 EEG_analysis.ipynb
-
+/logs
+mean.npy
+standard_deviation.npy
+eeg_batch_000.h5

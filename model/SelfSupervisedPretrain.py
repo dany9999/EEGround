@@ -91,9 +91,31 @@ class UnsupervisedPretrain(nn.Module):
             signal_len=signal_len,
         )
 
+    def random_masking(self, x):
+        """
+        Azzeramento casuale globale di valori in un tensore [B, C, T],
+        secondo una percentuale `mask_ratio` dei valori totali.
+        """
+        # Crea una maschera booleana con valori True dove si vuole azzerare
+        mask = torch.rand_like(x) < self.mask_ratio  # stessa shape di x
+        x_masked = x.clone()
+        x_masked[mask] = 0.0
+        return x_masked, mask
+    
+    def set_mask_ratio(self, mask_ratio):
+        """
+        Imposta il rapporto di mascheramento per la maschera casuale.
+        """
+        self.mask_ratio = mask_ratio
+
     def forward(self, x, n_channel_offset=0):
         # Output del BIOT encoder
-        emb_clean_all, out = self.biot(x, n_channel_offset)
+
+        if self.mask_ratio > 0.0:
+            
+            x, _ = self.random_masking(x)
+
+        out = self.biot(x, n_channel_offset)
 
         # Decodifica dell’EEG raw ricostruito
         raw_reconstructed = self.decoder(out)

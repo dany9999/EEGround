@@ -12,66 +12,9 @@ from torch.utils.data import Dataset, DataLoader
 from glob import glob
 from tqdm import tqdm
 from model.SelfSupervisedPretrain import UnsupervisedPretrain
-
-# ==== Utils ====
-
-def load_config(path):
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
-
-def collect_h5_files(root_dir):
-    all_files = []
-    subdatasets = ['TUAB', 'TUEP', 'TUEV', 'TUSZ']
-    for sub in subdatasets:
-        sub_path = os.path.join(root_dir, sub)
-        if not os.path.exists(sub_path):
-            continue
-        for condition in ['Normal', 'Abnormal']:
-            cond_path = os.path.join(sub_path, condition, 'REF')
-            if os.path.exists(cond_path):
-                files = glob(os.path.join(cond_path, "*.h5"))
-                files = [f for f in files if not f.endswith(('mean.npy', 'standard_deviation.npy'))]
-                all_files.extend(files)
-    return sorted(all_files)
+from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 
 
-# ==== Mean/Std Loader ====
-
-class MeanStdLoader:
-    def __init__(self):
-        self.cache = {}
-
-    def get_mean_std_for_file(self, file_path, device):
-        file_path = os.path.abspath(file_path)
-        folder = os.path.dirname(file_path)
-
-        if folder not in self.cache:
-            mean_path = os.path.join(folder, "mean.npy")
-            std_path = os.path.join(folder, "standard_deviation.npy")
-
-            mean_all = np.load(mean_path).squeeze()
-            std_all = np.load(std_path).squeeze()
-
-            self.cache[folder] = {
-                "mean_all": mean_all,
-                "std_all": std_all
-            }
-
-        mean = torch.tensor(self.cache[folder]["mean_all"], dtype=torch.float32).to(device)
-        std = torch.tensor(self.cache[folder]["std_all"], dtype=torch.float32).to(device)
-        return mean, std
-
-# ==== Dataset ====
-
-class EEGDataset(Dataset):
-    def __init__(self, data_array):
-        self.data = torch.tensor(data_array, dtype=torch.float32)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        return self.data[idx]
 
 # ==== Training ====
 

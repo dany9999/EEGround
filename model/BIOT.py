@@ -100,83 +100,8 @@ class BIOTEncoder(nn.Module):
         )
         return torch.abs(spectral)
     
-    def random_masking(self, x):
-        """
-        Azzeramento casuale globale di valori in un tensore [B, C, T],
-        secondo una percentuale `mask_ratio` dei valori totali.
-        """
-        # Crea una maschera booleana con valori True dove si vuole azzerare
-        mask = torch.rand_like(x) < self.mask_ratio  # stessa shape di x
-        x_masked = x.clone()
-        x_masked[mask] = 0.0
-        return x_masked, mask
-    
-    def set_mask_ratio(self, mask_ratio):
-        """
-        Imposta il rapporto di mascheramento per la maschera casuale.
-        """
-        self.mask_ratio = mask_ratio
 
 
-
-    # def forward(self, x, n_channel_offset=0,  verbose=False):
-    #     """
-    #     x: [batch_size, channel, ts]
-    #     output: [batch_size, emb_size]
-    #     """
-     
-    #     emb_seq = []
-    #     for i in range(x.shape[1]):
-    #         channel_spec_emb = self.stft(x[:, i : i + 1, :])
-    #         if verbose:
-    #             print(f" emb after stft stft -> {channel_spec_emb.shape}")
-           
-    #         channel_spec_emb = self.patch_embedding(channel_spec_emb)
-    #         if verbose:
-    #             print(f" emb after patch_embedding -> {channel_spec_emb.shape}")
-            
-    #         batch_size, ts, _ = channel_spec_emb.shape
-    #         # (batch_size, ts, emb)
-            
-    #         channel_token_emb = (
-    #             self.channel_tokens(self.index[i + n_channel_offset])
-    #             .unsqueeze(0)
-    #             .unsqueeze(0)
-    #             .repeat(batch_size, ts, 1)
-    #         )
-
-    #         if verbose:
-    #             print(f" emb after channel_token -> {channel_token_emb.shape}")
-    #         # (batch_size, ts, emb)
-
-    #         channel_emb = self.positional_encoding(channel_spec_emb + channel_token_emb)
-    #         #print(f" emb after positional_encoding -> {channel_emb.shape}")
-            
-    #         emb_seq.append(channel_emb)
-            
-        
-      
-    #     emb = torch.cat(emb_seq, dim=1) # (batch_size, n_channels * ts, emb)
-        
-
-    #     if verbose:
-    #         print(f" emb concat -> {emb.shape}")
-        
-    #     # random masking
-    #     masked_emb = emb.clone() 
-    #     masked_emb, mask = self.random_masking(masked_emb)
-    #     if verbose:
-    #         print(f"mask prima di passare nel transformer -> {masked_emb.shape}")
-        
-
-
-    #     out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
-    #     if verbose:
-    #         print(f"mask dopo il transformer -> {masked_emb.shape}")
-        
-        
-
-    #     return emb, masked_emb, out_biot,  mask
 
 
     def forward(self, x, n_channel_offset=0, verbose=False):
@@ -184,26 +109,24 @@ class BIOTEncoder(nn.Module):
         x: [batch_size, channel, ts]
         output: [batch_size, emb_size]
         """
-        emb_seq_clean = []
-        emb_seq_masked = []
+        emb_seq = []
+        
 
         for i in range(x.shape[1]):
             # Segnale del canale
             channel = x[:, i:i+1, :]  # [B, 1, T]
             
-            # 1. Maschera il segnale raw
-            channel_masked, _ = self.random_masking(channel)
 
             # 2. STFT
-            spec_clean = self.stft(channel)          # [B, F, T']
-            spec_masked = self.stft(channel_masked)  # [B, F, T']
+            spec_emb = self.stft(channel)          # [B, F, T']
+            
 
             # 3. Patch Embedding
-            emb_clean = self.patch_embedding(spec_clean)      # [B, T', emb]
-            emb_masked = self.patch_embedding(spec_masked)    # [B, T', emb]
+            emb = self.patch_embedding(spec_emb)      # [B, T', emb]
+            
 
             # 4. Channel tokens
-            batch_size, ts, _ = emb_clean.shape
+            batch_size, ts, _ = emb.shape
             channel_token = (
                 self.channel_tokens(self.index[i + n_channel_offset])
                 .unsqueeze(0)
@@ -211,17 +134,17 @@ class BIOTEncoder(nn.Module):
                 .repeat(batch_size, ts, 1)
             )
 
-            emb_clean = self.positional_encoding(emb_clean + channel_token)
-            emb_masked = self.positional_encoding(emb_masked + channel_token)
+            emb_channel = self.positional_encoding(emb + channel_token)
+            
 
-            emb_seq_clean.append(emb_clean)
-            emb_seq_masked.append(emb_masked)
+            emb_seq.append(emb_channel)
+            
 
         # 5. Concatena tutti i canali
-        emb_clean_all = torch.cat(emb_seq_clean, dim=1)     # [B, C*T', emb]
-        emb_masked_all = torch.cat(emb_seq_masked, dim=1)   # [B, C*T', emb]
+        emb_all = torch.cat(emb_seq, dim=1)     # [B, C*T', emb]
+        
 
         # 6. Transformer solo sul segnale mascherato
-        out = self.transformer(emb_masked_all)  # [B, C*T', emb]
+        out = self.transformer(emb_all)  # [B, C*T', emb]
 
-        return emb_clean_all, out 
+        return out 

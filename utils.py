@@ -13,51 +13,75 @@ import h5py
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-
+import glob
 from torchmetrics import Metric
 from sklearn.metrics import balanced_accuracy_score
 
 
+# ==== Utils ====
 
-# class EEGDataset(Dataset):
-#     def __init__(self, h5_paths):
-#         self.file_paths = []
-#         self.idx_map = []  # (file_idx, segment_idx)
-#         self.h5_files = None  # sarà inizializzato nel worker
+def load_config(path):
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
 
-#         for path in h5_paths:
-#             with h5py.File(path, 'r') as f:
-#                 n_segments = f["signals"].shape[0]
-#                 self.file_paths.append(path)
-#                 self.idx_map.extend([(len(self.file_paths) - 1, i) for i in range(n_segments)])
-
-#     def _init_files(self):
-#         self.h5_files = [h5py.File(path, 'r') for path in self.file_paths]
-
-#     def __len__(self):
-#         return len(self.idx_map)
-
-#     def __getitem__(self, idx):
-#         if self.h5_files is None:
-#             self._init_files()
-
-#         file_idx, seg_idx = self.idx_map[idx]
-#         f = self.h5_files[file_idx]
-#         data = f["signals"][seg_idx]
-#         tensor = torch.tensor(data, dtype=torch.float32)
-#         return tensor
+def collect_h5_files(root_dir):
+    all_files = []
+    subdatasets = ['TUAB', 'TUEP', 'TUEV', 'TUSZ']
+    for sub in subdatasets:
+        sub_path = os.path.join(root_dir, sub)
+        if not os.path.exists(sub_path):
+            continue
+        for condition in ['Normal', 'Abnormal']:
+            cond_path = os.path.join(sub_path, condition, 'REF')
+            if os.path.exists(cond_path):
+                files = glob(os.path.join(cond_path, "*.h5"))
+                files = [f for f in files if not f.endswith(('mean.npy', 'standard_deviation.npy'))]
+                all_files.extend(files)
+    return sorted(all_files)
 
 
 
-# def get_all_h5_files_from_tuh(base_path, sub_datasets):
-#     all_files = []
-#     for sub in sub_datasets:
-#         for label in ['Normal', 'Abnormal']:
-#             ref_path = os.path.join(base_path, sub, label, "REF")
-#             if os.path.exists(ref_path):
-#                 files = [os.path.join(ref_path, f) for f in sorted(os.listdir(ref_path)) if f.endswith(".h5")]
-#                 all_files.extend(files)
-#     return all_files
+
+# ==== Mean/Std Loader ====
+
+class MeanStdLoader:
+    def __init__(self):
+        self.cache = {}
+
+    def get_mean_std_for_file(self, file_path, device):
+        file_path = os.path.abspath(file_path)
+        folder = os.path.dirname(file_path)
+
+        if folder not in self.cache:
+            mean_path = os.path.join(folder, "mean.npy")
+            std_path = os.path.join(folder, "standard_deviation.npy")
+
+            mean_all = np.load(mean_path).squeeze()
+            std_all = np.load(std_path).squeeze()
+
+            self.cache[folder] = {
+                "mean_all": mean_all,
+                "std_all": std_all
+            }
+
+        mean = torch.tensor(self.cache[folder]["mean_all"], dtype=torch.float32).to(device)
+        std = torch.tensor(self.cache[folder]["std_all"], dtype=torch.float32).to(device)
+        return mean, std
+    
+
+# ==== Dataset ====
+
+class EEGDataset(Dataset):
+    def __init__(self, data_array):
+        self.data = torch.tensor(data_array, dtype=torch.float32)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+
 
 def visualize_masked_embedding(self, masked_emb, titolo):
     """
