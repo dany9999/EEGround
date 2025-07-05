@@ -32,10 +32,10 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     for batch_raw in dataloader:
         batch_raw = batch_raw.to(device)
         batch_norm = (batch_raw - mean_exp) / std_exp
-
         optimizer.zero_grad()
         output = model(batch_norm)
-        loss = F.mse_loss(output, batch_raw)
+        
+        loss = F.mse_loss(output, batch_norm)
         loss.backward()
         optimizer.step()
 
@@ -65,9 +65,12 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
         for batch_raw in dataloader:
             batch_raw = batch_raw.to(device)
             batch_norm = (batch_raw - mean_exp) / std_exp
-
+            
+            
             output = model(batch_norm)
-            loss = F.mse_loss(output, batch_raw)
+            
+            loss = F.mse_loss(output, batch_norm)
+           
 
             running_loss += loss.item()
             writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)
