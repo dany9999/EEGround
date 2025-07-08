@@ -157,7 +157,7 @@ class BIOTEncoder(nn.Module):
         print(f"emb mean values: {emb.mean()}")        
         # random masking
         masked_emb = emb.clone() 
-        masked_emb, mask = self.random_masking(masked_emb, mask_ratio=0.3)
+        masked_emb, mask = self.random_masking(masked_emb)
 
         out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
         
