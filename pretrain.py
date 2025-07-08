@@ -90,7 +90,7 @@ def train_model(config):
     val_files = all_files[int(0.7 * len(all_files)):]
     print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
 
-    log_dir = config.get("log_dir", "./logs/pretrain_only_mask_MSE")
+    log_dir = config["log_dir"]
     os.makedirs(log_dir, exist_ok=True)
 
 

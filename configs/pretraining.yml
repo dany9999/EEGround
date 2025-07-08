@@ -19,4 +19,4 @@ mask_ratio: 0.15
 save_every: 3
 
 dataset_path: "../../Datasets/TUH"
-log_dir: ./logs/pretrain
+log_dir: ./logs/pretrain_only_mask_MSE
