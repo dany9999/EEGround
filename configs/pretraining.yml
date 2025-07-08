@@ -1,6 +1,6 @@
 
 
-epochs: 45
+epochs: 5
 batch_size: 256
 
 
@@ -14,9 +14,9 @@ emb_size: 256
 heads: 8
 depth: 4
 n_channels: 19
-mask_ratio: 0.15
+mask_ratio: 0.3
 
-save_every: 3
+save_every: 5
 
 dataset_path: "../../Datasets/TUH"
-log_dir: ./logs/pretrain_only_mask_MSE
+log_dir: ./logs/pretrain_emb_mask
