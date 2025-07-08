@@ -91,14 +91,14 @@ class UnsupervisedPretrain(nn.Module):
 
         if self.mask_ratio > 0.0:
             
-            x, _ = self.random_masking(x)
+            x, mask = self.random_masking(x)
 
         out = self.biot(x, n_channel_offset)
 
         # Decodifica dell’EEG raw ricostruito
         raw_reconstructed = self.decoder(out)
 
-        return raw_reconstructed
+        return raw_reconstructed, mask
     
 
 

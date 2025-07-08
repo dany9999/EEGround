@@ -33,9 +33,9 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
         batch_raw = batch_raw.to(device)
         batch_norm = (batch_raw - mean_exp) / std_exp
         optimizer.zero_grad()
-        output = model(batch_norm)
-        
-        loss = F.mse_loss(output, batch_norm)
+
+        output, mask = model(batch_norm)
+        loss = F.mse_loss(output[mask], batch_norm[mask])
         loss.backward()
         optimizer.step()
 
@@ -67,10 +67,8 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
             batch_norm = (batch_raw - mean_exp) / std_exp
             
             
-            output = model(batch_norm)
-            
-            loss = F.mse_loss(output, batch_norm)
-           
+            output, mask = model(batch_norm)
+            loss = F.mse_loss(output[mask], batch_norm[mask])
 
             running_loss += loss.item()
             writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)
@@ -92,7 +90,7 @@ def train_model(config):
     val_files = all_files[int(0.7 * len(all_files)):]
     print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
 
-    log_dir = config.get("log_dir", "./logs/pretrain")
+    log_dir = config.get("log_dir", "./logs/pretrain_only_mask_MSE")
     os.makedirs(log_dir, exist_ok=True)
 
 
