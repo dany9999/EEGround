@@ -154,7 +154,7 @@ class BIOTEncoder(nn.Module):
       
         emb = torch.cat(emb_seq, dim=1) # (batch_size, n_channels * ts, emb)
 
-        print(f"emb mean values: {emb.mean()}")        
+             
         # random masking
         masked_emb = emb.clone() 
         masked_emb, mask = self.random_masking(masked_emb)
