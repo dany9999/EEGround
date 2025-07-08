@@ -102,6 +102,8 @@ def train_model(config):
         heads=config["heads"],
         depth=config["depth"],
         n_channels=config["n_channels"],
+        n_fft=config["n_fft"],
+        hop_length=config["hop_length"],
         mask_ratio=config["mask_ratio"]
     ).to(device)
 

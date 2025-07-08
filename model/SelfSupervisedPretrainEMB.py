@@ -7,9 +7,9 @@ import torch
 
 # unsupervised pre-train module
 class UnsupervisedPretrain(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_channels=23, mask_ratio=0.3, **kwargs):
+    def __init__(self, emb_size=256, heads=8, depth=4, n_channels=23, n_fft=200, hop_length=100, mask_ratio=0.3, **kwargs):
         super(UnsupervisedPretrain, self).__init__()
-        self.biot = BIOTEncoder(emb_size, heads, depth, n_channels,mask_ratio, **kwargs)
+        self.biot = BIOTEncoder(emb_size, heads, depth, n_channels,n_fft, hop_length, mask_ratio, **kwargs)
         self.prediction = nn.Sequential(
             nn.Linear(256, 256),
             nn.GELU(),
