@@ -18,7 +18,7 @@ n_fft: 200
 hop_length: 100
 mask_ratio: 0.3
 
-save_every: 5
+save_every: 10
 
 dataset_path: "../../Datasets/TUH"
 log_dir: ./logs/pretrain_emb_mask
