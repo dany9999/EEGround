@@ -22,7 +22,7 @@ class UnsupervisedPretrain(nn.Module):
         pred_emb = self.prediction(out_biot)
 
         
-        return emb, mask, pred_emb   
+        return emb, mask, masked_emb, pred_emb   
     
 
     
