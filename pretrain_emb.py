@@ -36,7 +36,7 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
         batch_norm = (batch_raw - mean_exp) / std_exp
         optimizer.zero_grad()
 
-        emb, mask, pred_emb = model(batch_norm)
+        emb, mask, _, pred_emb = model(batch_norm)
         loss = F.mse_loss(pred_emb[mask], emb[mask])
         loss.backward()
         optimizer.step()
@@ -69,7 +69,7 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
             batch_norm = (batch_raw - mean_exp) / std_exp
             
             
-            emb, mask, pred_emb = model(batch_norm)
+            emb, mask, _, pred_emb = model(batch_norm)
             loss = F.mse_loss(pred_emb[mask], emb[mask])
 
             running_loss += loss.item()
