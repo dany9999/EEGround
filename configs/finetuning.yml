@@ -12,4 +12,12 @@ depth: 4
 n_channels: 23
 n_classes: 1
 
+early_stopping_patience: 10
 
+
+
+dataset_path: "../../Datasets/chb_mit"
+pretrained_ckpt: ./logs/pretrain_emb_mask_random_set
+
+save_dir: ./checkpoints
+log_dir: ./logs/finetuning_chb_mit

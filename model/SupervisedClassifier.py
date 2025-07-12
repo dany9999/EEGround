@@ -24,7 +24,7 @@ class BIOTClassifier(nn.Module):
     def __init__(self, emb_size=256, heads=8, depth=4, n_classes=1, n_channels = 23, **kwargs):
         super().__init__()
         self.biot = BIOTEncoder(emb_size=emb_size, heads=heads, depth=depth, n_channels=n_channels, **kwargs)
-        self.classifier = ClassificationHead(emb_size, 1)
+        self.classifier = ClassificationHead(emb_size, n_classes)
 
     def forward(self, x, n_channel_offset=0):
         _, _, out_biot, _ = self.biot(x, n_channel_offset)
