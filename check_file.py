@@ -13,5 +13,5 @@ def inspect_numpy_files(folder_path):
             print(f"{file}: errore nel caricamento - {e}")
 
 if __name__ == "__main__":
-    folder = "../../chb_mit/data/chb01"  # cambia il path se serve
-    inspect_numpy_files(folder)
+    dataset_path = os.path.abspath("../../Datasets/chb_mit/data/chb01")
+    inspect_numpy_files(dataset_path)
