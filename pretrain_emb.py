@@ -12,6 +12,7 @@ from glob import glob
 from tqdm import tqdm
 from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
 from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
+import random
 
 
 
@@ -88,6 +89,7 @@ def train_model(config):
     print("Collecting h5 files...")
     dataset_path = os.path.abspath(config["dataset_path"])
     all_files = collect_h5_files(dataset_path)
+    random.shuffle(all_files)
     train_files = all_files[:int(0.7 * len(all_files))]
     val_files = all_files[int(0.7 * len(all_files)):]
     print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
