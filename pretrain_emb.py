@@ -89,9 +89,27 @@ def train_model(config):
     print("Collecting h5 files...")
     dataset_path = os.path.abspath(config["dataset_path"])
     all_files = collect_h5_files(dataset_path)
-    random.shuffle(all_files)
-    train_files = all_files[:int(0.7 * len(all_files))]
-    val_files = all_files[int(0.7 * len(all_files)):]
+
+   # ---- Fissa il seed per randomizzazione coerente ----
+    random.seed(246)  
+
+    log_dir = config["log_dir"]
+    os.makedirs(log_dir, exist_ok=True)
+
+    # ---- Split fisso: carica o crea ----
+    split_path = os.path.join(log_dir, "file_split.npy")
+    if os.path.exists(split_path):
+        print(f"Loading train/val split from {split_path}")
+        split = np.load(split_path, allow_pickle=True).item()
+        train_files, val_files = split["train"], split["val"]
+    else:
+        print("Shuffling and creating train/val split...")
+        random.shuffle(all_files)
+        train_files = all_files[:int(0.7 * len(all_files))]
+        val_files = all_files[int(0.7 * len(all_files)):]
+        np.save(split_path, {"train": train_files, "val": val_files})
+        print(f"Saved train/val split to {split_path}")
+
     print(f"Training files: {len(train_files)}, Validation files: {len(val_files)}")
 
     log_dir = config["log_dir"]

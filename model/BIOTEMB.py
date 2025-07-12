@@ -110,6 +110,24 @@ class BIOTEncoder(nn.Module):
         x_masked = x.clone()
         x_masked[mask] = 0.0
         return x_masked, mask
+
+    # def random_masking(self, x):
+    #     """
+    #     Maschera il `mask_ratio` delle righe nel tensore `x` di shape (B, Seq, D),
+    #     azzerando interamente le embedding di alcune righe.
+    #     """
+    #     B, Seq, D = x.shape
+    #     num_mask = int(Seq * self.mask_ratio)
+
+    #     # Stessa maschera per ogni elemento nel batch
+    #     mask_indices = torch.randperm(Seq)[:num_mask]
+    #     mask = torch.zeros(B, Seq, dtype=torch.bool, device=x.device)
+    #     mask[:, mask_indices] = True
+
+    #     x_masked = x.clone()
+    #     x_masked[mask] = 0.0
+
+    #     return x_masked, mask
     
     def set_mask_ratio(self, mask_ratio):
         """
