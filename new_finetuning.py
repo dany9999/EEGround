@@ -80,7 +80,7 @@ def compute_metrics(metrics):
 # ==== Supervised training ====
 
 def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" )
 
     # === Initialize model ===
     model = BIOTClassifier(
