@@ -126,8 +126,9 @@ def train_model(config):
         hop_length=config["hop_length"],
         mask_ratio=config["mask_ratio"]
     )
-    model = torch.nn.DataParallel(model)
-    model = model.to(device)
+    model = torch.nn.DataParallel(model).to(device)
+
+    
 
     optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     writer = SummaryWriter(log_dir=log_dir)

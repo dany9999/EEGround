@@ -100,18 +100,25 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
         depth=config['depth'],
         n_classes=config['n_classes']
     )
-    model = torch.nn.DataParallel(model)
-    model = model.to(device)
+    model = torch.nn.DataParallel(model).to(device)
 
     # === Load pretrained encoder weights ===
     pretrained_ckpt = config["pretrained_ckpt"]
     checkpoint = torch.load(pretrained_ckpt, map_location=device)
     # Load encoder weights strictly or loosely depending on checkpoint content
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-    model.eval()
 
-    # === Setup optimizer: only classifier params are trainable ===
-    optimizer = optim.Adam(model.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+ 
+    # mode: from_scratch
+            
+    # mode: frozen_encoder
+    for param in model.module.encoder.parameters():
+        param.requires_grad = False
+    optimizer = optim.Adam(model.module.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+       
+    # mode: full_finetune 
+
+
     criterion = nn.BCEWithLogitsLoss()
 
     # === Setup metrics ===
