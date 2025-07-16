@@ -40,6 +40,7 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
         if isinstance(batch, dict):
             x = batch["x"].to(device)
             y = batch["y"].to(device).float().view(-1, 1)
+            print(f"Batch size: {x.size(0)} | Device: {x.device}")
             file_ids = batch["file"]
 
         with torch.set_grad_enabled(mode == "train"):
@@ -64,9 +65,6 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
                 per_file_preds[f_id]["y_true"].append(t.item())
                 per_file_preds[f_id]["y_pred"].append(int(p >= 0.5))
 
-        if writer and mode == "train":
-            writer.add_scalar("BatchLoss/Train", loss.item(), global_step)
-            global_step += 1
 
     avg_loss = running_loss / len(dataloader)
     return avg_loss, global_step, per_file_preds if mode == "test" else None
@@ -202,7 +200,6 @@ if __name__ == "__main__":
     all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
 
     splits = leave_one_out_splits(all_patients, val_count=2)
-    print(">>> Script avviato correttamente!")
     for idx, split in enumerate(splits):
         print(f"\n--- Running Split {idx + 1}/{len(splits)} | Mode: {config.get('finetune_mode')} ---")
         train_loader = make_loader(split["train"], dataset_path, config, shuffle=True)
