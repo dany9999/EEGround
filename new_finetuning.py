@@ -38,13 +38,21 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
         model.eval()
 
     running_loss = 0.0
-
-    # Reset metrics before epoch
     for metric in metrics.values():
         metric.reset()
 
-    for x, y in tqdm(dataloader, desc=mode.capitalize()):
-        x, y = x.to(device), y.to(device).float().view(-1, 1)
+    # Per salvare predizioni per file
+    per_file_preds = {}
+
+    for batch in tqdm(dataloader, desc=mode.capitalize()):
+        if isinstance(batch, dict):  # Se il loader restituisce dizionario
+            x = batch["x"].to(device)
+            y = batch["y"].to(device).float().view(-1, 1)
+            file_ids = batch["file"]
+        else:
+            x, y = batch
+            x, y = x.to(device), y.to(device).float().view(-1, 1)
+            file_ids = ["unknown_file"] * len(x)
 
         with torch.set_grad_enabled(mode == "train"):
             logits = model(x)
@@ -55,19 +63,26 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
                 optimizer.step()
 
         running_loss += loss.item()
-
         probs = torch.sigmoid(logits).view(-1)
         y_int = y.long().view(-1)
 
         for m in metrics.values():
             m.update(probs, y_int)
 
+        # Salva predizioni per file
+        if mode == "test":
+            for f_id, p, t in zip(file_ids, probs.detach().cpu(), y_int.cpu()):
+                if f_id not in per_file_preds:
+                    per_file_preds[f_id] = {"y_true": [], "y_pred": []}
+                per_file_preds[f_id]["y_true"].append(t.item())
+                per_file_preds[f_id]["y_pred"].append(int(p >= 0.5))
+
         if writer and mode == "train":
             writer.add_scalar("BatchLoss/Train", loss.item(), global_step)
             global_step += 1
 
     avg_loss = running_loss / len(dataloader)
-    return avg_loss, global_step
+    return avg_loss, global_step, per_file_preds if mode == "test" else None
 
 
 def compute_metrics(metrics):
@@ -153,13 +168,23 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
     # === Test ===
     model.load_state_dict(torch.load(config['save_path'].format(iteration_idx=iteration_idx)))
-    run_epoch(model, test_loader, criterion, None, device, "test", test_metrics)
+    _, _, per_file_preds = run_epoch(model, test_loader, criterion, None, device, "test", test_metrics)
     test_results = compute_metrics(test_metrics)
 
     print(f"\n=== Split {iteration_idx} Test Results ===")
     for k, v in test_results.items():
         print(f"{k.upper():7s}: {v:.4f}")
         writer.add_scalar(f"Test/{k}", v)
+
+    # === Accuracy per file ===
+    print("\n--- Accuracy per file ---")
+    for file, results in per_file_preds.items():
+        y_true = results["y_true"]
+        y_pred = results["y_pred"]
+        correct = sum(yt == yp for yt, yp in zip(y_true, y_pred))
+        acc = correct / len(y_true) if y_true else 0.0
+        print(f"{file:35s} | Accuracy: {acc:.4f}")
+
 
     writer.close()
 
@@ -168,7 +193,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    all_patients = sorted([p for p in os.listdir("../../Datasets/CHB-MIT/data") if not p.startswith(".")])
+    all_patients = sorted([p for p in os.listdir("../../Datasets/chb-mit/data") if not p.startswith(".")])
 
     splits = leave_one_out_splits(all_patients, val_count=2)
 

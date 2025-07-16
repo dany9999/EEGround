@@ -66,7 +66,7 @@ class CHBMITLoader(Dataset):
         """
         Restituisce una lista di tuple [(start_sec, end_sec), ...]
         """
-        metadata_path = os.path.join("../../Datasets/CHB-MIT/GT", f"{patient_id}.csv")
+        metadata_path = os.path.join("../../Datasets/chb-mit/GT", f"{patient_id}.csv")
         if not os.path.exists(metadata_path):
             raise FileNotFoundError(f"CSV metadata non trovato: {metadata_path}")
 
@@ -102,9 +102,16 @@ class CHBMITLoader(Dataset):
         segment = data[:, start_idx : start_idx + self.segment_len]  # (21, 1024)
 
         # Downsample a 250 Hz
-        segment_down =  resample_poly(segment, self.target_sr, self.orig_sr, axis=1)
+        segment_down = resample_poly(segment, self.target_sr, self.orig_sr, axis=1)
 
-        return torch.tensor(segment_down, dtype=torch.float32), torch.tensor(label, dtype=torch.float32)
+        # Estrai solo il nome del file per usarlo come chiave (es. 'chb01_03.npy')
+        file_name = os.path.basename(file_path)
+
+        return (
+            torch.tensor(segment_down, dtype=torch.float32),
+            torch.tensor(label, dtype=torch.float32),
+            file_name  # nuovo terzo elemento: nome file
+        )
 
 
 
