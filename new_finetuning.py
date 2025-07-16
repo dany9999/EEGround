@@ -196,6 +196,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 # ==== Main ====
 
 if __name__ == "__main__":
+    print(">>> Script avviato correttamente!")
     config = load_config("configs/finetuning.yml")
     dataset_path = config["dataset_path"]
     all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
