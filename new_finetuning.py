@@ -201,7 +201,10 @@ if __name__ == "__main__":
     for idx, split in enumerate(splits):
         print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
         train_loader = make_loader(split["train"], dataset_path, config, shuffle=True)
+        print("Train loader creato")
         val_loader = make_loader(split["val"],dataset_path, config, shuffle=False)
+        print("val loader creato")
         test_loader = make_loader(split["test"],dataset_path, config, shuffle=False)
+        print("test loader creato")
         supervised(config, train_loader, val_loader, test_loader, idx + 1)
 
