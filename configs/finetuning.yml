@@ -1,11 +1,13 @@
 
 
 epochs: 1
+batch_size: 256
+
 lr: 0.001
 weight_decay: 1e-5
-batch_size: 64
-num_workers: 8
-sampling_rate: 260
+
+num_workers: 24
+
 emb_size: 256
 heads: 8
 depth: 4
