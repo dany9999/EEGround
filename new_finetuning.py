@@ -112,7 +112,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     # mode: from_scratch
             
     # mode: frozen_encoder
-    for param in model.module.encoder.parameters():
+    for param in model.BIOTEncoder.parameters():
         param.requires_grad = False
     optimizer = optim.Adam(model.module.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
        
