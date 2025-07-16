@@ -99,7 +99,9 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
         heads=config['heads'],
         depth=config['depth'],
         n_classes=config['n_classes']
-    ).to(device)
+    )
+    model = torch.nn.DataParallel(model)
+    model = model.to(device)
 
     # === Load pretrained encoder weights ===
     pretrained_ckpt = config["pretrained_ckpt"]
