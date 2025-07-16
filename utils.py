@@ -114,36 +114,6 @@ def visualize_masked_embedding(self, masked_emb, titolo):
     plt.show()  
 
 
-
-class CHBMITLoader(torch.utils.data.Dataset):
-    def __init__(self, root, files, sampling_rate=200):
-        self.root = root
-        self.files = files
-        self.default_rate = 256
-        self.sampling_rate = sampling_rate
-
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, index):
-        sample = pickle.load(open(os.path.join(self.root, self.files[index]), "rb"))
-        X = sample["X"]
-        # 2560 -> 2000, from 256Hz to ?
-        if self.sampling_rate != self.default_rate:
-            X = resample(X, 10 * self.sampling_rate, axis=-1)
-        
-
-        X = X / (
-            np.quantile(np.abs(X), q=0.95, method="linear", axis=-1, keepdims=True)
-            + 1e-8
-        )
-        Y = sample["y"]
-        X = torch.FloatTensor(X)
-        return X, Y
-
-
-
-
 class BinaryBalancedAccuracy(Metric):
     def __init__(self, dist_sync_on_step=False):
         super().__init__(dist_sync_on_step=dist_sync_on_step)

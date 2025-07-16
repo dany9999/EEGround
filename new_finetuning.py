@@ -4,12 +4,10 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 from itertools import combinations
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
+from CHBMITLoader import  make_loader
 from model.SupervisedClassifier import BIOTClassifier  # Assumiamo che prenda encoder + classifier
-from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
-from utils import CHBMITLoader, load_config, BinaryBalancedAccuracy
+from utils import  load_config, BinaryBalancedAccuracy
 from torchmetrics.classification import (
     BinaryAccuracy, BinaryAveragePrecision, BinaryAUROC, BinaryCohenKappa
 )
@@ -29,24 +27,6 @@ def leave_one_out_splits(patients, val_count=2):
     return splits
 
 
-# ==== Data Loader ====
-
-def make_loader(patients_list, config, shuffle=False):
-    segment_files = []
-    root = "CHB-MIT/clean_segments"
-    for patient in patients_list:
-        patient_path = os.path.join(root, patient)
-        if os.path.exists(patient_path):
-            files = [os.path.join(patient, f) for f in os.listdir(patient_path) if f.endswith(".pkl")]
-            segment_files.extend(files)
-    dataset = CHBMITLoader(root, segment_files, config["sampling_rate"])
-    return DataLoader(
-        dataset,
-        batch_size=config["batch_size"],
-        shuffle=shuffle,
-        drop_last=shuffle,  # drop_last only for train
-        num_workers=config["num_workers"]
-    )
 
 
 # ==== Train / Eval ====
@@ -188,8 +168,8 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    all_patients = sorted(os.listdir("CHB-MIT/Numpy"))
-    
+    all_patients = sorted(os.listdir("CHB-MIT/data"))
+
     splits = leave_one_out_splits(all_patients, val_count=2)
 
     for idx, split in enumerate(splits):
@@ -198,3 +178,4 @@ if __name__ == "__main__":
         val_loader = make_loader(split["val"], config, shuffle=False)
         test_loader = make_loader(split["test"], config, shuffle=False)
         supervised(config, train_loader, val_loader, test_loader, idx + 1)
+
