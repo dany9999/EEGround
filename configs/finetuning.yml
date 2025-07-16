@@ -16,7 +16,7 @@ early_stopping_patience: 10
 
 
 
-dataset_path: "../../Datasets/chb_mit"
+dataset_path: "../../Datasets/chb_mit/data"
 pretrained_ckpt: ./logs/pretrain_emb_mask/model_epoch_70.pt
 
 save_dir: ./checkpoints
