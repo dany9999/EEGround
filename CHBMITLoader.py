@@ -66,7 +66,7 @@ class CHBMITLoader(Dataset):
         """
         Restituisce una lista di tuple [(start_sec, end_sec), ...]
         """
-        metadata_path = os.path.join("../../Datasets/chb-mit/GT", f"{patient_id}.csv")
+        metadata_path = os.path.join("../../Datasets/chb_mit/GT", f"{patient_id}.csv")
         if not os.path.exists(metadata_path):
             raise FileNotFoundError(f"CSV metadata non trovato: {metadata_path}")
 

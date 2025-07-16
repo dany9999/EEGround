@@ -193,7 +193,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    all_patients = sorted([p for p in os.listdir("../../Datasets/chb-mit/data") if not p.startswith(".")])
+    all_patients = sorted([p for p in os.listdir("../../Datasets/chb_mit/data") if not p.startswith(".")])
 
     splits = leave_one_out_splits(all_patients, val_count=2)
 
