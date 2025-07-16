@@ -107,11 +107,11 @@ class CHBMITLoader(Dataset):
         # Estrai solo il nome del file per usarlo come chiave (es. 'chb01_03.npy')
         file_name = os.path.basename(file_path)
 
-        return (
-            torch.tensor(segment_down, dtype=torch.float32),
-            torch.tensor(label, dtype=torch.float32),
-            file_name  # nuovo terzo elemento: nome file
-        )
+        return {
+            "x": torch.tensor(segment_down, dtype=torch.float32),
+            "y": torch.tensor(label, dtype=torch.float32),
+            "file": file_name
+        }
 
 
 

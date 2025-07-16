@@ -45,14 +45,10 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
     per_file_preds = {}
 
     for batch in tqdm(dataloader, desc=mode.capitalize()):
-        if isinstance(batch, dict):  # Se il loader restituisce dizionario
+        if isinstance(batch, dict):  
             x = batch["x"].to(device)
             y = batch["y"].to(device).float().view(-1, 1)
             file_ids = batch["file"]
-        else:
-            x, y = batch
-            x, y = x.to(device), y.to(device).float().view(-1, 1)
-            file_ids = ["unknown_file"] * len(x)
 
         with torch.set_grad_enabled(mode == "train"):
             logits = model(x)
