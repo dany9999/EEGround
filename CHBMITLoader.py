@@ -130,7 +130,7 @@ def make_loader(patients_list, root, config, shuffle=False):
         root_dir=root,
         segment_files=segment_files,
         segment_sec=4,
-        orig_sr=config["sampling_rate"],  # 256
+        orig_sr= 256,  # 256
         target_sr=250
     )
     return DataLoader(
