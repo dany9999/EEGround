@@ -116,9 +116,8 @@ class CHBMITLoader(Dataset):
 
 
 
-def make_loader(patients_list, config, shuffle=False):
+def make_loader(patients_list, root, config, shuffle=False):
     segment_files = []
-    root = "CHB-MIT/data"
     for patient in patients_list:
         patient_path = os.path.join(root, patient)
         if os.path.exists(patient_path):

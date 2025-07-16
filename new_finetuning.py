@@ -193,14 +193,15 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    all_patients = sorted([p for p in os.listdir("../../Datasets/chb_mit/data") if not p.startswith(".")])
+    dataset_path = "../../Datasets/chb_mit/data"
+    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
 
     splits = leave_one_out_splits(all_patients, val_count=2)
 
     for idx, split in enumerate(splits):
         print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
-        train_loader = make_loader(split["train"], config, shuffle=True)
-        val_loader = make_loader(split["val"], config, shuffle=False)
-        test_loader = make_loader(split["test"], config, shuffle=False)
+        train_loader = make_loader(split["train"], dataset_path, config, shuffle=True)
+        val_loader = make_loader(split["val"],dataset_path, config, shuffle=False)
+        test_loader = make_loader(split["test"],dataset_path, config, shuffle=False)
         supervised(config, train_loader, val_loader, test_loader, idx + 1)
 
