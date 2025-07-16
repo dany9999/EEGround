@@ -98,7 +98,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     model.eval()
 
     # === Setup optimizer: only classifier params are trainable ===
-    optimizer = optim.Adam(model.classifier.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+    optimizer = optim.Adam(model.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     criterion = nn.BCEWithLogitsLoss()
 
     # === Setup metrics ===
@@ -115,7 +115,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     best_val_loss = float("inf")
     global_step = 0
 
-    patience = config["patience"]
+    patience = config["early_stopping_patience"]
     counter = 0
 
     for epoch in range(config["epochs"]):
@@ -168,7 +168,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    all_patients = sorted(os.listdir("CHB-MIT/data"))
+    all_patients = sorted([p for p in os.listdir("../../Datasets/CHB-MIT/data") if not p.startswith(".")])
 
     splits = leave_one_out_splits(all_patients, val_count=2)
 
