@@ -5,13 +5,12 @@ import torch.optim as optim
 from tqdm import tqdm
 from itertools import combinations
 from torch.utils.tensorboard import SummaryWriter
-from CHBMITLoader import  make_loader
-from model.SupervisedClassifier import BIOTClassifier  # Assumiamo che prenda encoder + classifier
-from utils import  load_config, BinaryBalancedAccuracy
+from CHBMITLoader import make_loader
+from model.SupervisedClassifier import BIOTClassifier
+from utils import load_config, BinaryBalancedAccuracy
 from torchmetrics.classification import (
     BinaryAccuracy, BinaryAveragePrecision, BinaryAUROC, BinaryCohenKappa
 )
-
 
 # ==== Leave-One-Out Split ====
 
@@ -26,26 +25,19 @@ def leave_one_out_splits(patients, val_count=2):
             break
     return splits
 
-
-
-
 # ==== Train / Eval ====
 
 def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, writer=None, global_step=0):
-    if mode == "train":
-        model.train()
-    else:
-        model.eval()
-
+    model.train() if mode == "train" else model.eval()
     running_loss = 0.0
+
     for metric in metrics.values():
         metric.reset()
 
-    # Per salvare predizioni per file
     per_file_preds = {}
 
     for batch in tqdm(dataloader, desc=mode.capitalize()):
-        if isinstance(batch, dict):  
+        if isinstance(batch, dict):
             x = batch["x"].to(device)
             y = batch["y"].to(device).float().view(-1, 1)
             file_ids = batch["file"]
@@ -65,7 +57,6 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
         for m in metrics.values():
             m.update(probs, y_int)
 
-        # Salva predizioni per file
         if mode == "test":
             for f_id, p, t in zip(file_ids, probs.detach().cpu(), y_int.cpu()):
                 if f_id not in per_file_preds:
@@ -80,13 +71,11 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
     avg_loss = running_loss / len(dataloader)
     return avg_loss, global_step, per_file_preds if mode == "test" else None
 
-
 def compute_metrics(metrics):
     results = {name: metric.compute().item() for name, metric in metrics.items()}
     for metric in metrics.values():
         metric.reset()
     return results
-
 
 # ==== Supervised training ====
 
@@ -102,22 +91,34 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     )
     model = torch.nn.DataParallel(model).to(device)
 
-    # === Load pretrained encoder weights ===
-    pretrained_ckpt = config["pretrained_ckpt"]
-    checkpoint = torch.load(pretrained_ckpt, map_location=device)
-    # Load encoder weights strictly or loosely depending on checkpoint content
-    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    finetune_mode = config["finetune_mode"]
+    print(f"Finetune mode: {finetune_mode}")
+    optimizer = None
 
- 
-    # mode: from_scratch
-            
-    # mode: frozen_encoder
-    for param in model.module.BIOTEncoder.parameters():
-        param.requires_grad = False
-    optimizer = optim.Adam(model.module.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
-       
-    # mode: full_finetune 
+    if finetune_mode in ["frozen_encoder", "full_finetune"]:
+        checkpoint = torch.load(config["pretrained_ckpt"], map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        print(f"=> Loaded pretrained weights from {config['pretrained_ckpt']}")
 
+    if finetune_mode == "frozen_encoder":
+        for param in model.module.biot.parameters():
+            param.requires_grad = False
+        optimizer = optim.Adam(model.module.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+        print("=> Encoder frozen. Training only classifier.")
+
+    elif finetune_mode == "full_finetune":
+        for param in model.module.biot.parameters():
+            param.requires_grad = True
+        optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+        print("=> Full model training with pretrained weights.")
+
+    elif finetune_mode == "from_scratch":
+        model.apply(lambda m: m.reset_parameters() if hasattr(m, "reset_parameters") else None)
+        optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+        print("=> Training from scratch.")
+
+    else:
+        raise ValueError(f"Unknown finetune_mode: {finetune_mode}")
 
     criterion = nn.BCEWithLogitsLoss()
 
@@ -131,10 +132,11 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     }
     test_metrics = {k: v.clone() for k, v in val_metrics.items()}
 
-    writer = SummaryWriter(log_dir=f"log-finetuning/run-{iteration_idx}")
+    log_dir = f"{config.get('log_dir', 'log-finetuning')}/run-{iteration_idx}-{finetune_mode}"
+    writer = SummaryWriter(log_dir=log_dir)
+
     best_val_loss = float("inf")
     global_step = 0
-
     patience = config["early_stopping_patience"]
     counter = 0
 
@@ -157,11 +159,11 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_results['acc']:.4f}")
 
-        # Early stopping + save best
+        # Early stopping
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             counter = 0
-            save_path = config['save_path'].format(iteration_idx=iteration_idx)
+            save_path = config['save_path'].format(iteration_idx=iteration_idx, mode=finetune_mode)
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             torch.save(model.state_dict(), save_path)
             print(f"Saved best model to {save_path}")
@@ -172,16 +174,15 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
                 break
 
     # === Test ===
-    model.load_state_dict(torch.load(config['save_path'].format(iteration_idx=iteration_idx)))
+    model.load_state_dict(torch.load(config['save_path'].format(iteration_idx=iteration_idx, mode=finetune_mode)))
     _, _, per_file_preds = run_epoch(model, test_loader, criterion, None, device, "test", test_metrics)
     test_results = compute_metrics(test_metrics)
 
-    print(f"\n=== Split {iteration_idx} Test Results ===")
+    print(f"\n=== Split {iteration_idx} Test Results ({finetune_mode}) ===")
     for k, v in test_results.items():
         print(f"{k.upper():7s}: {v:.4f}")
         writer.add_scalar(f"Test/{k}", v)
 
-    # === Accuracy per file ===
     print("\n--- Accuracy per file ---")
     for file, results in per_file_preds.items():
         y_true = results["y_true"]
@@ -190,26 +191,20 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
         acc = correct / len(y_true) if y_true else 0.0
         print(f"{file:35s} | Accuracy: {acc:.4f}")
 
-
     writer.close()
-
 
 # ==== Main ====
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    dataset_path = "../../Datasets/chb_mit/data"
+    dataset_path = config["dataset_path"]
     all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
 
     splits = leave_one_out_splits(all_patients, val_count=2)
 
     for idx, split in enumerate(splits):
-        print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
+        print(f"\n--- Running Split {idx + 1}/{len(splits)} | Mode: {config.get('finetune_mode')} ---")
         train_loader = make_loader(split["train"], dataset_path, config, shuffle=True)
-        print("Train loader creato")
-        val_loader = make_loader(split["val"],dataset_path, config, shuffle=False)
-        print("val loader creato")
-        test_loader = make_loader(split["test"],dataset_path, config, shuffle=False)
-        print("test loader creato")
+        val_loader = make_loader(split["val"], dataset_path, config, shuffle=False)
+        test_loader = make_loader(split["test"], dataset_path, config, shuffle=False)
         supervised(config, train_loader, val_loader, test_loader, idx + 1)
-
