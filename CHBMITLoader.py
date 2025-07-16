@@ -103,6 +103,8 @@ class CHBMITLoader(Dataset):
 
         # Downsample a 250 Hz
         segment_down = resample_poly(segment, self.target_sr, self.orig_sr, axis=1)
+        valid_channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]  # per testare
+        segment_down = segment_down[valid_channels]
 
         # Estrai solo il nome del file per usarlo come chiave (es. 'chb01_03.npy')
         file_name = os.path.basename(file_path)
