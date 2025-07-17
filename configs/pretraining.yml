@@ -13,7 +13,7 @@ num_workers: 24
 emb_size: 256
 heads: 8
 depth: 4
-n_channels: 19
+n_channels: 18
 n_fft: 200
 hop_length: 100
 mask_ratio: 0.3
