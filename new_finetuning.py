@@ -40,7 +40,6 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
         if isinstance(batch, dict):
             x = batch["x"].to(device)
             y = batch["y"].to(device).float().view(-1, 1)
-            print(f"Batch size: {x.size(0)} | Device: {x.device}")
             file_ids = batch["file"]
 
         with torch.set_grad_enabled(mode == "train"):
