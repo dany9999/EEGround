@@ -196,9 +196,17 @@ if __name__ == "__main__":
     
     config = load_config("configs/finetuning.yml")
     dataset_path = config["dataset_path"]
-    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
+    # all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
 
+    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
     splits = leave_one_out_splits(all_patients, val_count=2)
+    # stampa splits
+    for i, split in enumerate(splits):
+        print(f"Split {i+1}:")
+        print(f"  Train: {split['train']}")
+        print(f"  Val:   {split['val']}")
+        print(f"  Test:  {split['test']}")
+
     for idx, split in enumerate(splits):
         print(f"\n--- Running Split {idx + 1}/{len(splits)} | Mode: {config.get('finetune_mode')} ---")
         train_loader = make_loader(split["train"], dataset_path, config, shuffle=True)
