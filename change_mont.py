@@ -22,6 +22,7 @@ def process_folder(folder_path):
         # Converti in bipolare
         data_bipolar, _ = convert_to_bipolar(data)
 
+        print(f"Processing file: {file_path} | Shape: {data_bipolar.shape}")
         # Update accumulatore
         if total_sum is None:
             total_sum = np.sum(data_bipolar, axis=(0, 2))  # (channels,)
