@@ -386,7 +386,9 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-    all_patients = sorted(os.listdir("CHB-MIT/clean_segments"))
+    dataset_path = config["dataset_path"]
+    #all_patients = sorted(os.listdir("CHB-MIT/clean_segments"))
+    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
     splits = leave_one_out_splits(all_patients, val_count=2)
 
     for idx, split in enumerate(splits):
