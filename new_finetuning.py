@@ -140,10 +140,10 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     for epoch in range(config["epochs"]):
         print(f"\nEpoch {epoch + 1}/{config['epochs']}")
 
-        train_loss, global_step = run_epoch(
+        train_loss, global_step, _ = run_epoch(
             model, train_loader, criterion, optimizer, device, "train", {}, writer, global_step
         )
-        val_loss, _ = run_epoch(
+        val_loss, _, _ = run_epoch(
             model, val_loader, criterion, None, device, "val", val_metrics
         )
 
