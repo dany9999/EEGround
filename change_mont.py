@@ -12,7 +12,7 @@ def process_folder(folder_path):
 
     print(f"\n Processing: {folder_path}")
     files = sorted(glob(os.path.join(folder_path, "eeg_batch_*.h5")))
-
+    print(files)
     total_sum = None
     total_sq_sum = None
     total_count = 0
