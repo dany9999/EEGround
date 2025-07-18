@@ -17,8 +17,6 @@ class CHBMITLoader(Dataset):
         self.target_sr = target_sr
         self.segment_len = segment_sec * orig_sr
         self.segment_len_down = segment_sec * target_sr
-        self.count_no_seizure = 0
-        self.count_seizure = 0
         self.segments = []  # list of (full_path, start_idx, label)
         self._prepare_segments()
 
@@ -51,10 +49,10 @@ class CHBMITLoader(Dataset):
                 # Etichetta = 1 se almeno 2s di sovrapposizione
                 if total_overlap > 1:
                     label = 1
-                    self.count_seizure += 1
+                    
                 else:
                     label = 0
-                    self.count_no_seizure += 1
+                    
 
 
                 
@@ -116,21 +114,41 @@ class CHBMITLoader(Dataset):
         }
 
 
+def has_seizure_segment(patient_id, file_name_no_ext):
+    """
+    Controlla se il file .edf associato ha almeno una crisi, basandosi sul campo 'Numb of seizures'.
+    """
+    csv_path = os.path.join("../../Datasets/chb_mit/GT", f"{patient_id}.csv")
+    if not os.path.exists(csv_path):
+        return False
 
+    with open(csv_path, newline='') as f:
+        reader = csv.DictReader(f, delimiter=";")
+        for row in reader:
+            if row["Name of file"].strip() == file_name_no_ext + ".edf":
+                try:
+                    return int(row["Numb of seizures"]) > 0
+                except (KeyError, ValueError):
+                    return row.get("class_name", "").strip().lower() == "seizure"
+    return False
 
 def make_loader(patients_list, root, config, shuffle=False):
     segment_files = []
     for patient in patients_list:
         patient_path = os.path.join(root, patient)
         if os.path.exists(patient_path):
-            files = [os.path.join(patient, f) for f in os.listdir(patient_path) if f.endswith(".npy")]
-            segment_files.extend(files)
+            for f in os.listdir(patient_path):
+                if not f.endswith(".npy"):
+                    continue
+                file_name_no_ext = os.path.splitext(f)[0]  # es. chb02_01
+                if has_seizure_segment(patient, file_name_no_ext):
+                    segment_files.append(os.path.join(patient, f))
 
     dataset = CHBMITLoader(
         root_dir=root,
         segment_files=segment_files,
         segment_sec=4,
-        orig_sr= 256,  # 256
+        orig_sr=256,
         target_sr=250
     )
     return DataLoader(
@@ -140,4 +158,27 @@ def make_loader(patients_list, root, config, shuffle=False):
         drop_last=shuffle,
         num_workers=config["num_workers"]
     )
+
+# def make_loader(patients_list, root, config, shuffle=False):
+#     segment_files = []
+#     for patient in patients_list:
+#         patient_path = os.path.join(root, patient)
+#         if os.path.exists(patient_path):
+#             files = [os.path.join(patient, f) for f in os.listdir(patient_path) if f.endswith(".npy")]
+#             segment_files.extend(files)
+
+#     dataset = CHBMITLoader(
+#         root_dir=root,
+#         segment_files=segment_files,
+#         segment_sec=4,
+#         orig_sr= 256,  # 256
+#         target_sr=250
+#     )
+#     return DataLoader(
+#         dataset,
+#         batch_size=config["batch_size"],
+#         shuffle=shuffle,
+#         drop_last=shuffle,
+#         num_workers=config["num_workers"]
+#     )
 
