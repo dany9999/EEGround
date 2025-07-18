@@ -12,7 +12,7 @@ def process_folder(folder_path):
 
     print(f"\n Processing: {folder_path}")
     files = sorted(glob(os.path.join(folder_path, "eeg_batch_*.h5")))
-    print(files)
+    
     total_sum = None
     total_sq_sum = None
     total_count = 0
@@ -49,6 +49,6 @@ def process_folder(folder_path):
     print(f"Saved new_mean.npy and new_standard_deviation.npy in {folder_path}")
 
 if __name__ == "__main__":
-    base_path = "/home/inbit/Scrivania/Datasets/TUH/TUAB/REF"
+    base_path = "/home/inbit/Scrivania/Datasets/TUH/TUAB"
     for subfolder in ["Abnormal", "Normal"]:
-        process_folder(os.path.join(base_path, subfolder))
+        process_folder(os.path.join(base_path, subfolder, "REF"))
