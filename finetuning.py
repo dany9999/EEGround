@@ -375,7 +375,7 @@ if __name__ == "__main__":
 
     for idx, split in enumerate(splits):
         print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
-        train_loader = make_loader(split["train"], config)
-        val_loader = make_loader(split["val"], config)
-        test_loader = make_loader(split["test"], config)
+        train_loader = make_loader(split["train"],dataset_path, config, shuffle = True )
+        val_loader = make_loader(split["val"],dataset_path, config, shuffle= False)
+        test_loader = make_loader(split["test"],dataset_path, config, shuffle= False)
         supervised(config, train_loader, val_loader, test_loader, idx + 1)
