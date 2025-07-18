@@ -49,6 +49,6 @@ def process_folder(folder_path):
     print(f"Saved new_mean.npy and new_standard_deviation.npy in {folder_path}")
 
 if __name__ == "__main__":
-    base_path = "/home/inbit/Scrivania/Datasets/TUH/TUAB"
+    base_path = "/home/inbit/Scrivania/Datasets/TUH/TUAB/REF"
     for subfolder in ["Abnormal", "Normal"]:
         process_folder(os.path.join(base_path, subfolder))
