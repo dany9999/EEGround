@@ -1,6 +1,6 @@
 
 
-epochs: 10
+epochs: 5
 batch_size: 256
 
 lr: 0.001
@@ -23,6 +23,6 @@ dataset_path: "../../Datasets/chb_mit/data"
 pretrained_ckpt: ./logs/pretrain_emb_mask/model_epoch_70.pt
 
 save_dir: ./checkpoints
-log_dir: ./logs/finetuning_chb_mit
+log_dir: ./logs/finetuning_chb_mit_full
 
-finetune_mode: "frozen_encoder"  # oppure: "from_scratch", "full_finetune"
+finetune_mode: "full_finetune"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
