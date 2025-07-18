@@ -20,7 +20,7 @@ def process_folder(folder_path):
             data = f['signals'][:]  # shape: (batch, channels, samples)
 
         # Converti in bipolare
-        data_bipolar = convert_to_bipolar(data)
+        data_bipolar, _ = convert_to_bipolar(data)
 
         # Update accumulatore
         if total_sum is None:
@@ -43,7 +43,7 @@ def process_folder(folder_path):
 
     np.save(os.path.join(folder_path, "new_mean.npy"), mean)
     np.save(os.path.join(folder_path, "new_standard_deviation.npy"), std)
-    print(f"Saved mean.npy and standard_deviation.npy in {folder_path}")
+    print(f"Saved new_mean.npy and new_standard_deviation.npy in {folder_path}")
 
 if __name__ == "__main__":
     base_path = "../../Datasets/TUH/TUAB"
