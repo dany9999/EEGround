@@ -328,24 +328,6 @@ def leave_one_out_splits(patients, val_count=2):
     return splits
 
 
-def make_loader(patients_list, config):
-    segment_files = []
-    root = "CHB-MIT/clean_segments"
-    for patient in patients_list:
-        patient_path = os.path.join(root, patient)
-        if os.path.exists(patient_path):
-            files = [os.path.join(patient, f) for f in os.listdir(patient_path) if f.endswith(".pkl")]
-            segment_files.extend(files)
-    dataset = CHBMITLoader(root, segment_files, config["sampling_rate"])
-    return torch.utils.data.DataLoader(
-        dataset,
-        batch_size=config["batch_size"],
-        shuffle=True,
-        drop_last=True,
-        num_workers=config["num_workers"],
-        persistent_workers=True,
-    )
-
 
 def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     lightning_model = LitModelFinetune(config)
