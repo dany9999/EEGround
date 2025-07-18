@@ -69,7 +69,13 @@ def run_epoch(model, dataloader, criterion, optimizer, device, mode, metrics, wr
     return avg_loss, global_step, per_file_preds if mode == "test" else None
 
 def compute_metrics(metrics):
-    results = {name: metric.compute().item() for name, metric in metrics.items()}
+    results = {}
+    for name, metric in metrics.items():
+        val = metric.compute()
+        # se è tensore, converto con .item(), altrimenti uso direttamente
+        if hasattr(val, 'item'):
+            val = val.item()
+        results[name] = val
     for metric in metrics.values():
         metric.reset()
     return results
@@ -120,14 +126,14 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     criterion = nn.BCEWithLogitsLoss()
 
     # === Setup metrics ===
-    val_metrics = {
+    test_metrics = {
         "acc": BinaryAccuracy().to(device),
         "prauc": BinaryAveragePrecision().to(device),
         "auroc": BinaryAUROC().to(device),
         "balacc": BinaryBalancedAccuracy().to(device),
         "kappa": BinaryCohenKappa().to(device)
     }
-    test_metrics = {k: v.clone() for k, v in val_metrics.items()}
+    
 
     log_dir = f"{config.get('log_dir', 'log-finetuning')}/run-{iteration_idx}-{finetune_mode}"
     writer = SummaryWriter(log_dir=log_dir)
@@ -144,17 +150,14 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
             model, train_loader, criterion, optimizer, device, "train", {}, writer, global_step
         )
         val_loss, _, _ = run_epoch(
-            model, val_loader, criterion, None, device, "val", val_metrics
+            model, val_loader, criterion, None, device, "val", {}
         )
 
-        val_results = compute_metrics(val_metrics)
 
         writer.add_scalar("Loss/Train", train_loss, epoch + 1)
         writer.add_scalar("Loss/Val", val_loss, epoch + 1)
-        for k, v in val_results.items():
-            writer.add_scalar(f"Val/{k}", v, epoch + 1)
 
-        print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_results['acc']:.4f}")
+        print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} ")
 
         # Early stopping
         if val_loss < best_val_loss:
