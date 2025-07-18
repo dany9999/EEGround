@@ -8,7 +8,8 @@ from utils import convert_to_bipolar
 
 
 def process_folder(folder_path):
-    
+
+
     print(f"\n Processing: {folder_path}")
     files = sorted(glob(os.path.join(folder_path, "eeg_batch_*.h5")))
 
@@ -48,7 +49,6 @@ def process_folder(folder_path):
     print(f"Saved new_mean.npy and new_standard_deviation.npy in {folder_path}")
 
 if __name__ == "__main__":
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    base_path = os.path.abspath(os.path.join(current_dir, "../../Datasets/TUH/TUAB"))
+    base_path = "/home/inbit/Scrivania/Datasets/TUH/TUAB"
     for subfolder in ["Abnormal", "Normal"]:
         process_folder(os.path.join(base_path, subfolder))
