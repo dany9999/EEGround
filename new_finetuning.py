@@ -138,12 +138,32 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
     log_dir = f"{config.get('log_dir', 'log-finetuning')}/run-{iteration_idx}-{finetune_mode}"
     writer = SummaryWriter(log_dir=log_dir)
 
-    best_val_loss = float("inf")
-    global_step = 0
-    patience = config["early_stopping_patience"]
-    counter = 0
+    # === Checkpoint paths ===
+    best_model_path = config['save_path'].format(iteration_idx=iteration_idx, mode=finetune_mode)
+    ckpt_path = best_model_path + ".ckpt"
 
-    for epoch in range(config["epochs"]):
+    start_epoch = 0
+    best_val_loss = float("inf")
+    counter = 0
+    global_step = 0
+
+    # === Resume logic ===
+    resume = config["resume"]
+    if resume and os.path.exists(ckpt_path):
+        print(f"=> Resuming training from checkpoint: {ckpt_path}")
+        checkpoint = torch.load(ckpt_path, map_location=device)
+        model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        start_epoch = checkpoint["epoch"] + 1
+        best_val_loss = checkpoint["best_val_loss"]
+        counter = checkpoint["counter"]
+        global_step = checkpoint.get("global_step", 0)
+        print(f"   Resumed from epoch {start_epoch}, best_val_loss={best_val_loss:.4f}")
+
+    # === Training loop ===
+    patience = config["early_stopping_patience"]
+    save_every = config["save_every"]
+    for epoch in range(start_epoch, config["epochs"]):
         print(f"\nEpoch {epoch + 1}/{config['epochs']}")
 
         train_loss, global_step, _ = run_epoch(
@@ -159,7 +179,7 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
 
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} ")
 
-        # Early stopping
+        # === Save best model === (Early stopping)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             counter = 0
@@ -172,6 +192,19 @@ def supervised(config, train_loader, val_loader, test_loader, iteration_idx):
             if counter >= patience:
                 print(f"Early stopping at epoch {epoch+1}")
                 break
+
+        # === Periodic checkpoint ===
+        if (epoch + 1) % save_every == 0:
+            torch.save({
+                "epoch": epoch,
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "best_val_loss": best_val_loss,
+                "counter": counter,
+                "global_step": global_step
+            }, ckpt_path)
+            print(f"=> Checkpoint saved to {ckpt_path}")
+        
 
     # === Test ===
     model.load_state_dict(torch.load(config['save_path'].format(iteration_idx=iteration_idx, mode=finetune_mode)))
