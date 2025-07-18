@@ -8,6 +8,10 @@ from utils import convert_to_bipolar
 
 
 def process_folder(folder_path):
+    if not os.path.exists(folder_path):
+        print(f"[ERRORE] Cartella non trovata: {folder_path}")
+        return
+
     print(f"\n Processing: {folder_path}")
     files = sorted(glob(os.path.join(folder_path, "eeg_batch_*.h5")))
 
