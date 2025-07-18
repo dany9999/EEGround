@@ -232,8 +232,8 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from model.SupervisedClassifier import BIOTClassifier
-from utils import CHBMITLoader, load_config, BinaryBalancedAccuracy
-
+from utils import load_config, BinaryBalancedAccuracy
+from CHBMITLoader import CHBMITLoader, make_loader
 from itertools import combinations
 from torchmetrics.classification import (
     BinaryAccuracy,
