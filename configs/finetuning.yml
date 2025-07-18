@@ -11,7 +11,7 @@ num_workers: 24
 emb_size: 256
 heads: 8
 depth: 4
-n_channels: 18
+n_channels: 19
 n_classes: 1
 
 early_stopping_patience: 10
