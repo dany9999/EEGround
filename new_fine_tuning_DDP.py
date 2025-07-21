@@ -110,9 +110,7 @@ class Trainer:
     def compute_metrics(self, metrics):
         results = {}
 
-        for metric in metrics.values():
-            if torch.distributed.is_initialized() and metric.device.type == "cuda":
-                metric.sync()  # sincronizza lo stato tra tutti i processi
+        
         for name, metric in metrics.items():
             val = metric.compute()
             # se è tensore, converto con .item(), altrimenti uso direttamente
@@ -191,7 +189,7 @@ class Trainer:
             
         
         torch.distributed.barrier()
-        
+
         # === Test Step ===
         print(f"\nLoading best model from {best_model_path} for testing")
         self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
