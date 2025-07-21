@@ -164,11 +164,13 @@ class Trainer:
             writer.add_scalar("Loss/Val", val_loss, epoch + 1)
 
             # Salvataggio best model
+             
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 counter = 0
-                torch.save(self.model.state_dict(), best_model_path)
-                print(f"Saved best model to {best_model_path}")
+                if self.gpu_id == 0:
+                    torch.save(self.model.state_dict(), best_model_path)
+                    print(f"Saved best model to {best_model_path}")
             else:
                 counter += 1
                 if counter >= patience:
@@ -177,14 +179,15 @@ class Trainer:
 
             # Salvataggio checkpoint periodico
             if (epoch + 1) % self.save_every == 0:
-                torch.save({
-                    "epoch": epoch,
-                    "model": self.model.state_dict(),
-                    "optimizer": self.optimizer.state_dict(),
-                    "best_val_loss": best_val_loss,
-                    "counter": counter
-                }, ckpt_path)
-                print(f"=> Checkpoint saved to {ckpt_path}")
+                if self.gpu_id == 0:
+                    torch.save({
+                        "epoch": epoch,
+                        "model": self.model.state_dict(),
+                        "optimizer": self.optimizer.state_dict(),
+                        "best_val_loss": best_val_loss,
+                        "counter": counter
+                    }, ckpt_path)
+                    print(f"=> Checkpoint saved to {ckpt_path}")
 
         # === Test Step ===
         print(f"\nLoading best model from {best_model_path} for testing")

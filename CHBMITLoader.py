@@ -46,7 +46,7 @@ class CHBMITLoader(Dataset):
                 ]
                 total_overlap = sum(overlaps)
 
-                # Etichetta = 1 se almeno 2s di sovrapposizione
+                # Etichetta = 1 se almeno 1s di sovrapposizione
                 if total_overlap > 1:
                     label = 1
                     
