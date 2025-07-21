@@ -258,16 +258,16 @@ def main(rank: int, world_size: int, config: dict):
 
     model, optimizer = load_train_objs(rank, config, config["finetune_mode"])
     dataset_path = config["dataset_path"]
-    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])
+    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
     splits = leave_one_out_splits(all_patients, val_count=2)
 
-        # stampa splits
+    # stampa splits
     for i, split in enumerate(splits):
         print(f"Split {i+1}:")
         print(f"  Train: {split['train']}")
         print(f"  Val:   {split['val']}")
         print(f"  Test:  {split['test']}")
-        
+
     for idx, split in enumerate(splits):
         print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
         train_loader = make_loader(split["train"], dataset_path, config, shuffle=True, is_ddp=True, rank=rank, world_size=world_size)
