@@ -129,8 +129,11 @@ class Trainer:
         writer = SummaryWriter(log_dir=f"{config['log_dir']}/run-{iteration_idx}-{finetune_mode}")
 
         # Percorsi per checkpoint e best model
-        ckpt_path = config["save_dir"].format(iteration_idx=iteration_idx, mode=finetune_mode) + ".ckpt"
-        best_model_path = config["save_dir"].format(iteration_idx=iteration_idx, mode=finetune_mode) + "_best_model.pth"
+        run_dir = os.path.join(config["save_dir"], f"run-{iteration_idx}-{finetune_mode}")
+        os.makedirs(run_dir, exist_ok=True)
+
+        ckpt_path = os.path.join(run_dir, "checkpoint.ckpt")
+        best_model_path = os.path.join(run_dir, "best_model.pth")
 
         best_val_loss = float("inf")
         start_epoch = 0
@@ -164,18 +167,16 @@ class Trainer:
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 counter = 0
-                os.makedirs(os.path.dirname(best_model_path), exist_ok=True)
                 torch.save(self.model.state_dict(), best_model_path)
                 print(f"Saved best model to {best_model_path}")
             else:
                 counter += 1
                 if counter >= patience:
-                    print(f"Early stopping at epoch {epoch+1}")
+                    print(f"Early stopping at epoch {epoch + 1}")
                     break
 
             # Salvataggio checkpoint periodico
             if (epoch + 1) % self.save_every == 0:
-                os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
                 torch.save({
                     "epoch": epoch,
                     "model": self.model.state_dict(),
