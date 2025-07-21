@@ -111,7 +111,7 @@ class Trainer:
         results = {}
 
         for metric in metrics.values():
-            if torch.distributed.is_initialized():
+            if torch.distributed.is_initialized() and metric.device.type == "cuda":
                 metric.sync()  # sincronizza lo stato tra tutti i processi
         for name, metric in metrics.items():
             val = metric.compute()
@@ -270,6 +270,8 @@ def main(rank: int, world_size: int, config: dict):
         trainer.supervised(config, train_loader, val_loader, test_loader, idx + 1)
 
     destroy_process_group()
+
+
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
