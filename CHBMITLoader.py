@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from scipy.signal import resample_poly
 import csv
 import matplotlib.pyplot as plt
-
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
 class CHBMITLoader(Dataset):
     def __init__(self, root_dir, segment_files, segment_sec=4, orig_sr=256, target_sr=250):
@@ -132,7 +132,49 @@ def has_seizure_segment(patient_id, file_name_no_ext):
                     return row.get("class_name", "").strip().lower() == "seizure"
     return False
 
-def make_loader(patients_list, root, config, shuffle=False):
+# def make_loader(patients_list, root, config, shuffle=False):
+#     segment_files = []
+#     for patient in patients_list:
+#         patient_path = os.path.join(root, patient)
+#         if os.path.exists(patient_path):
+#             for f in os.listdir(patient_path):
+#                 if not f.endswith(".npy"):
+#                     continue
+#                 file_name_no_ext = os.path.splitext(f)[0]  # es. chb02_01
+#                 if has_seizure_segment(patient, file_name_no_ext):
+#                     segment_files.append(os.path.join(patient, f))
+
+#     dataset = CHBMITLoader(
+#         root_dir=root,
+#         segment_files=segment_files,
+#         segment_sec=4,
+#         orig_sr=256,
+#         target_sr=250
+#     )
+#     return DataLoader(
+#         dataset,
+#         batch_size=config["batch_size"],
+#         shuffle=shuffle,
+#         drop_last=shuffle,
+#         num_workers=config["num_workers"]
+#     )
+
+
+
+
+def make_loader(patients_list, root, config, shuffle=False, is_ddp=False, rank=0, world_size=1):
+    """
+    Crea un DataLoader, con supporto opzionale per DistributedSampler (DDP).
+    
+    Args:
+        patients_list (list): Lista dei pazienti da includere
+        root (str): Path alla directory dei dati
+        config (dict): Configurazione generale
+        shuffle (bool): Se fare lo shuffle dei dati
+        is_ddp (bool): Se usare DistributedSampler per DDP
+        rank (int): Rank del processo corrente (necessario per DDP)
+        world_size (int): Numero totale di processi DDP
+    """
     segment_files = []
     for patient in patients_list:
         patient_path = os.path.join(root, patient)
@@ -140,7 +182,7 @@ def make_loader(patients_list, root, config, shuffle=False):
             for f in os.listdir(patient_path):
                 if not f.endswith(".npy"):
                     continue
-                file_name_no_ext = os.path.splitext(f)[0]  # es. chb02_01
+                file_name_no_ext = os.path.splitext(f)[0]
                 if has_seizure_segment(patient, file_name_no_ext):
                     segment_files.append(os.path.join(patient, f))
 
@@ -151,34 +193,26 @@ def make_loader(patients_list, root, config, shuffle=False):
         orig_sr=256,
         target_sr=250
     )
-    return DataLoader(
-        dataset,
-        batch_size=config["batch_size"],
-        shuffle=shuffle,
-        drop_last=shuffle,
-        num_workers=config["num_workers"]
-    )
 
-# def make_loader(patients_list, root, config, shuffle=False):
-#     segment_files = []
-#     for patient in patients_list:
-#         patient_path = os.path.join(root, patient)
-#         if os.path.exists(patient_path):
-#             files = [os.path.join(patient, f) for f in os.listdir(patient_path) if f.endswith(".npy")]
-#             segment_files.extend(files)
+    if is_ddp:
+        sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=shuffle)
+        loader = DataLoader(
+            dataset,
+            batch_size=config["batch_size"],
+            sampler=sampler,
+            num_workers=config["num_workers"],
+            pin_memory=True,
+            drop_last=shuffle,
+        )
+    else:
+        loader = DataLoader(
+            dataset,
+            batch_size=config["batch_size"],
+            shuffle=shuffle,
+            num_workers=config["num_workers"],
+            drop_last=shuffle
+        )
 
-#     dataset = CHBMITLoader(
-#         root_dir=root,
-#         segment_files=segment_files,
-#         segment_sec=4,
-#         orig_sr= 256,  # 256
-#         target_sr=250
-#     )
-#     return DataLoader(
-#         dataset,
-#         batch_size=config["batch_size"],
-#         shuffle=shuffle,
-#         drop_last=shuffle,
-#         num_workers=config["num_workers"]
-#     )
+    return loader
+
 
