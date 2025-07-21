@@ -23,6 +23,6 @@ dataset_path: "../../Datasets/chb_mit/data"
 pretrained_ckpt: ./logs/pretrain_emb_mask/model_epoch_70.pt
 
 save_dir: ./checkpoints_finetuning
-log_dir: ./logs/finetuning_chb_mit_full
+log_dir: ./logs/finetuning_chb_mit
 
 finetune_mode: "frozen_encoder"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
