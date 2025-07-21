@@ -230,21 +230,27 @@ def load_train_objs(gpu_id, config, finetune_mode):
 
     optimizer = None
     if finetune_mode in ["frozen_encoder", "full_finetune"]:
-        checkpoint = torch.load(config["pretrained_ckpt"], map_location=f"cuda:{gpu_id}")
+        checkpoint = torch.load(config["pretrained_ckpt"], map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         print(f"=> Loaded pretrained weights from {config['pretrained_ckpt']}")
 
     if finetune_mode == "frozen_encoder":
-        for param in model.biot.parameters():
+        for param in model.module.biot.parameters():
             param.requires_grad = False
-        optimizer = optim.Adam(model.classifier.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+        optimizer = optim.Adam(model.module.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+        print("=> Encoder frozen. Training only classifier.")
+
     elif finetune_mode == "full_finetune":
-        for param in model.biot.parameters():
+        for param in model.module.biot.parameters():
             param.requires_grad = True
-        optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+        optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+        print("=> Full model training with pretrained weights.")
+
     elif finetune_mode == "from_scratch":
         model.apply(lambda m: m.reset_parameters() if hasattr(m, "reset_parameters") else None)
-        optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+        optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+        print("=> Training from scratch.")
+
     else:
         raise ValueError(f"Unknown finetune_mode: {finetune_mode}")
 
