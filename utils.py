@@ -121,7 +121,7 @@ def convert_to_bipolar(data):
 
     for ch1, ch2 in bipolar_pairs:
         if ch1 not in channel_indices or ch2 not in channel_indices:
-            print(f"[⚠️] Canali mancanti nel segnale: {ch1}-{ch2}")
+            print(f" Canali mancanti nel segnale: {ch1}-{ch2}")
             continue
 
         i1 = channel_indices[ch1]
@@ -173,20 +173,19 @@ def visualize_masked_embedding(self, masked_emb, titolo):
 
 
 class BinaryBalancedAccuracy(Metric):
-    def __init__(self, dist_sync_on_step=False):
+    def __init__(self, dist_sync_on_step=False, device=None):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state("preds", default=[], dist_reduce_fx="cat")
-        self.add_state("targets", default=[], dist_reduce_fx="cat")
+
+        self.add_state("preds", default=torch.tensor([], dtype=torch.float32), dist_reduce_fx="cat")
+        self.add_state("targets", default=torch.tensor([], dtype=torch.int32), dist_reduce_fx="cat")
+        if device is not None:
+            self.to(device)
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.preds.append(preds.detach().cpu())
-        self.targets.append(target.detach().cpu())
+        self.preds = torch.cat([self.preds, preds.detach()])
+        self.targets = torch.cat([self.targets, target.detach()])
 
     def compute(self):
-        preds = torch.cat(self.preds).numpy()
-        targets = torch.cat(self.targets).numpy()
-        return balanced_accuracy_score(targets, preds >= 0.5)  # soglia binaria
-
-    def reset(self):
-        self.preds.clear()
-        self.targets.clear()
+        preds_np = self.preds.cpu().numpy()
+        targets_np = self.targets.cpu().numpy()
+        return balanced_accuracy_score(targets_np, preds_np >= 0.5)
