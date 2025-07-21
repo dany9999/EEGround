@@ -188,7 +188,10 @@ class Trainer:
                         "counter": counter
                     }, ckpt_path)
                     print(f"=> Checkpoint saved to {ckpt_path}")
-
+            
+        
+        torch.distributed.barrier()
+        
         # === Test Step ===
         print(f"\nLoading best model from {best_model_path} for testing")
         self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
