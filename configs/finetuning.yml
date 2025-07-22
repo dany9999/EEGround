@@ -16,7 +16,7 @@ n_classes: 1
 
 early_stopping_patience: 10
 save_every: 5
-resume: false
+resume: True
 
 
 dataset_path: "../../Datasets/chb_mit/data"
