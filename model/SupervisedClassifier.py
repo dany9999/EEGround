@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-from BIOTEMB import BIOTEncoder
+from model.BIOTEMB import BIOTEncoder
 
 
 # Attention Pooling Module
