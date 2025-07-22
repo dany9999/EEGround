@@ -1,6 +1,6 @@
 
 
-epochs: 6
+epochs: 15
 batch_size: 512
 
 lr: 0.001
