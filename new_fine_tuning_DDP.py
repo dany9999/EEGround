@@ -211,15 +211,15 @@ class Trainer:
                 print(f"{k.upper():7s}: {v:.4f}")
                 writer.add_scalar(f"Test/{k}", v)
 
-        print("\n--- Accuracy per file ---")
-        for file, results in per_file_preds.items():
-            y_true = results["y_true"]
-            y_pred = results["y_pred"]
-            correct = sum(yt == yp for yt, yp in zip(y_true, y_pred))
-            acc = correct / len(y_true) if y_true else 0.0
-            print(f"{file:35s} | Accuracy: {acc:.4f}")
+            print("\n--- Accuracy per file ---")
+            for file, results in per_file_preds.items():
+                y_true = results["y_true"]
+                y_pred = results["y_pred"]
+                correct = sum(yt == yp for yt, yp in zip(y_true, y_pred))
+                acc = correct / len(y_true) if y_true else 0.0
+                print(f"{file:35s} | Accuracy: {acc:.4f}")
 
-        if self.gpu_id == 0:
+        
             writer.close()
 
         return val_loss, test_loss
