@@ -193,10 +193,15 @@ class BinaryBalancedAccuracy(Metric):
         self.targets = torch.cat([self.targets, targets])
 
     def compute(self):
-        preds_np = self.preds.cpu().numpy()
-        targets_np = self.targets.cpu().numpy()
+        print("preds_np.shape:", self.preds_np.shape)
+        print("targets_np.shape:", self.targets_np.shape)
+        preds_np = self.preds.cpu().numpy().reshape(-1)      
+        targets_np = self.targets.cpu().numpy().reshape(-1)  
 
-        # Converti le predizioni in etichette binarie
         binary_preds = (preds_np >= 0.5).astype(int)
 
         return balanced_accuracy_score(targets_np, binary_preds)
+
+    def reset(self):
+        super().reset()  
+       

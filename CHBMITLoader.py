@@ -202,7 +202,8 @@ def make_loader(patients_list, root, config, shuffle=False, is_ddp=False, rank=0
             sampler=sampler,
             num_workers=config["num_workers"],
             pin_memory=True,
-            drop_last=shuffle,
+            shuffle=shuffle,        # Mescola i dati ogni epoca
+            drop_last=True,      # Scarta l'ultimo batch se è più piccolo del batch_size
         )
     else:
         loader = DataLoader(
@@ -210,7 +211,8 @@ def make_loader(patients_list, root, config, shuffle=False, is_ddp=False, rank=0
             batch_size=config["batch_size"],
             shuffle=shuffle,
             num_workers=config["num_workers"],
-            drop_last=shuffle
+            shuffle=shuffle,        # Mescola i dati ogni epoca
+            drop_last=True,      # Scarta l'ultimo batch se è più piccolo del batch_size
         )
 
     return loader
