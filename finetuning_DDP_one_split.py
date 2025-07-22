@@ -270,10 +270,8 @@ def predefined_split():
 def main(rank: int, world_size: int, config: dict):
     ddp_setup(rank, world_size)
 
-
     model, optimizer = load_train_objs(rank, config, config["finetune_mode"])
     dataset_path = config["dataset_path"]
-
 
     split = predefined_split()
     print("--- Esecuzione con split predefinito ---")
@@ -286,7 +284,7 @@ def main(rank: int, world_size: int, config: dict):
     test_loader  = make_loader(split["test"], dataset_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
 
     trainer = Trainer(model, optimizer, rank, config["save_every"])
-    trainer.supervised(config, train_loader, val_loader, test_loader, idx + 1)
+    trainer.supervised(config, train_loader, val_loader, test_loader, 1)  # idx = 1
 
     destroy_process_group()
 
