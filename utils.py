@@ -172,20 +172,31 @@ def visualize_masked_embedding(self, masked_emb, titolo):
     plt.show()  
 
 
+
 class BinaryBalancedAccuracy(Metric):
-    def __init__(self, dist_sync_on_step=False, device=None):
+    def __init__(self, dist_sync_on_step=False):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
         self.add_state("preds", default=torch.tensor([], dtype=torch.float32), dist_reduce_fx="cat")
-        self.add_state("targets", default=torch.tensor([], dtype=torch.int32), dist_reduce_fx="cat")
-        if device is not None:
-            self.to(device)
+        self.add_state("targets", default=torch.tensor([], dtype=torch.long), dist_reduce_fx="cat")
 
-    def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.preds = torch.cat([self.preds, preds.detach()])
-        self.targets = torch.cat([self.targets, target.detach()])
+    def update(self, preds: torch.Tensor, targets: torch.Tensor):
+        # Assicura che siano 1D
+        preds = preds.detach().view(-1)
+        targets = targets.detach().view(-1)
+
+        # Converti i target a long (interi binari)
+        targets = (targets > 0.5).long()
+
+        # Salva
+        self.preds = torch.cat([self.preds, preds])
+        self.targets = torch.cat([self.targets, targets])
 
     def compute(self):
         preds_np = self.preds.cpu().numpy()
         targets_np = self.targets.cpu().numpy()
-        return balanced_accuracy_score(targets_np, preds_np >= 0.5)
+
+        # Converti le predizioni in etichette binarie
+        binary_preds = (preds_np >= 0.5).astype(int)
+
+        return balanced_accuracy_score(targets_np, binary_preds)
