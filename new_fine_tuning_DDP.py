@@ -262,7 +262,7 @@ def main(rank: int, world_size: int, config: dict):
 
     model, optimizer = load_train_objs(rank, config, config["finetune_mode"])
     dataset_path = config["dataset_path"]
-    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:4]
+    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
     splits = leave_one_out_splits(all_patients, val_count=2)
 
     # stampa splits
