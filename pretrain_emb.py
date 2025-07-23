@@ -13,7 +13,7 @@ from tqdm import tqdm
 from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
 from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 import random
-from utils import convert_to_bipolar
+
 
 
 # ==== Training ====
@@ -22,7 +22,7 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]
 
-    data = convert_to_bipolar(data)
+   
     mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
     mean_exp = mean.view(1, -1, 1)
     std_exp = std.view(1, -1, 1)
