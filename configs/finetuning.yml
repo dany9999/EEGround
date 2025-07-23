@@ -19,7 +19,7 @@ save_every: 5
 resume: True
 
 
-dataset_path: "../../Datasets/chb_mit/data"
+dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
 pretrained_ckpt: ./logs/pretrain_emb_mask/model_epoch_70.pt
 
 save_dir: ./checkpoints_finetuning

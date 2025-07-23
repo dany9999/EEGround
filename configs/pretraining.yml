@@ -20,5 +20,5 @@ mask_ratio: 0.3
 
 save_every: 5
 
-dataset_path: "../../Datasets/TUH"
+dataset_path: "../../Datasets/Bipolar/TUH"
 log_dir: ./logs/pretrain_emb_mask_random_set
