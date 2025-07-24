@@ -14,11 +14,11 @@ emb_size: 256
 heads: 8
 depth: 4
 n_channels: 18
-n_fft: 200
-hop_length: 100
+n_fft: 128
+hop_length: 32
 mask_ratio: 0.3
 
 save_every: 5
 
 dataset_path: "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH"
-log_dir: ./logs/pretrain
+log_dir: ./logs/pretrain_different_STFT
