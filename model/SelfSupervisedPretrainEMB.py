@@ -29,10 +29,10 @@ class UnsupervisedPretrain(nn.Module):
 
 
 if __name__ == "__main__":
-    x = torch.randn(1, 23, 2560)
+    x = torch.randn(1, 18, 1000)
 
-    model = UnsupervisedPretrain(n_fft=200, hop_length=200, depth=4, heads=8)
-    original, mask, reconstruction  = model(x)
+    model = UnsupervisedPretrain(n_fft=128, hop_length=32, depth=4, heads=8)
+    original, mask, masked, reconstruction  = model(x)
     print(f"original shape: {original.shape}")
     print(f"mask shape: {mask.shape}")
     print(f"reconstruction shape: {reconstruction.shape}") 
