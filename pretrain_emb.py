@@ -13,6 +13,8 @@ from tqdm import tqdm
 from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
 from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 import random
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 
 
 
@@ -132,12 +134,15 @@ def train_model(config):
     
 
     optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
     writer = SummaryWriter(log_dir=log_dir)
     mean_std_loader = MeanStdLoader()
 
     start_epoch = 0
     global_step = 0
     global_step_val = 0
+    best_val_loss = float('inf')
+    epochs_without_improvement = 0
 
     checkpoints = sorted(glob(os.path.join(log_dir, "model_epoch_*.pt")))
     if checkpoints:
@@ -170,6 +175,20 @@ def train_model(config):
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
         writer.add_scalar("Loss/Train", train_loss, epoch + 1)
         writer.add_scalar("Loss/Val", val_loss, epoch + 1)
+
+        scheduler.step(val_loss)
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+            print(f"No improvement for {epochs_without_improvement} epoch(s).")
+
+        if epochs_without_improvement >= config["early_stopping_patience"]:
+            print("Early stopping triggered.")
+            break
+
 
         if (epoch + 1) % config.get("save_every", 1) == 0:
             save_path = os.path.join(log_dir, f"model_epoch_{epoch+1}.pt")
