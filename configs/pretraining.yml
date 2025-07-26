@@ -1,6 +1,6 @@
 
 
-epochs: 20
+epochs: 100
 batch_size: 256
 
 
@@ -22,4 +22,4 @@ early_stopping_patience: 10
 save_every: 5
 
 dataset_path: "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH"
-log_dir: ./logs/pretrain_different_STFT
+log_dir: ./logs/pretrain
