@@ -134,7 +134,7 @@ def train_model(config):
     
 
     optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
     writer = SummaryWriter(log_dir=log_dir)
     mean_std_loader = MeanStdLoader()
 
