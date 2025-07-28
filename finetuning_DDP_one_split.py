@@ -294,6 +294,6 @@ if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
     world_size = torch.cuda.device_count()
 
-    # Avvia il training parallelo
+    
     mp.spawn(main, args=(world_size, config), nprocs=world_size)
 

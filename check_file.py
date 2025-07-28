@@ -17,5 +17,5 @@ def inspect_h5_files(folder_path):
             print(f"{file}: errore nel caricamento - {e}")
 
 if __name__ == "__main__":
-    dataset_path = os.path.abspath("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF")
+    dataset_path = os.path.abspath("../../Datasets/Bipolar/chb_mit/bipolar_data/chb01")
     inspect_h5_files(dataset_path)

@@ -11,7 +11,7 @@ num_workers: 24
 emb_size: 256
 heads: 8
 depth: 4
-n_channels: 19
+n_channels: 18
 n_classes: 1
 
 early_stopping_patience: 10
@@ -20,9 +20,9 @@ resume: True
 
 
 dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
-pretrained_ckpt: ./logs/pretrain_emb_mask/model_epoch_70.pt
+pretrained_ckpt: ./logs/pretrain/model_epoch_45.pt
 
 save_dir: ./checkpoints_finetuning
-log_dir: ./logs/finetuning_chb_mit_frozen_encoder
+log_dir: ./logs/finetuning_chb_mit_from_scratch
 
-finetune_mode: "frozen_encoder"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
+finetune_mode: "from_scratch"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
