@@ -52,7 +52,8 @@ class Trainer:
     def train_step(self, train_loader):
         self.model.train()
         running_loss = 0.0
-        for batch in tqdm(train_loader, desc="Training"):
+        
+        for batch in tqdm(train_loader, desc=f"[GPU{self.gpu_id}] Training", dynamic_ncols=False, disable=(self.gpu_id != 0)):
             x = batch["x"].to(self.device)
             y = batch["y"].to(self.device).float().view(-1, 1)
             self.optimizer.zero_grad()
@@ -69,7 +70,8 @@ class Trainer:
         self.model.eval()
         running_loss = 0.0
         with torch.no_grad():
-            for batch in tqdm(val_loader, desc="Validation"):
+            
+            for batch in tqdm(val_loader, desc=f"[GPU{self.gpu_id}] Validation", dynamic_ncols=False, disable=(self.gpu_id != 0)):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device).float().view(-1, 1)
                 logits = self.model(x)
@@ -84,7 +86,9 @@ class Trainer:
         running_loss = 0.0
         per_file_preds = {}
         with torch.no_grad():
-            for batch in tqdm(test_loader, desc="Testing"):
+          
+            for batch in tqdm(test_loader, desc=f"[GPU{self.gpu_id}] Validation", dynamic_ncols=False, disable=(self.gpu_id != 0)):
+            
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device).float().view(-1, 1)
                 file_ids = batch["file"]
