@@ -293,7 +293,7 @@ class CHBMITLoader(Dataset):
         file_path, segment_idx, label = self.segments[idx]
 
         with h5py.File(file_path, "r") as f:
-            segment = f["data"][segment_idx]  # shape: (21, 1000)
+            segment = f["signals"][segment_idx]  # shape: (21, 1000)
 
         # Mantieni solo i canali validi
         valid_channels = [i for i in range(19)]  # oppure [0–18]
