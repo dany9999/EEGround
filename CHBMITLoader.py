@@ -308,3 +308,19 @@ def make_loader(patient_ids, dataset_path, config,
                             num_workers=config.get("num_workers", 4),
                             pin_memory=True)
     return loader
+
+
+if __name__ == "__main__":
+    # Example usage
+    patient_ids = ["chb01", "chb02"]  # Replace with actual patient IDs
+    dataset_path = "Datasets/CHB-MIT/data" 
+    config = {
+        "batch_size": 32,
+        "num_workers": 4,
+        "segment_duration_sec": 4
+    }
+    
+    loader = make_loader(patient_ids, dataset_path, config, shuffle=True)
+    # stampa leng del loader
+    print(f"Number of batches: {len(loader)}")
+
