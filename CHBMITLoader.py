@@ -217,145 +217,94 @@
 
 
 import os
-import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader, DistributedSampler
-import csv
 import h5py
+import pandas as pd
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
-class CHBMITLoader(Dataset):
-    def __init__(self, root_dir, segment_files, segment_sec=4, sr=250):
-        self.root_dir = root_dir
-        self.segment_files = segment_files
-        self.segment_sec = segment_sec
-        self.sr = sr
-        self.segment_len = segment_sec * sr  # 1000
-        self.segments = []  # list of (file_path, segment_idx, label)
-        self._prepare_segments()
+class CHBMITAllSegmentsLabeledDataset(Dataset):
+    def __init__(self, patient_ids, data_dir, gt_dir,
+                 segment_duration_sec=4, transform=None):
+        self.samples = []
+        self.labels = []
+        self.transform = transform
 
-    def _prepare_segments(self):
-        for relative_path in self.segment_files:
-            patient_id = relative_path.split("/")[0]
-            file_name = os.path.basename(relative_path)
-            edf_name = file_name.replace("eeg_", "").replace(".h5", ".edf")
-            full_path = os.path.join(self.root_dir, relative_path)
+        for patient in patient_ids:
+            patient_folder = os.path.join(data_dir, patient)
+            gt_file = os.path.join(gt_dir, f"{patient}.csv")
+            if not os.path.exists(gt_file):
+                continue
 
-            seizure_ranges = self._get_seizure_ranges(patient_id, edf_name)
+            # parsing ground truth
+            gt_df = pd.read_csv(gt_file, sep=';', engine='python')
+            seizure_map = {}
+            for _, row in gt_df.iterrows():
+                edf_base = row["Name of file"].replace(".edf", "")
+                if int(row["Numb of seizures"]) > 0:
+                    starts = [float(s) for s in str(row["Start (sec)"]).split(',')]
+                    ends = [float(e) for e in str(row["End (sec)"]).split(',')]
+                    seizure_map[edf_base] = list(zip(starts, ends))
 
-            with h5py.File(full_path, "r") as f:
-                data = f["signals"][:]  # shape: (N, 21, 1000)
-                num_segments = data.shape[0]
+            for fname in sorted(os.listdir(patient_folder)):
+                if not fname.endswith(".h5"):
+                    continue
+                edf_base = fname.replace(".h5", "")
+                fpath = os.path.join(patient_folder, fname)
 
-            for i in range(num_segments):
-                start_sec = i * self.segment_sec
-                end_sec = (i + 1) * self.segment_sec
 
-                # Verifica se il segmento sovrappone un intervallo di crisi per almeno 1s
-                overlaps = [
-                    max(0, min(end_sec, seizure_end) - max(start_sec, seizure_start))
-                    for (seizure_start, seizure_end) in seizure_ranges
-                ]
-                total_overlap = sum(overlaps)
+                if edf_base not in seizure_map:
+                    continue
 
-                label = 1 if total_overlap > 1 else 0
-                self.segments.append((full_path, i, label))
+                with h5py.File(fpath, 'r') as f:
+                    x = f['signals'][:]  # shape: (segments, ch, time)
 
-    def _get_seizure_ranges(self, patient_id, edf_file):
-        metadata_path = os.path.join("../../Datasets/chb_mit/GT", f"{patient_id}.csv")
-        if not os.path.exists(metadata_path):
-            raise FileNotFoundError(f"CSV metadata non trovato: {metadata_path}")
+                for i in range(x.shape[0]):
+                    seg_start = i * segment_duration_sec
+                    seg_end = seg_start + segment_duration_sec
 
-        seizure_ranges = []
-        with open(metadata_path, newline='') as f:
-            reader = csv.DictReader(f, delimiter=";")
-            for row in reader:
-                if row["Name of file"].strip() == edf_file:
-                    if row["class_name"].strip().lower() == "seizure":
-                        start_values = row["Start (sec)"].strip().split("-")
-                        end_values = row["End (sec)"].strip().split("-")
+                    label = 0
+                    for (st, en) in seizure_map[edf_base]:
+                        if not (seg_end <= st or seg_start >= en):
+                            label = 1
+                            break
 
-                        if len(start_values) != len(end_values):
-                            raise ValueError(f"Numero di start e end diversi in riga: {row}")
-
-                        for start_str, end_str in zip(start_values, end_values):
-                            try:
-                                start = int(start_str)
-                                end = int(end_str)
-                                seizure_ranges.append((start, end))
-                            except ValueError:
-                                print(f"Errore di conversione: start={start_str}, end={end_str} nella riga: {row}")
-        return seizure_ranges
+                    self.samples.append(torch.tensor(x[i], dtype=torch.float32))
+                    self.labels.append(label)
 
     def __len__(self):
-        return len(self.segments)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        file_path, segment_idx, label = self.segments[idx]
+        x = self.samples[idx]
+        y = self.labels[idx]
+        if self.transform:
+            x = self.transform(x)
+        return {"x": x, "y": torch.tensor(y, dtype=torch.long)}
 
-        with h5py.File(file_path, "r") as f:
-            segment = f["signals"][segment_idx]  # shape: (21, 1000)
-
-        # Mantieni solo i canali validi
-        valid_channels = [i for i in range(19)]  # oppure [0–18]
-        segment = segment[valid_channels]
-
-        return {
-            "x": torch.tensor(segment, dtype=torch.float32),
-            "y": torch.tensor(label, dtype=torch.float32),
-            "file": os.path.basename(file_path)
-        }
-
-def has_seizure_segment(patient_id, file_name_no_ext):
-    csv_path = os.path.join("../../Datasets/chb_mit/GT", f"{patient_id}.csv")
-    if not os.path.exists(csv_path):
-        return False
-
-    with open(csv_path, newline='') as f:
-        reader = csv.DictReader(f, delimiter=";")
-        for row in reader:
-            if row["Name of file"].strip() == file_name_no_ext + ".edf":
-                try:
-                    return int(row["Numb of seizures"]) > 0
-                except (KeyError, ValueError):
-                    return row.get("class_name", "").strip().lower() == "seizure"
-    return False
-
-def make_loader(patients_list, root, config, shuffle=False, is_ddp=False, rank=0, world_size=1):
-    segment_files = []
-    for patient in patients_list:
-        patient_path = os.path.join(root, patient)
-        if os.path.exists(patient_path):
-            for f in os.listdir(patient_path):
-                if not f.endswith(".h5"):
-                    continue
-                file_name_no_ext = os.path.splitext(f)[0].replace("eeg_", "")
-                if has_seizure_segment(patient, file_name_no_ext): # da togliere in fase finale 
-                    segment_files.append(os.path.join(patient, f))
-
-    dataset = CHBMITLoader(
-        root_dir=root,
-        segment_files=segment_files,
-        segment_sec=4,
-        sr=250
+def make_loader(patient_ids, dataset_path, config,
+                shuffle=True, is_ddp=False, rank=0, world_size=1):
+    dataset = CHBMITAllSegmentsLabeledDataset(
+        patient_ids=patient_ids,
+        data_dir=os.path.join(dataset_path, "bipolar_data"),
+        gt_dir=os.path.join(dataset_path, "GT"),
+        segment_duration_sec=config.get("segment_duration_sec", 4),
+        transform=None
     )
 
     if is_ddp:
-        sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=shuffle)
-        loader = DataLoader(
-            dataset,
-            batch_size=config["batch_size"],
-            sampler=sampler,
-            num_workers=config["num_workers"],
-            pin_memory=True,
-            drop_last=True
-        )
+        sampler = DistributedSampler(dataset,
+                                     num_replicas=world_size,
+                                     rank=rank,
+                                     shuffle=shuffle)
+        loader = DataLoader(dataset,
+                            batch_size=config["batch_size"],
+                            sampler=sampler,
+                            num_workers=config.get("num_workers", 4),
+                            pin_memory=True)
     else:
-        loader = DataLoader(
-            dataset,
-            batch_size=config["batch_size"],
-            num_workers=config["num_workers"],
-            shuffle=shuffle,
-            drop_last=True
-        )
-
+        loader = DataLoader(dataset,
+                            batch_size=config["batch_size"],
+                            shuffle=shuffle,
+                            num_workers=config.get("num_workers", 4),
+                            pin_memory=True)
     return loader
