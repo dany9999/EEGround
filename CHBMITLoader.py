@@ -246,8 +246,11 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seizure_map[edf_base] = list(zip(starts, ends))
 
             for fname in sorted(os.listdir(patient_folder)):
+                print(f"Patient {patient}: found {len(seizure_map)} seizure files")
+                print(f" --> Samples accumulated: {len(self.samples)}")
                 if not fname.endswith(".h5"):
                     continue
+
                 edf_base = fname.replace(".h5", "")
                 fpath = os.path.join(patient_folder, fname)
 
@@ -281,13 +284,13 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             x = self.transform(x)
         return {"x": x, "y": torch.tensor(y, dtype=torch.long)}
 
-def make_loader(patient_ids, dataset_path, config,
+def make_loader(patient_ids, dataset_path,GT_path, config,
                 shuffle=True, is_ddp=False, rank=0, world_size=1):
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
         data_dir=os.path.join(dataset_path, "bipolar_data"),
-        gt_dir=os.path.join(dataset_path, "GT"),
-        segment_duration_sec=config.get("segment_duration_sec", 4),
+        gt_dir=os.path.join(GT_path, "GT"),
+        segment_duration_sec= 4,
         transform=None
     )
 
@@ -299,28 +302,37 @@ def make_loader(patient_ids, dataset_path, config,
         loader = DataLoader(dataset,
                             batch_size=config["batch_size"],
                             sampler=sampler,
-                            num_workers=config.get("num_workers", 4),
+                            num_workers=config["num_workers"],
                             pin_memory=True)
     else:
         loader = DataLoader(dataset,
                             batch_size=config["batch_size"],
                             shuffle=shuffle,
-                            num_workers=config.get("num_workers", 4),
+                            num_workers=config["num_workers"],
                             pin_memory=True)
     return loader
 
 
 if __name__ == "__main__":
     # Example usage
+
+    
     patient_ids = ["chb01", "chb02"]  # Replace with actual patient IDs
-    dataset_path = "Datasets/CHB-MIT/data" 
+    dataset_path = "../../Datasets/Bipolar/chb_mit"
+    GT_path = "../../Datasets/chb_mit"
     config = {
         "batch_size": 32,
         "num_workers": 4,
         "segment_duration_sec": 4
     }
     
-    loader = make_loader(patient_ids, dataset_path, config, shuffle=True)
-    # stampa leng del loader
+    loader = make_loader(patient_ids, dataset_path, GT_path, config, shuffle=True)
+
     print(f"Number of batches: {len(loader)}")
+    print(f"Total samples in dataset: {len(loader.dataset)}")
+
+    # Visualizza le prime etichette
+    for i, batch in enumerate(loader):
+        print(f"Batch {i+1}: x shape = {batch['x'].shape}, y = {batch['y']}")
+        if i == 2: break
 
