@@ -239,7 +239,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
             seizure_map = {}
             for _, row in gt_df.iterrows():
-                edf_base = row["Name of file"].replace(".edf", "")
+                edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
                 if int(row["Numb of seizures"]) > 0:
                     starts = [float(s) for s in str(row["Start (sec)"]).split(',')]
                     ends = [float(e) for e in str(row["End (sec)"]).split(',')]
