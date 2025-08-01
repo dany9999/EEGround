@@ -255,8 +255,8 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 fpath = os.path.join(patient_folder, fname)
 
 
-                if edf_base not in seizure_map:
-                    continue
+                # if edf_base not in seizure_map:
+                #    continue
 
                 with h5py.File(fpath, 'r') as f:
                     x = f['signals'][:]  # shape: (segments, ch, time)
