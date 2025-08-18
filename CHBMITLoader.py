@@ -216,81 +216,214 @@
 #     return loader
 
 
+# import os
+# import torch
+# import h5py
+# import pandas as pd
+# from torch.utils.data import Dataset, DataLoader, DistributedSampler
+
+# class CHBMITAllSegmentsLabeledDataset(Dataset):
+#     def __init__(self, patient_ids, data_dir, gt_dir,
+#                  segment_duration_sec=4, transform=None):
+#         self.samples = []
+#         self.labels = []
+#         self.transform = transform
+
+#         for patient in patient_ids:
+#             patient_folder = os.path.join(data_dir, patient)
+#             gt_file = os.path.join(gt_dir, f"{patient}.csv")
+#             if not os.path.exists(gt_file):
+#                 continue
+
+#             # parsing ground truth
+#             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
+#             seizure_map = {}
+#             for _, row in gt_df.iterrows():
+#                 edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
+#                 if int(row["Numb of seizures"]) > 0:
+#                     starts = [float(s) for s in str(row["Start (sec)"]).split(',')]
+#                     ends = [float(e) for e in str(row["End (sec)"]).split(',')]
+#                     seizure_map[edf_base] = list(zip(starts, ends))
+
+#             for fname in sorted(os.listdir(patient_folder)):
+#                 print(f"Patient {patient}: found {len(seizure_map)} seizure files")
+#                 print(f" --> Samples accumulated: {len(self.samples)}")
+#                 if not fname.endswith(".h5"):
+#                     continue
+
+#                 edf_base = fname.replace(".h5", "")
+#                 fpath = os.path.join(patient_folder, fname)
+
+
+#                 # if edf_base not in seizure_map:
+#                 #    continue
+
+#                 with h5py.File(fpath, 'r') as f:
+#                     x = f['signals'][:]  # shape: (segments, ch, time)
+
+#                 for i in range(x.shape[0]):
+#                     seg_start = i * segment_duration_sec
+#                     seg_end = seg_start + segment_duration_sec
+
+#                     label = 0
+#                     for (st, en) in seizure_map[edf_base]:
+#                         if not (seg_end <= st or seg_start >= en):
+#                             label = 1
+#                             break
+
+#                     self.samples.append(torch.tensor(x[i], dtype=torch.float32))
+#                     self.labels.append(label)
+
+#     def __len__(self):
+#         return len(self.samples)
+
+#     def __getitem__(self, idx):
+#         x = self.samples[idx]
+#         y = self.labels[idx]
+#         if self.transform:
+#             x = self.transform(x)
+#         return {"x": x, "y": torch.tensor(y, dtype=torch.long)}
+
+# def make_loader(patient_ids, dataset_path,GT_path, config,
+#                 shuffle=True, is_ddp=False, rank=0, world_size=1):
+#     dataset = CHBMITAllSegmentsLabeledDataset(
+#         patient_ids=patient_ids,
+#         data_dir=os.path.join(dataset_path, "bipolar_data"),
+#         gt_dir=os.path.join(GT_path, "GT"),
+#         segment_duration_sec= 4,
+#         transform=None
+#     )
+
+#     if is_ddp:
+#         sampler = DistributedSampler(dataset,
+#                                      num_replicas=world_size,
+#                                      rank=rank,
+#                                      shuffle=shuffle)
+#         loader = DataLoader(dataset,
+#                             batch_size=config["batch_size"],
+#                             sampler=sampler,
+#                             num_workers=config["num_workers"],
+#                             pin_memory=True)
+#     else:
+#         loader = DataLoader(dataset,
+#                             batch_size=config["batch_size"],
+#                             shuffle=shuffle,
+#                             num_workers=config["num_workers"],
+#                             pin_memory=True)
+#     return loader
+
+
+# if __name__ == "__main__":
+#     # Example usage
+
+    
+#     patient_ids = ["chb01", "chb02"]  # Replace with actual patient IDs
+#     dataset_path = "../../Datasets/Bipolar/chb_mit"
+#     GT_path = "../../Datasets/chb_mit"
+#     config = {
+#         "batch_size": 32,
+#         "num_workers": 4,
+#         "segment_duration_sec": 4
+#     }
+    
+#     loader = make_loader(patient_ids, dataset_path, GT_path, config, shuffle=True)
+
+#     print(f"Number of batches: {len(loader)}")
+#     print(f"Total samples in dataset: {len(loader.dataset)}")
+
+#     # Visualizza le prime etichette
+#     for i, batch in enumerate(loader):
+#         print(f"Batch {i+1}: x shape = {batch['x'].shape}, y = {batch['y']}")
+#         if i == 2: break
+
+
+
 import os
 import torch
 import h5py
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader, DistributedSampler
+from utils import load_config
 
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
                  segment_duration_sec=4, transform=None):
-        self.samples = []
-        self.labels = []
+        self.index = []  # (fpath, seg_idx, label, file_id)
         self.transform = transform
+        self.segment_duration_sec = segment_duration_sec
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
             gt_file = os.path.join(gt_dir, f"{patient}.csv")
             if not os.path.exists(gt_file):
+                print(f"⚠️ GT not found for {patient}, skipping")
                 continue
 
-            # parsing ground truth
+            # parsing ground truth CSV
             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
+          
             seizure_map = {}
             for _, row in gt_df.iterrows():
                 edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
-                if int(row["Numb of seizures"]) > 0:
-                    starts = [float(s) for s in str(row["Start (sec)"]).split(',')]
-                    ends = [float(e) for e in str(row["End (sec)"]).split(',')]
+                if isinstance(row["class_name"], str) and "no seizure" in row["class_name"].lower():
+                    seizure_map[edf_base] = []
+                else:
+                    starts = str(row["Start (sec)"]).split(',') if pd.notna(row["Start (sec)"]) else []
+                    ends   = str(row["End (sec)"]).split(',') if pd.notna(row["End (sec)"]) else []
+                    starts = [float(s) for s in starts if s not in ["", "0"]]
+                    ends   = [float(e) for e in ends if s not in ["", "0"]]
                     seizure_map[edf_base] = list(zip(starts, ends))
 
+            print("Parsed GT:")
+            print(gt_df.head())
+            print("Seizure map keys:", seizure_map.keys())
+
+            # Scorri gli h5 nella cartella del paziente
             for fname in sorted(os.listdir(patient_folder)):
-                print(f"Patient {patient}: found {len(seizure_map)} seizure files")
-                print(f" --> Samples accumulated: {len(self.samples)}")
                 if not fname.endswith(".h5"):
                     continue
-
                 edf_base = fname.replace(".h5", "")
                 fpath = os.path.join(patient_folder, fname)
 
-
-                # if edf_base not in seizure_map:
-                #    continue
-
                 with h5py.File(fpath, 'r') as f:
-                    x = f['signals'][:]  # shape: (segments, ch, time)
+                    n_segments = f['signals'].shape[0]
 
-                for i in range(x.shape[0]):
-                    seg_start = i * segment_duration_sec
-                    seg_end = seg_start + segment_duration_sec
+                intervals = seizure_map.get(edf_base, [])
+
+                # crea un indice di segmenti con etichetta
+                for i in range(n_segments):
+                    seg_start = i * self.segment_duration_sec
+                    seg_end   = seg_start + self.segment_duration_sec
 
                     label = 0
-                    for (st, en) in seizure_map[edf_base]:
+                    for (st, en) in intervals:
                         if not (seg_end <= st or seg_start >= en):
                             label = 1
                             break
 
-                    self.samples.append(torch.tensor(x[i], dtype=torch.float32))
-                    self.labels.append(label)
+                    self.index.append((fpath, i, label, edf_base))
+
+            print(f"[{patient}] -> {len(self.index)} total segments accumulated")
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.index)
 
     def __getitem__(self, idx):
-        x = self.samples[idx]
-        y = self.labels[idx]
+        fpath, i, label, file_id = self.index[idx]
+        with h5py.File(fpath, 'r') as f:
+            x = f['signals'][i]  # (channels, time)
+        x = torch.tensor(x, dtype=torch.float32)
         if self.transform:
             x = self.transform(x)
-        return {"x": x, "y": torch.tensor(y, dtype=torch.long)}
-
-def make_loader(patient_ids, dataset_path,GT_path, config,
+        return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
+    
+def make_loader(patient_ids, dataset_path, gt_path, config,
                 shuffle=True, is_ddp=False, rank=0, world_size=1):
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
-        data_dir=os.path.join(dataset_path, "bipolar_data"),
-        gt_dir=os.path.join(GT_path, "GT"),
-        segment_duration_sec= 4,
+        data_dir=dataset_path,
+        gt_dir=gt_path,
+        segment_duration_sec=config.get("segment_duration_sec", 4),
         transform=None
     )
 
@@ -312,27 +445,21 @@ def make_loader(patient_ids, dataset_path,GT_path, config,
                             pin_memory=True)
     return loader
 
-
 if __name__ == "__main__":
     # Example usage
+    patient_ids = ["chb01", "chb02"]
+    config = load_config("../../config.yaml")
+
+    dataset_path = config["dataset_path"]
+    gt_path = config["gt_path"]
 
     
-    patient_ids = ["chb01", "chb02"]  # Replace with actual patient IDs
-    dataset_path = "../../Datasets/Bipolar/chb_mit"
-    GT_path = "../../Datasets/chb_mit"
-    config = {
-        "batch_size": 32,
-        "num_workers": 4,
-        "segment_duration_sec": 4
-    }
+    loader = make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True)
     
-    loader = make_loader(patient_ids, dataset_path, GT_path, config, shuffle=True)
-
     print(f"Number of batches: {len(loader)}")
     print(f"Total samples in dataset: {len(loader.dataset)}")
-
     # Visualizza le prime etichette
     for i, batch in enumerate(loader):
-        print(f"Batch {i+1}: x shape = {batch['x'].shape}, y = {batch['y']}")
+        print(f"Batch {i+1}: x shape = {batch['x'].shape}, y = {batch['y']}, file = {batch['file']}")
         if i == 2: break
 
