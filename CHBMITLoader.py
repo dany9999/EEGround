@@ -374,9 +374,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     ends   = [float(e) for e in ends if e not in ["", "0"]]
                     seizure_map[edf_base] = list(zip(starts, ends))
 
-            print("Parsed GT:")
-            print(gt_df.head())
-            print("Seizure map keys:", seizure_map.keys())
+
 
             # Scorri gli h5 nella cartella del paziente
             for fname in sorted(os.listdir(patient_folder)):

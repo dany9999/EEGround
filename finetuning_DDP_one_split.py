@@ -276,6 +276,7 @@ def main(rank: int, world_size: int, config: dict):
 
     model, optimizer = load_train_objs(rank, config, config["finetune_mode"])
     dataset_path = config["dataset_path"]
+    gt_path = "../../Datasets/chb_mit/GT"
 
     split = predefined_split()
     print("--- Esecuzione con split predefinito ---")
@@ -283,9 +284,9 @@ def main(rank: int, world_size: int, config: dict):
     print(f"Val:   {split['val']}")
     print(f"Test:  {split['test']}")
 
-    train_loader = make_loader(split["train"], dataset_path, config, shuffle=True, is_ddp=True, rank=rank, world_size=world_size)
-    val_loader   = make_loader(split["val"], dataset_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
-    test_loader  = make_loader(split["test"], dataset_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
+    train_loader = make_loader(split["train"], dataset_path,gt_path, config, shuffle=True, is_ddp=True, rank=rank, world_size=world_size)
+    val_loader   = make_loader(split["val"], dataset_path,gt_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
+    test_loader  = make_loader(split["test"], dataset_path,gt_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
 
     trainer = Trainer(model, optimizer, rank, config["save_every"])
     trainer.supervised(config, train_loader, val_loader, test_loader, 1)  # idx = 1
