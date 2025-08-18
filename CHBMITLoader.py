@@ -448,7 +448,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
 if __name__ == "__main__":
     # Example usage
     patient_ids = ["chb01", "chb02"]
-    config = load_config("../../config.yaml")
+    config = load_config("configs/finetuning.yml")
 
     dataset_path = config["dataset_path"]
     gt_path = config["gt_path"]
