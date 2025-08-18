@@ -401,7 +401,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
             print(f"[{patient}] -> {len(self.index)} total segments accumulated")
 
-    def parse_intervals(start_val, end_val):
+    def parse_intervals(self, start_val, end_val):
         """
         Converte i campi Start/End in una lista di tuple [(st1, en1), (st2, en2), ...]
         Supporta:
