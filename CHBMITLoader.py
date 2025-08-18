@@ -428,7 +428,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __getitem__(self, idx):
         fpath, i, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
-            x = f['signals'][i]  # (channels, time)
+            x = f['signals'][i][:18]  # (channels, time)
         x = torch.tensor(x, dtype=torch.float32)
         if self.transform:
             x = self.transform(x)

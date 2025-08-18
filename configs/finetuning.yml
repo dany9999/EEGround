@@ -25,4 +25,4 @@ pretrained_ckpt: ./logs/pretrain/model_epoch_45.pt
 save_dir: ./checkpoints_finetuning
 log_dir: ./logs/finetuning_chb_mit_frozen_encoder
 
-finetune_mode: "frozen_encoder"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
+finetune_mode: "from_scratch"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
