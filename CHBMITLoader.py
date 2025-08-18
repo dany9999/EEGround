@@ -451,7 +451,7 @@ if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
 
     dataset_path = config["dataset_path"]
-    gt_path = config["gt_path"]
+    gt_path = "../../Datasets/chb_mit/GT"
 
     
     loader = make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True)
