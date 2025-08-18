@@ -356,24 +356,22 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             patient_folder = os.path.join(data_dir, patient)
             gt_file = os.path.join(gt_dir, f"{patient}.csv")
             if not os.path.exists(gt_file):
-                print(f"⚠️ GT not found for {patient}, skipping")
+                print(f" GT not found for {patient}, skipping")
                 continue
 
             # parsing ground truth CSV
             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
           
             seizure_map = {}
+     
+            
             for _, row in gt_df.iterrows():
                 edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
                 if isinstance(row["class_name"], str) and "no seizure" in row["class_name"].lower():
                     seizure_map[edf_base] = []
                 else:
-                    starts = str(row["Start (sec)"]).split(',') if pd.notna(row["Start (sec)"]) else []
-                    ends   = str(row["End (sec)"]).split(',') if pd.notna(row["End (sec)"]) else []
-                    starts = [float(s) for s in starts if s not in ["", "0"]]
-                    ends   = [float(e) for e in ends if e not in ["", "0"]]
-                    seizure_map[edf_base] = list(zip(starts, ends))
-
+                    intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
+                    seizure_map[edf_base] = intervals
 
 
             # Scorri gli h5 nella cartella del paziente
@@ -402,6 +400,27 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     self.index.append((fpath, i, label, edf_base))
 
             print(f"[{patient}] -> {len(self.index)} total segments accumulated")
+
+    def parse_intervals(start_val, end_val):
+        """
+        Converte i campi Start/End in una lista di tuple [(st1, en1), (st2, en2), ...]
+        Supporta:
+        - singoli numeri: 3367
+        - intervalli multipli separati da trattini: 834-2378-3362
+        - più intervalli separati da virgola: 263-843-1524,318-1020-1595
+        """
+        intervals = []
+        if pd.isna(start_val) or pd.isna(end_val):
+            return intervals
+        start_parts = str(start_val).split(',')
+        end_parts   = str(end_val).split(',')
+        for s_group, e_group in zip(start_parts, end_parts):
+            starts = [float(x) for x in s_group.split('-') if x.strip() not in ["", "0"]]
+            ends   = [float(x) for x in e_group.split('-') if x.strip() not in ["", "0"]]
+            # Associa ciascun start con il corrispondente end
+            for st, en in zip(starts, ends):
+                intervals.append((st, en))
+        return intervals
 
     def __len__(self):
         return len(self.index)
