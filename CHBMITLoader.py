@@ -371,7 +371,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     starts = str(row["Start (sec)"]).split(',') if pd.notna(row["Start (sec)"]) else []
                     ends   = str(row["End (sec)"]).split(',') if pd.notna(row["End (sec)"]) else []
                     starts = [float(s) for s in starts if s not in ["", "0"]]
-                    ends   = [float(e) for e in ends if s not in ["", "0"]]
+                    ends   = [float(e) for e in ends if e not in ["", "0"]]
                     seizure_map[edf_base] = list(zip(starts, ends))
 
             print("Parsed GT:")
