@@ -394,11 +394,11 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                     label = 0
                     for (st, en) in intervals:
+                        print(f"Segment {i}: [{seg_start}, {seg_end}) vs Seizure [{st}, {en})")
                         if not (seg_end <= st or seg_start >= en):
+                            print("  --> OVERLAP!")
                             label = 1
                             break
-                    if label == 1:
-                        print(f"Seizure segment found: {edf_base}, segment {i}")
                     self.index.append((fpath, i, label, edf_base))
 
             print(f"[{patient}] -> {len(self.index)} total segments accumulated")
