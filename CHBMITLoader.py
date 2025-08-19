@@ -371,6 +371,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seizure_map[edf_base] = []
                 else:
                     intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
+                    print(f"{edf_base}: intervals = {intervals}")
                     seizure_map[edf_base] = intervals
 
 
@@ -396,7 +397,8 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                         if not (seg_end <= st or seg_start >= en):
                             label = 1
                             break
-
+                    if label == 1:
+                        print(f"Seizure segment found: {edf_base}, segment {i}")
                     self.index.append((fpath, i, label, edf_base))
 
             print(f"[{patient}] -> {len(self.index)} total segments accumulated")
