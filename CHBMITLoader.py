@@ -476,8 +476,11 @@ if __name__ == "__main__":
 
     
     loader = make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True)
-    
+    dataset = loader.dataset
     print(f"Number of batches: {len(loader)}")
     print(f"Total samples in dataset: {len(loader.dataset)}")
+    num_pos = sum([1 for _,_,label,_ in dataset.index if label==1])
+    num_neg = sum([1 for _,_,label,_ in dataset.index if label==0])
+    print(f"Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
 
 
