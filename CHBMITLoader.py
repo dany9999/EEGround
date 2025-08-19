@@ -385,16 +385,17 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 with h5py.File(fpath, 'r') as f:
                     n_segments = f['signals'].shape[0]
                
-
+                print("Keys in seizure_map:", seizure_map.keys())
+                print("Looking for:", edf_base)
                 intervals = seizure_map.get(edf_base, [])
-                print(intervals)
+
                 # crea un indice di segmenti con etichetta
                 for i in range(n_segments):
                     seg_start = i * self.segment_duration_sec
                     seg_end   = seg_start + self.segment_duration_sec
                     
                     label = 0
-                    print(f"Intervals raw: {intervals} (type={type(intervals)})")
+                    #print(f"Intervals raw: {intervals} (type={type(intervals)})")
                     for (st, en) in intervals:
                         print(f"Segment {i}: [{seg_start}, {seg_end}) vs Seizure [{st}, {en})")
                         if not (seg_end <= st or seg_start >= en):
