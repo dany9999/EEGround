@@ -477,8 +477,5 @@ if __name__ == "__main__":
     
     print(f"Number of batches: {len(loader)}")
     print(f"Total samples in dataset: {len(loader.dataset)}")
-    # Visualizza le prime etichette
-    for i, batch in enumerate(loader):
-        print(f"Batch {i+1}: x shape = {batch['x'].shape}, y = {batch['y']}, file = {batch['file']}")
-        if i == 2: break
+
 
