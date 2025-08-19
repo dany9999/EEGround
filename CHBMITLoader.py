@@ -387,7 +387,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                
 
                 intervals = seizure_map.get(edf_base, [])
-
+                print(intervals)
                 # crea un indice di segmenti con etichetta
                 for i in range(n_segments):
                     seg_start = i * self.segment_duration_sec
