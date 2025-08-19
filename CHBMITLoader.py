@@ -384,7 +384,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 with h5py.File(fpath, 'r') as f:
                     n_segments = f['signals'].shape[0]
-                print(f"Patient {patient}: found {n_segments} segments in {edf_base}")
+               
 
                 intervals = seizure_map.get(edf_base, [])
 
@@ -392,7 +392,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 for i in range(n_segments):
                     seg_start = i * self.segment_duration_sec
                     seg_end   = seg_start + self.segment_duration_sec
-
+                    print(f"Processing {edf_base}, segment {i}: [{seg_start}, {seg_end})")
                     label = 0
                     for (st, en) in intervals:
                         print(f"Segment {i}: [{seg_start}, {seg_end}) vs Seizure [{st}, {en})")
