@@ -23,6 +23,6 @@ dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
 pretrained_ckpt: ./logs/pretrain/model_epoch_45.pt
 
 save_dir: ./checkpoints_finetuning
-log_dir: ./logs/finetuning_chb_mit_frozen_encoder
+log_dir: ./logs/finetuning_chb_mit_from_scratch
 
 finetune_mode: "from_scratch"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
