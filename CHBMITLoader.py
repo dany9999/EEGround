@@ -394,6 +394,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seg_end   = seg_start + self.segment_duration_sec
                     
                     label = 0
+                    print(f"Intervals raw: {intervals} (type={type(intervals)})")
                     for (st, en) in intervals:
                         print(f"Segment {i}: [{seg_start}, {seg_end}) vs Seizure [{st}, {en})")
                         if not (seg_end <= st or seg_start >= en):
