@@ -396,14 +396,14 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     label = 0
                     #print(f"Intervals raw: {intervals} (type={type(intervals)})")
                     for (st, en) in intervals:
-                        print(f"Segment {i}: [{seg_start}, {seg_end}) vs Seizure [{st}, {en})")
+                        
                         if not (seg_end <= st or seg_start >= en):
-                            print("  --> OVERLAP!")
+                           
                             label = 1
                             break
                     self.index.append((fpath, i, label, edf_base))
 
-            print(f"[{patient}] -> {len(self.index)} total segments accumulated")
+            
 
     def parse_intervals(self, start_val, end_val):
         """
