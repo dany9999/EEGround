@@ -380,6 +380,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 if not fname.endswith(".h5"):
                     continue
                 edf_base = fname.replace(".h5", "")
+                edf_base = edf_base.replace("eeg_", "")
                 fpath = os.path.join(patient_folder, fname)
 
                 with h5py.File(fpath, 'r') as f:
