@@ -390,6 +390,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 # crea un indice di segmenti con etichetta
                 for i in range(n_segments):
+                    print(i)
                     seg_start = i * self.segment_duration_sec
                     seg_end   = seg_start + self.segment_duration_sec
                     print(f"Processing {edf_base}, segment {i}: [{seg_start}, {seg_end})")
