@@ -468,19 +468,38 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
 
 if __name__ == "__main__":
     # Example usage
-    patient_ids = ["chb01", "chb02"]
+    # Pazienti CHB01 - CHB19 per il training
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
+    # CHB20 e CHB21 per validazione
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    # CHB22 e CHB23 per test
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
     config = load_config("configs/finetuning.yml")
 
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
 
     
-    loader = make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True)
-    dataset = loader.dataset
-    print(f"Number of batches: {len(loader)}")
-    print(f"Total samples in dataset: {len(loader.dataset)}")
-    num_pos = sum([1 for _,_,label,_ in dataset.index if label==1])
-    num_neg = sum([1 for _,_,label,_ in dataset.index if label==0])
-    print(f"Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
+    loader_train = make_loader(train_patients, dataset_path, gt_path, config, shuffle=True)
+    loader_val = make_loader(val_patients, dataset_path, gt_path, config, shuffle=False)
+    loader_test = make_loader(test_patients, dataset_path, gt_path, config, shuffle=False)
+    train_set = loader_train.dataset
+    val_set = loader_val.dataset
+    test_set = loader_test.dataset
+    
+    print(f"Train set: {len(train_set)} samples")
+    print(f"Validation set: {len(val_set)} samples")
+    print(f"Test set: {len(test_set)} samples")
 
 
+    num_pos = sum([1 for _,_,label,_ in train_set.index if label==1])
+    num_neg = sum([1 for _,_,label,_ in train_set.index if label==0])
+    print(f"TRAIN --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
+
+    num_pos = sum([1 for _,_,label,_ in val_set.index if label==1])
+    num_neg = sum([1 for _,_,label,_ in val_set.index if label==0])
+    print(f"VAL --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
+
+    num_pos = sum([1 for _,_,label,_ in test_set.index if label==1])
+    num_neg = sum([1 for _,_,label,_ in test_set.index if label==0])
+    print(f"TEST --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
