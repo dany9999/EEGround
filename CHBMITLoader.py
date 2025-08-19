@@ -371,7 +371,6 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seizure_map[edf_base] = []
                 else:
                     intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
-                    print(f"{edf_base}: intervals = {intervals}")
                     seizure_map[edf_base] = intervals
 
 
@@ -386,8 +385,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 with h5py.File(fpath, 'r') as f:
                     n_segments = f['signals'].shape[0]
                
-                print("Keys in seizure_map:", seizure_map.keys())
-                print("Looking for:", edf_base)
+
                 intervals = seizure_map.get(edf_base, [])
 
                 # crea un indice di segmenti con etichetta
