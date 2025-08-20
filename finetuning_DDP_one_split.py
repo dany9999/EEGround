@@ -19,6 +19,9 @@ from torchmetrics.classification import (
 )
 from torch.utils.tensorboard import SummaryWriter
 
+from torchvision.ops import sigmoid_focal_loss
+
+
 # Setup DDP
 def ddp_setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
@@ -46,7 +49,14 @@ class Trainer:
         self.model = model.to(self.device)
         self.model = DDP(self.model, device_ids=[gpu_id])
         self.optimizer = optimizer
-        self.criterion = nn.BCEWithLogitsLoss()
+        #self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = lambda logits, y: sigmoid_focal_loss(
+        inputs=logits,
+        targets=y,
+        alpha=0.25,   # bilanciamento classi
+        gamma=2.0,    # focusing parameter
+        reduction="mean"
+    )
         self.save_every = save_every
 
     def train_step(self, train_loader):
