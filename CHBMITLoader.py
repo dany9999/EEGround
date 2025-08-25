@@ -341,16 +341,27 @@
 import os
 import torch
 import h5py
+import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader, DistributedSampler
 from utils import load_config
 
+
+
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4, transform=None):
+                 segment_duration_sec=4,mean = None, std=None, transform=None):
         self.index = []  # (fpath, seg_idx, label, file_id)
         self.transform = transform
         self.segment_duration_sec = segment_duration_sec
+
+        self.mean = torch.as_tensor(mean, dtype=torch.float32) if mean is not None else None
+        self.std  = torch.as_tensor(std,  dtype=torch.float32)  if std  is not None else None
+        if self.mean is not None and self.mean.ndim == 1:
+            self.mean = self.mean[:, None]
+        if self.std is not None and self.std.ndim == 1:
+            self.std = self.std[:, None]
+        self.eps = 1e-6
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
@@ -434,17 +445,29 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         with h5py.File(fpath, 'r') as f:
             x = f['signals'][i][:18]  # (channels, time)
         x = torch.tensor(x, dtype=torch.float32)
+
+        # normalizzazione globale
+        if self.mean is not None and self.std is not None:
+            x = (x - self.mean) / (self.std + self.eps)
+
         if self.transform:
             x = self.transform(x)
         return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
+
+
     
-def make_loader(patient_ids, dataset_path, gt_path, config,
+def make_loader(patient_ids, dataset_path, gt_path, config, mean=None, std=None,
                 shuffle=True, is_ddp=False, rank=0, world_size=1):
+    
+    
+
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
         data_dir=dataset_path,
         gt_dir=gt_path,
         segment_duration_sec=config.get("segment_duration_sec", 4),
+        mean=mean,
+        std=std,
         transform=None
     )
 

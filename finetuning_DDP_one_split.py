@@ -11,7 +11,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 from tqdm import tqdm
 from itertools import combinations
-from utils import load_config, BinaryBalancedAccuracy
+from utils import load_config, BinaryBalancedAccuracy, compute_global_stats
 from CHBMITLoader import make_loader
 from model.SupervisedClassifier import BIOTClassifier
 from torchmetrics.classification import (
@@ -43,18 +43,19 @@ def leave_one_out_splits(patients, val_count=2):
 
 # Trainer class
 class Trainer:
-    def __init__(self, model, optimizer, gpu_id, save_every):
+    def __init__(self, model, optimizer,scheduler, gpu_id, save_every):
         self.gpu_id = gpu_id
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
         self.model = DDP(self.model, device_ids=[gpu_id])
         self.optimizer = optimizer
+        self.scheduler = scheduler
         #self.criterion = nn.BCEWithLogitsLoss()
         self.criterion = lambda logits, y: sigmoid_focal_loss(
         inputs=logits,
         targets=y,
-        alpha=0.25,   # bilanciamento classi
-        gamma=2.0,    # focusing parameter
+        alpha=0.75,   # bilanciamento classi
+        gamma=1.0,    # focusing parameter
         reduction="mean"
     )
         self.save_every = save_every
@@ -157,6 +158,7 @@ class Trainer:
             checkpoint = torch.load(ckpt_path, map_location=self.device)
             self.model.load_state_dict(checkpoint["model"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.scheduler.load_state_dict(checkpoint["scheduler"])
             start_epoch = checkpoint["epoch"] + 1
             best_val_loss = checkpoint["best_val_loss"]
             counter = checkpoint["counter"]
@@ -175,6 +177,10 @@ class Trainer:
 
             writer.add_scalar("Loss/Train", train_loss, epoch + 1)
             writer.add_scalar("Loss/Val", val_loss, epoch + 1)
+
+            # Scheduler step
+            if hasattr(self, 'scheduler') and self.scheduler is not None:
+                self.scheduler.step(val_loss)
 
             # Salvataggio best model
              
@@ -197,6 +203,7 @@ class Trainer:
                         "epoch": epoch,
                         "model": self.model.state_dict(),
                         "optimizer": self.optimizer.state_dict(),
+                        "scheduler": self.scheduler.state_dict() if self.scheduler else None,
                         "best_val_loss": best_val_loss,
                         "counter": counter
                     }, ckpt_path)
@@ -216,6 +223,10 @@ class Trainer:
             "balacc": BinaryBalancedAccuracy(dist_sync_on_step=False).to(self.device),
             "kappa": BinaryCohenKappa(dist_sync_on_step=False).to(self.device)
         }
+
+        for m in test_metrics.values():
+            m.compute_on_step = False
+            m.sync_on_compute = True
 
         test_loss, per_file_preds = self.test_step(test_loader, test_metrics)
         test_results = self.compute_metrics(test_metrics)
@@ -267,8 +278,17 @@ def load_train_objs(gpu_id, config, finetune_mode):
         optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     else:
         raise ValueError(f"Unknown finetune_mode: {finetune_mode}")
+    
+    # Scheduler: riduce LR se la val_loss non migliora per 5 epoche
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",       # perché vogliamo minimizzare la loss
+        factor=0.5,       # riduci LR del 50%
+        patience=5,       # aspetta 5 epoche senza miglioramenti
+        verbose=True
+    )
 
-    return model, optimizer
+    return model, optimizer, scheduler
 
 def predefined_split():
     # Pazienti CHB01 - CHB19 per il training
@@ -284,7 +304,7 @@ def predefined_split():
 def main(rank: int, world_size: int, config: dict):
     ddp_setup(rank, world_size)
 
-    model, optimizer = load_train_objs(rank, config, config["finetune_mode"])
+    model, optimizer, scheduler = load_train_objs(rank, config, config["finetune_mode"])
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
 
@@ -294,11 +314,27 @@ def main(rank: int, world_size: int, config: dict):
     print(f"Val:   {split['val']}")
     print(f"Test:  {split['test']}")
 
-    train_loader = make_loader(split["train"], dataset_path,gt_path, config, shuffle=True, is_ddp=True, rank=rank, world_size=world_size)
-    val_loader   = make_loader(split["val"], dataset_path,gt_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
-    test_loader  = make_loader(split["test"], dataset_path,gt_path, config, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
+    if rank == 0:
+        train_mean, train_std = compute_global_stats(split["train"], dataset_path)
+        mean_t = torch.tensor(train_mean, dtype=torch.float32, device=f"cuda:{rank}").view(18,1)
+        std_t  = torch.tensor(train_std,  dtype=torch.float32, device=f"cuda:{rank}").view(18,1)
+    else:
+        mean_t = torch.empty((18,1), dtype=torch.float32, device=f"cuda:{rank}")
+        std_t  = torch.empty((18,1), dtype=torch.float32, device=f"cuda:{rank}")
 
-    trainer = Trainer(model, optimizer, rank, config["save_every"])
+    torch.distributed.broadcast(mean_t, src=0)
+    torch.distributed.broadcast(std_t,  src=0)
+
+    train_mean = mean_t.cpu().numpy()
+    train_std  = std_t.cpu().numpy()
+
+   
+
+    train_loader = make_loader(split["train"], dataset_path,gt_path, config,train_mean, train_std, shuffle=True, is_ddp=True, rank=rank, world_size=world_size)
+    val_loader   = make_loader(split["val"], dataset_path,gt_path, config,train_mean, train_std, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
+    test_loader  = make_loader(split["test"], dataset_path,gt_path,config,train_mean, train_std, shuffle=False, is_ddp=True, rank=rank, world_size=world_size)
+
+    trainer = Trainer(model, optimizer,scheduler, rank, config["save_every"])
     trainer.supervised(config, train_loader, val_loader, test_loader, 1)  # idx = 1
 
     destroy_process_group()
