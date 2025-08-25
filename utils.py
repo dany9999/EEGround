@@ -207,3 +207,40 @@ class BinaryBalancedAccuracy(Metric):
     def reset(self):
         super().reset()  
        
+def compute_global_stats(patient_ids, data_dir):
+    """
+    Calcola mean e std globali su tutti i segnali del train set.
+    Ritorna tensori shape (channels, 1) in float32 per il broadcasting.
+    """
+    sum_vals = None
+    sum_sq_vals = None
+    total_samples = 0
+
+    for patient in patient_ids:
+        patient_folder = os.path.join(data_dir, patient)
+        for fname in sorted(os.listdir(patient_folder)):
+            if not fname.endswith(".h5"):
+                continue
+            fpath = os.path.join(patient_folder, fname)
+            with h5py.File(fpath, "r") as f:
+                signals = f["signals"][:, :18, :]  # (n_segments, ch, time)
+                n, c, t = signals.shape
+                reshaped = signals.transpose(1, 0, 2).reshape(c, -1).astype(np.float64)
+
+                if sum_vals is None:
+                    sum_vals = reshaped.sum(axis=1)
+                    sum_sq_vals = (reshaped ** 2).sum(axis=1)
+                else:
+                    sum_vals += reshaped.sum(axis=1)
+                    sum_sq_vals += (reshaped ** 2).sum(axis=1)
+
+                total_samples += reshaped.shape[1]
+
+    if sum_vals is None:
+        raise RuntimeError("Nessun file valido trovato per calcolare mean/std")
+
+    mean = sum_vals / total_samples
+    var = (sum_sq_vals / total_samples) - (mean ** 2)
+    std = np.sqrt(var) + 1e-6
+
+    return mean.reshape(-1, 1).astype(np.float32), std.reshape(-1, 1).astype(np.float32)
