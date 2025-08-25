@@ -18,7 +18,7 @@ from torchmetrics.classification import (
     BinaryAccuracy, BinaryAveragePrecision, BinaryAUROC, BinaryCohenKappa
 )
 from torch.utils.tensorboard import SummaryWriter
-
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.ops import sigmoid_focal_loss
 
 
@@ -280,12 +280,11 @@ def load_train_objs(gpu_id, config, finetune_mode):
         raise ValueError(f"Unknown finetune_mode: {finetune_mode}")
     
     # Scheduler: riduce LR se la val_loss non migliora per 5 epoche
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    scheduler = ReduceLROnPlateau(
         optimizer,
         mode="min",       # perché vogliamo minimizzare la loss
         factor=0.5,       # riduci LR del 50%
-        patience=5,       # aspetta 5 epoche senza miglioramenti
-        verbose=True
+        patience=5
     )
 
     return model, optimizer, scheduler
