@@ -14,7 +14,7 @@ depth: 4
 n_channels: 18
 n_classes: 1
 
-early_stopping_patience: 10
+early_stopping_patience: 20
 save_every: 5
 resume: True
 

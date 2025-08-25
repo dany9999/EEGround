@@ -284,7 +284,7 @@ def load_train_objs(gpu_id, config, finetune_mode):
         optimizer,
         mode="min",       # perché vogliamo minimizzare la loss
         factor=0.5,       # riduci LR del 50%
-        patience=5
+        patience=10
     )
 
     return model, optimizer, scheduler
