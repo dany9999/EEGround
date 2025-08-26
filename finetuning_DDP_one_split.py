@@ -270,8 +270,9 @@ def load_train_objs(gpu_id, config, finetune_mode):
             param.requires_grad = False
         optimizer = optim.Adam(model.classifier.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     elif finetune_mode == "full_finetune":
-        for param in model.biot.parameters():
-            param.requires_grad = True
+        for param in model.parameters():
+            if param.dtype.is_floating_point or param.is_complex():
+                param.requires_grad = True
         optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     elif finetune_mode == "from_scratch":
         model.apply(lambda m: m.reset_parameters() if hasattr(m, "reset_parameters") else None)
