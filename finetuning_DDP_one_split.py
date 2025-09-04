@@ -192,9 +192,9 @@ class Trainer:
                     print(f"Saved best model to {best_model_path}")
             else:
                 counter += 1
-                if counter >= patience:
-                    print(f"Early stopping at epoch {epoch + 1}")
-                    break
+                #if counter >= patience:
+                #    print(f"Early stopping at epoch {epoch + 1}")
+                #    break
 
             # Salvataggio checkpoint periodico
             if (epoch + 1) % self.save_every == 0:
