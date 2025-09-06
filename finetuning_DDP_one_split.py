@@ -251,7 +251,7 @@ class Trainer:
         return val_loss, test_loss
 
 # Load model and optimizer
-def load_train_objs(gpu_id, config, finetune_mode):
+def load_train_objs(gpu_id, config, finetune_mode, resume=False):
     model = BIOTClassifier(
         emb_size=config["emb_size"],
         heads=config["heads"],
@@ -260,7 +260,7 @@ def load_train_objs(gpu_id, config, finetune_mode):
     )
 
     optimizer = None
-    if finetune_mode in ["frozen_encoder", "full_finetune"]:
+    if not resume and finetune_mode in ["frozen_encoder", "full_finetune"]:
         checkpoint = torch.load(config["pretrained_ckpt"], map_location=f"cuda:{gpu_id}")
         model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         print(f"=> Loaded pretrained weights from {config['pretrained_ckpt']}")
@@ -304,7 +304,7 @@ def predefined_split():
 def main(rank: int, world_size: int, config: dict):
     ddp_setup(rank, world_size)
 
-    model, optimizer, scheduler = load_train_objs(rank, config, config["finetune_mode"])
+    model, optimizer, scheduler = load_train_objs(rank, config, config["finetune_mode"], config["resume"])
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
 
