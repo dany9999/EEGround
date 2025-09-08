@@ -248,7 +248,7 @@ def load_train_objs(gpu_id, config, finetune_mode, resume=False):
         optimizer,
         mode="min",
         factor=0.5,
-        patience=10
+        patience=5
     )
     return model, optimizer, scheduler
 
