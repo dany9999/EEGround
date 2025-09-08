@@ -400,18 +400,26 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 intervals = seizure_map.get(edf_base, [])
 
                 # crea un indice di segmenti con etichetta
+                min_overlap_ratio = 0.5  # es: almeno il 50% della finestra deve essere dentro la seizure
+
                 for i in range(n_segments):
                     seg_start = i * self.segment_duration_sec
                     seg_end   = seg_start + self.segment_duration_sec
-                    
+
                     label = 0
-                    #print(f"Intervals raw: {intervals} (type={type(intervals)})")
                     for (st, en) in intervals:
-                        
-                        if not (seg_end <= st or seg_start >= en):
-                           
+                        # Calcola overlap con finestra
+                        overlap_start = max(seg_start, st)
+                        overlap_end   = min(seg_end, en)
+                        overlap = max(0, overlap_end - overlap_start)
+
+                        window_len = seg_end - seg_start
+                        overlap_ratio = overlap / window_len
+
+                        if overlap_ratio >= min_overlap_ratio:
                             label = 1
                             break
+
                     self.index.append((fpath, i, label, edf_base))
 
             

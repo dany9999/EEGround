@@ -49,8 +49,8 @@ class Trainer:
         self.criterion = lambda logits, y: sigmoid_focal_loss(
             inputs=logits,
             targets=y,
-            alpha=0.75,
-            gamma=1.0,
+            alpha=0.9,
+            gamma=2.0,
             reduction="mean"
         )
         self.save_every = save_every
@@ -168,9 +168,9 @@ class Trainer:
                 print(f"Saved best model to {best_model_path}")
             else:
                 counter += 1
-                if counter >= patience:
-                    print(f"Early stopping at epoch {epoch + 1}")
-                    break
+                #if counter >= patience:
+                #    print(f"Early stopping at epoch {epoch + 1}")
+                #    break
 
             if (epoch + 1) % self.save_every == 0:
                 torch.save({
