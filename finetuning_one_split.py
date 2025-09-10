@@ -266,22 +266,31 @@ def main(config: dict):
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
 
-    split = predefined_split()
-    print("--- Esecuzione con split predefinito ---")
-    print(f"Train: {split['train']}")
-    print(f"Val:   {split['val']}")
-    print(f"Test:  {split['test']}")
+    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
+    splits = leave_one_out_splits(all_patients, val_count=2)
 
-    train_mean, train_std = compute_global_stats(split["train"], dataset_path)
-    mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
-    std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
+    for i, split in enumerate(splits):
+        print(f"Split {i+1}:")
+        print(f"  Train: {split['train']}")
+        print(f"  Val:   {split['val']}")
+        print(f"  Test:  {split['test']}")
+    
 
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config, train_mean, train_std, shuffle=True)
-    val_loader   = make_loader(split["val"], dataset_path, gt_path, config, train_mean, train_std, shuffle=False)
-    test_loader  = make_loader(split["test"], dataset_path, gt_path, config, train_mean, train_std, shuffle=False)
+        for idx, split in enumerate(splits):
+            print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
 
-    trainer = Trainer(model, optimizer, scheduler, gpu_id=0, save_every=config["save_every"])
-    trainer.supervised(config, train_loader, val_loader, test_loader, 1)
+
+
+            train_mean, train_std = compute_global_stats(split["train"], dataset_path)
+            mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
+            std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
+
+            train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, shuffle=True)
+            val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+            test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+
+            trainer = Trainer(model, optimizer, scheduler, gpu_id=0, save_every=config["save_every"])
+            trainer.supervised(config, train_loader, val_loader, test_loader, 1)
 
 
 if __name__ == "__main__":
