@@ -18,7 +18,7 @@ from torchmetrics.classification import (
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.ops import sigmoid_focal_loss
-
+import json
 
 
 
@@ -211,6 +211,21 @@ class Trainer:
             print(f"{file:35s} | Accuracy: {acc:.4f}")
 
         writer.close()
+        results_dict = {
+        "iteration": iteration_idx,
+        "finetune_mode": finetune_mode,
+        "test_loss": test_loss,
+        "metrics": test_results,
+        "per_file": per_file_preds,
+        }
+
+        json_path = os.path.join(run_dir, f"results_split{iteration_idx}.json")
+        with open(json_path, "w") as f:
+            json.dump(results_dict, f, indent=4)
+
+        print(f"=> Saved test results to {json_path}")
+
+
         return val_loss, test_loss
 
 
