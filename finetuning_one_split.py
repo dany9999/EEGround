@@ -202,14 +202,7 @@ class Trainer:
             print(f"{k.upper():7s}: {v:.4f}")
             writer.add_scalar(f"Test/{k}", v)
 
-        print("\n--- Accuracy per file ---")
-        for file, results in per_file_preds.items():
-            y_true = results["y_true"]
-            y_pred = results["y_pred"]
-            correct = sum(yt == yp for yt, yp in zip(y_true, y_pred))
-            acc = correct / len(y_true) if y_true else 0.0
-            print(f"{file:35s} | Accuracy: {acc:.4f}")
-
+    
         writer.close()
         results_dict = {
         "iteration": iteration_idx,
@@ -281,31 +274,34 @@ def main(config: dict):
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
 
-    all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
-    splits = leave_one_out_splits(all_patients, val_count=2)
 
-    for i, split in enumerate(splits):
-        print(f"Split {i+1}:")
-        print(f"  Train: {split['train']}")
-        print(f"  Val:   {split['val']}")
-        print(f"  Test:  {split['test']}")
+    #all_patients = sorted([p for p in os.listdir(dataset_path) if not p.startswith(".")])[:6]
+    #splits = leave_one_out_splits(all_patients, val_count=2)
+
+    split = predefined_split()
+
+    # for i, split in enumerate(splits):
+    #     print(f"Split {i+1}:")
+    #     print(f"  Train: {split['train']}")
+    #     print(f"  Val:   {split['val']}")
+    #     print(f"  Test:  {split['test']}")
     
 
-        for idx, split in enumerate(splits):
-            print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
+    #     for idx, split in enumerate(splits):
+    #         print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
 
 
 
-            train_mean, train_std = compute_global_stats(split["train"], dataset_path)
-            mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
-            std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
+    train_mean, train_std = compute_global_stats(split["train"], dataset_path)
+    mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
+    std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
-            train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, shuffle=True)
-            val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
-            test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, shuffle=True)
+    val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
 
-            trainer = Trainer(model, optimizer, scheduler, gpu_id=0, save_every=config["save_every"])
-            trainer.supervised(config, train_loader, val_loader, test_loader, 1)
+    trainer = Trainer(model, optimizer, scheduler, gpu_id=0, save_every=config["save_every"])
+    trainer.supervised(config, train_loader, val_loader, test_loader, 1)
 
 
 if __name__ == "__main__":
