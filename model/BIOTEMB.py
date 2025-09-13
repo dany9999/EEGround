@@ -58,9 +58,9 @@ class BIOTEncoder(nn.Module):
         emb_size=256,
         heads=8,
         depth=4,
-        n_channels=23,
-        n_fft=200,
-        hop_length=100,
+        n_channels=18,
+        n_fft=128,
+        hop_length=32,
         mask_ratio=0.15,
         **kwargs
     ):

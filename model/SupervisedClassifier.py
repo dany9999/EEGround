@@ -38,6 +38,8 @@ class BIOTClassifier(nn.Module):
             heads=heads,
             depth=depth,
             n_channels=n_channels,
+            n_fft=128,
+            hop_length=32,
             **kwargs
         )
         self.pooling = AttentionPooling(emb_size)
@@ -48,6 +50,8 @@ class BIOTClassifier(nn.Module):
         pooled = self.pooling(out_biot)                      # (B, D)
         logits = self.classifier(pooled)                     # (B, 1)
         return logits
+
+
 
 
 # Debugging block
