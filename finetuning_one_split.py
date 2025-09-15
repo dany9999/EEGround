@@ -19,6 +19,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.ops import sigmoid_focal_loss
 import json
+import random
+import numpy as np
 
 
 
@@ -37,23 +39,40 @@ def leave_one_out_splits(patients, val_count=2):
     return splits
 
 
+def compute_pos_weight(train_loader, device):
+    total_pos, total_neg = 0, 0
+    for batch in train_loader:
+        y = batch["y"].view(-1)
+        total_pos += (y == 1).sum().item()
+        total_neg += (y == 0).sum().item()
+    pos_weight = torch.tensor([total_neg / max(total_pos, 1)], device=device)
+    print(f"Computed pos_weight: {pos_weight.item():.4f} (neg={total_neg}, pos={total_pos})")
+    return pos_weight
+
 # Trainer con DataParallel
 class Trainer:
-    def __init__(self, model, optimizer, scheduler, gpu_id, save_every):
-        self.gpu_id = gpu_id
+    def __init__(self, model, optimizer, scheduler, criterion_name,save_every, pos_weight= None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
         self.model = nn.DataParallel(self.model)  # DataParallel invece di DDP
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.criterion = lambda logits, y: sigmoid_focal_loss(
-            inputs=logits,
-            targets=y,
-            alpha=0.9,
-            gamma=2.0,
-            reduction="mean"
-        )
+        self.pos_weight = pos_weight
         self.save_every = save_every
+
+        if criterion_name == "focal":
+            self.criterion = lambda logits, y: sigmoid_focal_loss(
+                inputs=logits,
+                targets=y,
+                alpha=0.9,
+                gamma=2.0,
+                reduction="mean"
+            )
+        elif criterion_name == "bce":
+            assert self.pos_weight is not None, "pos_weight must be provided for BCE"
+            self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
+        else:
+            raise ValueError(f"Unknown criterion: {criterion_name}")
 
     def train_step(self, train_loader):
         self.model.train()
@@ -290,6 +309,10 @@ def main(config: dict):
     #     for idx, split in enumerate(splits):
     #         print(f"\n--- Running Split {idx + 1}/{len(splits)} ---")
 
+    random.seed(42)
+    np.random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed_all(42)
 
 
     train_mean, train_std = compute_global_stats(split["train"], dataset_path)
@@ -299,8 +322,10 @@ def main(config: dict):
     train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, shuffle=True)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
-
-    trainer = Trainer(model, optimizer, scheduler, gpu_id=0, save_every=config["save_every"])
+    # Calcolo pos_weight
+    pos_weight = compute_pos_weight(train_loader, device="cuda")
+    
+    trainer = Trainer(model, optimizer, scheduler, criterion_name= config["criterion_name"], save_every=config["save_every"], pos_weight=pos_weight)
     trainer.supervised(config, train_loader, val_loader, test_loader, 1)
 
 
