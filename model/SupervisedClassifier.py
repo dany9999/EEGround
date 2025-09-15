@@ -22,6 +22,7 @@ class ClassificationHead(nn.Sequential):
         super().__init__()
         self.clshead = nn.Sequential(
             nn.ELU(),
+            #nn.Dropout(0.3),
             nn.Linear(emb_size, n_classes),
         )
 
@@ -40,6 +41,7 @@ class BIOTClassifier(nn.Module):
             n_channels=n_channels,
             n_fft=128,
             hop_length=32,
+            mask_ratio=0.0,
             **kwargs
         )
         self.pooling = AttentionPooling(emb_size)
