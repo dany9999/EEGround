@@ -94,9 +94,7 @@ class Trainer:
         self.model.eval()
         running_loss = 0.0
 
-        metrics = {
-        "balacc": BinaryBalancedAccuracy().to(self.device)
-        }
+     
 
         with torch.no_grad():
             for batch in tqdm(val_loader, desc="Validation", dynamic_ncols=False):
@@ -105,14 +103,13 @@ class Trainer:
                 logits = self.model(x)
                 loss = self.criterion(logits, y)
                 running_loss += loss.item()
-        avg_loss = running_loss / len(val_loader)
-        val_metrics = {k: (v.compute().item() if hasattr(v.compute(), "item") else v.compute()) for k, v in metrics.items()}
-        print(f"Validation Loss: {avg_loss:.4f} | Balanced Acc: {val_metrics['balacc']:.4f}")
+        
+        avg_loss =  running_loss / len(val_loader)
+        
+        print(f"Validation Loss: {avg_loss:.8f}")
 
-        # Reset metric
-        for m in metrics.values():
-            m.reset()
-        return avg_loss, val_metrics
+      
+        return avg_loss
 
     def test_step(self, test_loader, metrics):
         self.model.eval()
@@ -182,11 +179,11 @@ class Trainer:
         for epoch in range(start_epoch, config["epochs"]):
             print(f"\nEpoch {epoch + 1}/{config['epochs']}")
             train_loss = self.train_step(train_loader)
-            val_loss, val_metrics  = self.val_step(val_loader)
+            val_loss = self.val_step(val_loader)
 
             writer.add_scalar("Loss/Train", train_loss, epoch + 1)
             writer.add_scalar("Loss/Val", val_loss, epoch + 1)
-            writer.add_scalar("Val/BalAcc", val_metrics["balacc"], epoch + 1)
+           
 
             if hasattr(self, "scheduler") and self.scheduler is not None:
                 self.scheduler.step(val_loss)
