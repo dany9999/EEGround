@@ -93,6 +93,11 @@ class Trainer:
     def val_step(self, val_loader):
         self.model.eval()
         running_loss = 0.0
+
+        metrics = {
+        "balacc": BinaryBalancedAccuracy().to(self.device)
+        }
+
         with torch.no_grad():
             for batch in tqdm(val_loader, desc="Validation", dynamic_ncols=False):
                 x = batch["x"].to(self.device)
@@ -101,8 +106,13 @@ class Trainer:
                 loss = self.criterion(logits, y)
                 running_loss += loss.item()
         avg_loss = running_loss / len(val_loader)
-        print(f"Validation Loss: {avg_loss:.4f}")
-        return avg_loss
+        val_metrics = {k: (v.compute().item() if hasattr(v.compute(), "item") else v.compute()) for k, v in metrics.items()}
+        print(f"Validation Loss: {avg_loss:.4f} | Balanced Acc: {val_metrics['balacc']:.4f}")
+
+        # Reset metric
+        for m in metrics.values():
+            m.reset()
+        return avg_loss, val_metrics
 
     def test_step(self, test_loader, metrics):
         self.model.eval()
@@ -172,10 +182,11 @@ class Trainer:
         for epoch in range(start_epoch, config["epochs"]):
             print(f"\nEpoch {epoch + 1}/{config['epochs']}")
             train_loss = self.train_step(train_loader)
-            val_loss = self.val_step(val_loader)
+            val_loss, val_metrics  = self.val_step(val_loader)
 
             writer.add_scalar("Loss/Train", train_loss, epoch + 1)
             writer.add_scalar("Loss/Val", val_loss, epoch + 1)
+            writer.add_scalar("Val/BalAcc", val_metrics["balacc"], epoch + 1)
 
             if hasattr(self, "scheduler") and self.scheduler is not None:
                 self.scheduler.step(val_loss)
@@ -218,7 +229,7 @@ class Trainer:
 
         print(f"\n=== Split {iteration_idx} Test Results ({finetune_mode}) ===")
         for k, v in test_results.items():
-            print(f"{k.upper():7s}: {v:.4f}")
+            #print(f"{k.upper():7s}: {v:.4f}")
             writer.add_scalar(f"Test/{k}", v)
 
     
@@ -282,8 +293,8 @@ def load_train_objs(gpu_id, config, finetune_mode, resume=False):
 
 def predefined_split():
     train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
