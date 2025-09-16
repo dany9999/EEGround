@@ -62,6 +62,7 @@ class BIOTEncoder(nn.Module):
         n_fft=128,
         hop_length=32,
         mask_ratio=0.15,
+        pretraining=False,
         **kwargs
     ):
         super().__init__()
@@ -69,6 +70,8 @@ class BIOTEncoder(nn.Module):
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.mask_ratio = mask_ratio
+        self.pretraining = pretraining
+
 
         self.patch_embedding = PatchFrequencyEmbedding(
             emb_size=emb_size, n_freq=self.n_fft // 2 + 1
@@ -187,8 +190,15 @@ class BIOTEncoder(nn.Module):
 
              
         # random masking
-        masked_emb = emb.clone() 
-        masked_emb, mask = self.random_masking(masked_emb)
+        
+        if self.pretraining:
+            masked_emb = emb.clone() 
+            masked_emb, mask = self.random_masking(emb)
+        else:
+            masked_emb = emb
+            mask = None
+
+
 
         out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
         
