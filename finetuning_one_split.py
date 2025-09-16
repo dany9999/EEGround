@@ -226,7 +226,7 @@ class Trainer:
 
         print(f"\n=== Split {iteration_idx} Test Results ({finetune_mode}) ===")
         for k, v in test_results.items():
-            #print(f"{k.upper():7s}: {v:.4f}")
+            print(f"{k.upper():7s}: {v:.4f}")
             writer.add_scalar(f"Test/{k}", v)
 
     
