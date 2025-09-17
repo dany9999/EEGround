@@ -290,8 +290,8 @@ def load_train_objs(gpu_id, config, finetune_mode, resume=False):
 
 def predefined_split():
     train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 

@@ -22,7 +22,7 @@ class ClassificationHead(nn.Sequential):
         super().__init__()
         self.clshead = nn.Sequential(
             nn.ELU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.4),
             nn.Linear(emb_size, n_classes),
         )
 
