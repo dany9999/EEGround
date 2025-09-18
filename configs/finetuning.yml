@@ -11,7 +11,7 @@ num_workers: 24
 emb_size: 256
 heads: 8
 depth: 4
-criterion_name: "bce"  # oppure: "bce", "focal"
+criterion_name: "focal"  # oppure: "bce", "focal"
 
 n_channels: 18
 n_classes: 1
