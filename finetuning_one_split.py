@@ -279,12 +279,7 @@ def load_train_objs(gpu_id, config, finetune_mode, resume=False):
     else:
         raise ValueError(f"Unknown finetune_mode: {finetune_mode}")
     
-    for name, param in model.named_parameters():
-        print(name, param.requires_grad)
 
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"Trainable params: {trainable_params}/{total_params}")
 
     scheduler = ReduceLROnPlateau(
         optimizer,
