@@ -64,7 +64,7 @@ class Trainer:
             self.criterion = lambda logits, y: sigmoid_focal_loss(
                 inputs=logits,
                 targets=y,
-                alpha=0.9,
+                alpha=0.8,
                 gamma=2.0,
                 reduction="mean"
             )
@@ -278,6 +278,13 @@ def load_train_objs(gpu_id, config, finetune_mode, resume=False):
         optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     else:
         raise ValueError(f"Unknown finetune_mode: {finetune_mode}")
+    
+    for name, param in model.named_parameters():
+        print(name, param.requires_grad)
+
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Trainable params: {trainable_params}/{total_params}")
 
     scheduler = ReduceLROnPlateau(
         optimizer,
