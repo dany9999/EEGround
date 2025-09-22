@@ -114,7 +114,7 @@ class LitModel_finetune(pl.LightningModule):
         optimizer = torch.optim.Adam(
             self.model.parameters(),
             lr=self.config["lr"],
-            weight_decay=self.config["weight_decay"],
+            weight_decay=float(self.config["weight_decay"]),
         )
         return [optimizer]
 
