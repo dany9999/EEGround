@@ -29,7 +29,7 @@ class PatchFrequencyEmbedding(nn.Module):
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_len: int = 1000):
         super(PositionalEncoding, self).__init__()
-    
+        self.dropout = nn.Dropout(p=0.1)
 
         # Compute the positional encodings once in log space.
         pe = torch.zeros(max_len, d_model)
@@ -50,8 +50,8 @@ class PositionalEncoding(nn.Module):
             `encoder input`, shape (batch, max_len, d_model)
         """
         x = x + self.pe[:, : x.size(1)]
-        return x
-    
+        return self.dropout(x)
+
 class BIOTEncoder(nn.Module):
     def __init__(
         self,
@@ -59,8 +59,8 @@ class BIOTEncoder(nn.Module):
         heads=8,
         depth=4,
         n_channels=18,
-        n_fft=128,
-        hop_length=32,
+        n_fft=200,
+        hop_length=100,
         mask_ratio=0.15,
         pretraining=False,
         **kwargs
@@ -194,15 +194,12 @@ class BIOTEncoder(nn.Module):
         if self.pretraining:
             masked_emb = emb.clone() 
             masked_emb, mask = self.random_masking(emb)
+            out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
         else:
             masked_emb = emb
             mask = None
+            out_biot = self.transformer(masked_emb).mean(dim=1) # (batch_size, n_channels * ts, emb)
 
 
-
-        out_biot = self.transformer(masked_emb).mean(dim=1) # (batch_size, n_channels * ts, emb)
         
-        
-        
-
         return emb, masked_emb, out_biot,  mask

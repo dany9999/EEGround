@@ -1,24 +1,24 @@
 
 
 epochs: 100
-batch_size: 256
+batch_size: 512
 
-lr: 0.00001
-weight_decay: 1e-4
+lr: 0.001
+weight_decay: 1e-5
 
 num_workers: 24
 
 emb_size: 256
 heads: 8
 depth: 4
-criterion_name: "bce"  # oppure: "bce", "focal"
+criterion_name: "focal"  # oppure: "bce", "focal"
 
 n_channels: 18
 n_classes: 1
 
 early_stopping_patience: 20
 save_every: 10
-resume: True
+resume: False
 
 
 dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
