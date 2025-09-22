@@ -13,6 +13,7 @@ from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pyhealth.metrics import binary_metrics_fn
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, average_precision_score
 import random
 from biot import BIOTClassifier
 from .utils import focal_loss, compute_global_stats, load_config
@@ -25,6 +26,23 @@ class LitModel_finetune(pl.LightningModule):
         self.model = model
         self.threshold = 0.5
         self.config = config
+
+    def compute_binary_metrics(y_true, y_pred, threshold=0.5):
+        y_pred_bin = (y_pred >= threshold).astype(int)
+        
+        metrics = {}
+        metrics["accuracy"] = accuracy_score(y_true, y_pred_bin)
+        metrics["balanced_accuracy"] = balanced_accuracy_score(y_true, y_pred_bin)
+        
+        # roc_auc_score e average_precision_score richiedono almeno una classe positiva e una negativa
+        if len(np.unique(y_true)) > 1:
+            metrics["roc_auc"] = roc_auc_score(y_true, y_pred)
+            metrics["pr_auc"] = average_precision_score(y_true, y_pred)
+        else:
+            metrics["roc_auc"] = 0.0
+            metrics["pr_auc"] = 0.0
+        
+        return metrics
 
     def training_step(self, batch, batch_idx):
         X, y = batch
@@ -52,12 +70,13 @@ class LitModel_finetune(pl.LightningModule):
             sum(gt) * (len(gt) - sum(gt)) != 0
         ):  # to prevent all 0 or all 1 and raise the AUROC error
             self.threshold = np.sort(result)[-int(np.sum(gt))]
-            result = binary_metrics_fn(
-                gt,
-                result,
-                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-                threshold=self.threshold,
-            )
+            # result = binary_metrics_fn(
+            #     gt,
+            #     result,
+            #     metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+            #     threshold=self.threshold,
+            # )
+            result = self.compute_binary_metrics(gt, result, threshold=self.threshold)
         else:
             result = {
                 "accuracy": 0.0,
@@ -88,12 +107,13 @@ class LitModel_finetune(pl.LightningModule):
         if (
             sum(gt) * (len(gt) - sum(gt)) != 0
         ):  # to prevent all 0 or all 1 and raise the AUROC error
-            result = binary_metrics_fn(
-                gt,
-                result,
-                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-                threshold=self.threshold,
-            )
+            # result = binary_metrics_fn(
+            #     gt,
+            #     result,
+            #     metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+            #     threshold=self.threshold,
+            # )
+            result = self.compute_binary_metrics(gt, result, threshold=self.threshold)
         else:
             result = {
                 "accuracy": 0.0,
