@@ -16,7 +16,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, average_precision_score
 import random
 from biot import BIOTClassifier
-from .utils import focal_loss, compute_global_stats, load_config
+from utils import focal_loss, compute_global_stats, load_config
 
 from CHBMITLoader import make_loader
 
