@@ -6,6 +6,10 @@ import torch
 from tqdm import tqdm
 import numpy as np
 import torch.nn as nn
+import sys
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -18,7 +22,8 @@ import random
 from biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
 
-from ..CHBMITLoader import make_loader
+from CHBMITLoader import make_loader
+
 class LitModel_finetune(pl.LightningModule):
     def __init__(self, config, model):
         super().__init__()
