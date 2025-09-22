@@ -44,14 +44,14 @@ class BIOTClassifier(nn.Module):
             pretraining=False,
             **kwargs
         )
-        #self.pooling = AttentionPooling(emb_size)
+        self.pooling = AttentionPooling(emb_size)
         self.classifier = ClassificationHead(emb_size, n_classes)
         
 
     def forward(self, x, n_channel_offset=0):
         _, _, out_biot, _ = self.biot(x, n_channel_offset)  # out_biot: (B, Seq, D)
-        #pooled = self.pooling(out_biot)                      # (B, D)
-        logits = self.classifier(out_biot)                     # (B, 1)
+        pooled = self.pooling(out_biot)                      # (B, D)
+        logits = self.classifier(pooled)                     # (B, 1)
         return logits
 
 
