@@ -1,28 +1,27 @@
 import os
 import argparse
 import pickle
+import sys
+import random
 
 import torch
-from tqdm import tqdm
-import numpy as np
 import torch.nn as nn
-import sys
-
-
-
+import numpy as np
+from tqdm import tqdm
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, average_precision_score
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-#from pyhealth.metrics import binary_metrics_fn
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, average_precision_score
-import random
+from pytorch_lightning.callbacks import EarlyStopping
+
 from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
 
+# se CHBMITLoader è nella cartella padre
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from CHBMITLoader import make_loader
+
 
 class LitModel_finetune(pl.LightningModule):
     def __init__(self, config, model):
@@ -31,27 +30,28 @@ class LitModel_finetune(pl.LightningModule):
         self.threshold = 0.5
         self.config = config
 
+        # memorizza output per epoch
+        self.val_results = {"preds": [], "targets": []}
+        self.test_results = {"preds": [], "targets": []}
+
+    @staticmethod
     def compute_binary_metrics(y_true, y_pred, threshold=0.5):
         y_pred_bin = (y_pred >= threshold).astype(int)
-        
         metrics = {}
         metrics["accuracy"] = accuracy_score(y_true, y_pred_bin)
         metrics["balanced_accuracy"] = balanced_accuracy_score(y_true, y_pred_bin)
-        
-        # roc_auc_score e average_precision_score richiedono almeno una classe positiva e una negativa
         if len(np.unique(y_true)) > 1:
             metrics["roc_auc"] = roc_auc_score(y_true, y_pred)
             metrics["pr_auc"] = average_precision_score(y_true, y_pred)
         else:
             metrics["roc_auc"] = 0.0
             metrics["pr_auc"] = 0.0
-        
         return metrics
 
     def training_step(self, batch, batch_idx):
         X, y = batch
         prob = self.model(X)
-        loss = focal_loss(prob, y)  # focal_loss(prob, y)
+        loss = focal_loss(prob, y)
         self.log("train_loss", loss)
         return loss
 
@@ -61,38 +61,27 @@ class LitModel_finetune(pl.LightningModule):
             prob = self.model(X)
             step_result = torch.sigmoid(prob).cpu().numpy()
             step_gt = y.cpu().numpy()
-        return step_result, step_gt
+        self.val_results["preds"].append(step_result)
+        self.val_results["targets"].append(step_gt)
 
-    def validation_epoch_end(self, val_step_outputs):
-        result = np.array([])
-        gt = np.array([])
-        for out in val_step_outputs:
-            result = np.append(result, out[0])
-            gt = np.append(gt, out[1])
+    def on_validation_epoch_end(self):
+        preds = np.concatenate(self.val_results["preds"])
+        targets = np.concatenate(self.val_results["targets"])
 
-        if (
-            sum(gt) * (len(gt) - sum(gt)) != 0
-        ):  # to prevent all 0 or all 1 and raise the AUROC error
-            self.threshold = np.sort(result)[-int(np.sum(gt))]
-            # result = binary_metrics_fn(
-            #     gt,
-            #     result,
-            #     metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-            #     threshold=self.threshold,
-            # )
-            result = self.compute_binary_metrics(gt, result, threshold=self.threshold)
+        if sum(targets) * (len(targets) - sum(targets)) != 0:
+            self.threshold = np.sort(preds)[-int(np.sum(targets))]
+            result = self.compute_binary_metrics(targets, preds, threshold=self.threshold)
         else:
-            result = {
-                "accuracy": 0.0,
-                "balanced_accuracy": 0.0,
-                "pr_auc": 0.0,
-                "roc_auc": 0.0,
-            }
+            result = {"accuracy": 0.0, "balanced_accuracy": 0.0, "pr_auc": 0.0, "roc_auc": 0.0}
+
         self.log("val_acc", result["accuracy"], sync_dist=True)
         self.log("val_bacc", result["balanced_accuracy"], sync_dist=True)
         self.log("val_pr_auc", result["pr_auc"], sync_dist=True)
         self.log("val_auroc", result["roc_auc"], sync_dist=True)
         print(result)
+
+        # resetta per il prossimo epoch
+        self.val_results = {"preds": [], "targets": []}
 
     def test_step(self, batch, batch_idx):
         X, y = batch
@@ -100,36 +89,25 @@ class LitModel_finetune(pl.LightningModule):
             convScore = self.model(X)
             step_result = torch.sigmoid(convScore).cpu().numpy()
             step_gt = y.cpu().numpy()
-        return step_result, step_gt
+        self.test_results["preds"].append(step_result)
+        self.test_results["targets"].append(step_gt)
 
-    def test_epoch_end(self, test_step_outputs):
-        result = np.array([])
-        gt = np.array([])
-        for out in test_step_outputs:
-            result = np.append(result, out[0])
-            gt = np.append(gt, out[1])
-        if (
-            sum(gt) * (len(gt) - sum(gt)) != 0
-        ):  # to prevent all 0 or all 1 and raise the AUROC error
-            # result = binary_metrics_fn(
-            #     gt,
-            #     result,
-            #     metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-            #     threshold=self.threshold,
-            # )
-            result = self.compute_binary_metrics(gt, result, threshold=self.threshold)
+    def on_test_epoch_end(self):
+        preds = np.concatenate(self.test_results["preds"])
+        targets = np.concatenate(self.test_results["targets"])
+
+        if sum(targets) * (len(targets) - sum(targets)) != 0:
+            result = self.compute_binary_metrics(targets, preds, threshold=self.threshold)
         else:
-            result = {
-                "accuracy": 0.0,
-                "balanced_accuracy": 0.0,
-                "pr_auc": 0.0,
-                "roc_auc": 0.0,
-            }
+            result = {"accuracy": 0.0, "balanced_accuracy": 0.0, "pr_auc": 0.0, "roc_auc": 0.0}
+
         self.log("test_acc", result["accuracy"], sync_dist=True)
         self.log("test_bacc", result["balanced_accuracy"], sync_dist=True)
         self.log("test_pr_auc", result["pr_auc"], sync_dist=True)
         self.log("test_auroc", result["roc_auc"], sync_dist=True)
+        print(result)
 
+        self.test_results = {"preds": [], "targets": []}
         return result
 
     def configure_optimizers(self):
@@ -138,8 +116,7 @@ class LitModel_finetune(pl.LightningModule):
             lr=self.config["lr"],
             weight_decay=self.config["weight_decay"],
         )
-
-        return [optimizer]  # , [scheduler]
+        return [optimizer]
 
 
 def predefined_split():
@@ -149,11 +126,10 @@ def predefined_split():
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
-
 def prepare_CHB_MIT_dataloader(config):
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
-    
+
     random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
@@ -165,39 +141,25 @@ def prepare_CHB_MIT_dataloader(config):
     std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, balanced=True, shuffle=True)
-    val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
-    test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    val_loader = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    test_loader = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
     return train_loader, test_loader, val_loader
 
 
-
-
-
 def supervised(config):
-
-
-
     train_loader, test_loader, val_loader = prepare_CHB_MIT_dataloader(config)
     model = BIOTClassifier(
-        
-        # set the n_channels according to the pretrained model if necessary
-        n_channels= config["n_channels"],
-        n_fft= 200,
-        hop_length= 100,
+        n_channels=config["n_channels"],
+        n_fft=200,
+        hop_length=100,
     )
 
     lightning_model = LitModel_finetune(config, model)
 
-    # logger and callbacks
-    version = f"CHB-MIT-{config["lr"]}-{config["batch_size"]}"
-    logger = TensorBoardLogger(
-        save_dir="./",
-        version=version,
-        name="log",
-    )
-    early_stop_callback = EarlyStopping(
-        monitor="val_auroc", patience=5, verbose=False, mode="max"
-    )
+    version = f"CHB-MIT-{config['lr']}-{config['batch_size']}"
+    logger = TensorBoardLogger(save_dir="./", version=version, name="log")
+
+    early_stop_callback = EarlyStopping(monitor="val_auroc", patience=5, verbose=False, mode="max")
 
     trainer = pl.Trainer(
         devices=2,
@@ -210,19 +172,11 @@ def supervised(config):
         callbacks=[early_stop_callback],
     )
 
-    # train the model
-    trainer.fit(
-        lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader
-    )
-
-    # test the model
-    pretrain_result = trainer.test(
-        model=lightning_model, ckpt_path="best", dataloaders=test_loader
-    )[0]
+    trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader)[0]
     print(pretrain_result)
 
 
 if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
-
     supervised(config)
