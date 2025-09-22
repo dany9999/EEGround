@@ -31,7 +31,7 @@ class ClassificationHead(nn.Sequential):
 
 # Full classifier module
 class BIOTClassifier(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_classes=1, n_channels=19, **kwargs):
+    def __init__(self, emb_size=256, heads=8, depth=4, n_classes=1, n_channels=18, **kwargs):
         super().__init__()
         self.biot = BIOTEncoder(
             emb_size=emb_size,
