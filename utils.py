@@ -20,6 +20,23 @@ from sklearn.metrics import balanced_accuracy_score
 
 # ==== Utils ====
 
+
+# define focal loss on binary classification
+def focal_loss(y_hat, y, alpha=0.8, gamma=0.7):
+    # y_hat: (N, 1)
+    # y: (N, 1)
+    # alpha: float
+    # gamma: float
+    y_hat = y_hat.view(-1, 1)
+    y = y.view(-1, 1)
+    # y_hat = torch.clamp(y_hat, -75, 75)
+    p = torch.sigmoid(y_hat)
+    loss = -alpha * (1 - p) ** gamma * y * torch.log(p) - (1 - alpha) * p**gamma * (
+        1 - y
+    ) * torch.log(1 - p)
+    return loss.mean()
+
+
 def load_config(path):
     with open(path, "r") as f:
         return yaml.safe_load(f)
