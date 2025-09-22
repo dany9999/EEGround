@@ -200,10 +200,9 @@ def supervised(config):
     )
 
     trainer = pl.Trainer(
-        devices=[0],
+        devices=2,
         accelerator="gpu",
         strategy=DDPStrategy(find_unused_parameters=False),
-        auto_select_gpus=True,
         benchmark=True,
         enable_checkpointing=True,
         logger=logger,
