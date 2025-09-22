@@ -18,8 +18,7 @@ import random
 from biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
 
-from CHBMITLoader import make_loader
-
+from ..CHBMITLoader import make_loader
 class LitModel_finetune(pl.LightningModule):
     def __init__(self, config, model):
         super().__init__()
