@@ -12,7 +12,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pyhealth.metrics import binary_metrics_fn
+#from pyhealth.metrics import binary_metrics_fn
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, average_precision_score
 import random
 from biot import BIOTClassifier
