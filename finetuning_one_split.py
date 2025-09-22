@@ -331,7 +331,7 @@ def main(config: dict):
     mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
     std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, balanced=False, shuffle=True)
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, balanced=True, shuffle=True)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
     # Calcolo pos_weight

@@ -50,7 +50,7 @@ class PositionalEncoding(nn.Module):
             `encoder input`, shape (batch, max_len, d_model)
         """
         x = x + self.pe[:, : x.size(1)]
-        return self.dropout(x)
+        return x
 
 class BIOTEncoder(nn.Module):
     def __init__(
@@ -198,7 +198,7 @@ class BIOTEncoder(nn.Module):
         else:
             masked_emb = emb
             mask = None
-            out_biot = self.transformer(masked_emb)# (batch_size, n_channels * ts, emb)
+            out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
 
 
         
