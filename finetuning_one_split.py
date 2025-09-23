@@ -39,22 +39,22 @@ def leave_one_out_splits(patients, val_count=2):
     return splits
 
 
-def compute_pos_weight(train_loader, device):
-    total_pos, total_neg = 0, 0
-    for batch in train_loader:
-        y = batch["y"].view(-1)
-        total_pos += (y == 1).sum().item()
-        total_neg += (y == 0).sum().item()
-    pos_weight = torch.tensor([total_neg / max(total_pos, 1)], device=device)
-    print(f"Computed pos_weight: {pos_weight.item():.4f} (neg={total_neg}, pos={total_pos})")
-    return pos_weight
+# def compute_pos_weight(train_loader, device):
+#     total_pos, total_neg = 0, 0
+#     for batch in train_loader:
+#         y = batch["y"].view(-1)
+#         total_pos += (y == 1).sum().item()
+#         total_neg += (y == 0).sum().item()
+#     pos_weight = torch.tensor([total_neg / max(total_pos, 1)], device=device)
+#     print(f"Computed pos_weight: {pos_weight.item():.4f} (neg={total_neg}, pos={total_pos})")
+#     return pos_weight
 
 # Trainer con DataParallel
 class Trainer:
     def __init__(self, model, optimizer, scheduler, criterion_name,save_every, pos_weight= None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
-        self.model = nn.DataParallel(self.model)  # DataParallel invece di DDP
+        self.model = nn.DataParallel(self.model) 
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.pos_weight = pos_weight
@@ -120,8 +120,7 @@ class Trainer:
         with torch.no_grad():
             for batch in tqdm(test_loader, desc="Testing", dynamic_ncols=False):
                 x = batch["x"].to(self.device)
-                y = batch["y"].to(self.device).float().view(-1, 1)
-                file_ids = batch["file"]
+                y = batch["y"].to(self.device).float().view(-1, 1) 
                 logits = self.model(x)
                 loss = self.criterion(logits, y)
                 running_loss += loss.item()
@@ -131,11 +130,7 @@ class Trainer:
                 for m in metrics.values():
                     m.update(probs, y_int)
 
-                for f_id, p, t in zip(file_ids, probs.cpu(), y_int.cpu()):
-                    if f_id not in per_file_preds:
-                        per_file_preds[f_id] = {"y_true": [], "y_pred": []}
-                    per_file_preds[f_id]["y_true"].append(t.item())
-                    per_file_preds[f_id]["y_pred"].append(int(p >= 0.5))
+              
 
         avg_loss = running_loss / len(test_loader)
         print(f"Test Loss: {avg_loss:.4f}")
@@ -334,8 +329,9 @@ def main(config: dict):
     train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, balanced=True, shuffle=True)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    
     # Calcolo pos_weight
-    pos_weight = compute_pos_weight(train_loader, device="cuda")
+    #pos_weight = compute_pos_weight(train_loader, device="cuda")
     
     trainer = Trainer(model, optimizer, scheduler, criterion_name= config["criterion_name"], save_every=config["save_every"], pos_weight=pos_weight)
     trainer.supervised(config, train_loader, val_loader, test_loader, 1)
