@@ -38,11 +38,6 @@ class LitModel_finetune(pl.LightningModule):
     def compute_binary_metrics(y_true, y_pred, threshold=0.5):
         y_pred_bin = (y_pred >= threshold).astype(int)
 
-        print("y_true shape:", y_true.shape, "y_pred shape:", y_pred.shape)
-    
-        # Se vuoi anche stampare qualche esempio
-        print("y_true sample:", y_true.flatten()[:10])
-        print("y_pred sample:", y_pred.flatten()[:10])
 
         metrics = {}
         metrics["accuracy"] = accuracy_score(y_true, y_pred_bin)
