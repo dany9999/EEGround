@@ -38,8 +38,8 @@ class BIOTClassifier(nn.Module):
             heads=heads,
             depth=depth,
             n_channels=n_channels,
-            n_fft=200,
-            hop_length=100,
+            n_fft=250,
+            hop_length=125,
             mask_ratio=0.0,
             pretraining=False,
             **kwargs

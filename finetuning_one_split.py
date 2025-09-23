@@ -55,7 +55,7 @@ def leave_one_out_splits(patients, val_count=2):
 # Trainer con DataParallel
 class Trainer:
     def __init__(self, model, optimizer, scheduler, criterion_name,save_every, pos_weight= None):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
         self.model = nn.DataParallel(self.model) 
         self.optimizer = optimizer
