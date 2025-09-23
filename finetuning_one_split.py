@@ -2,6 +2,9 @@
 
 
 import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import torch
 import torch.nn as nn
 import torch.optim as optim

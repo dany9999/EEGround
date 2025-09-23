@@ -175,7 +175,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, mean=None, std=None,
                             batch_size=config["batch_size"],
                             shuffle=shuffle,
                             num_workers=config["num_workers"],
-                            pin_memory=True)
+                            pin_memory=False)
 
     return loader
 
