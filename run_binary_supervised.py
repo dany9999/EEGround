@@ -49,14 +49,14 @@ class LitModel_finetune(pl.LightningModule):
         return metrics
 
     def training_step(self, batch, batch_idx):
-        X, y = batch
+        X, y = batch["x"], batch["y"]
         prob = self.model(X)
         loss = focal_loss(prob, y)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        X, y = batch
+        X, y = batch["x"], batch["y"]
         with torch.no_grad():
             prob = self.model(X)
             step_result = torch.sigmoid(prob).cpu().numpy()
@@ -84,7 +84,7 @@ class LitModel_finetune(pl.LightningModule):
         self.val_results = {"preds": [], "targets": []}
 
     def test_step(self, batch, batch_idx):
-        X, y = batch
+        X, y = batch["x"], batch["y"]
         with torch.no_grad():
             convScore = self.model(X)
             step_result = torch.sigmoid(convScore).cpu().numpy()
