@@ -3,7 +3,7 @@ import argparse
 import pickle
 import sys
 import random
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
 import torch.nn as nn
 import numpy as np
