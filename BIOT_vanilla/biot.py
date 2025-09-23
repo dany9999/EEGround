@@ -148,7 +148,7 @@ class BIOTEncoder(nn.Module):
 
 # supervised classifier module
 class BIOTClassifier(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_classes=2, **kwargs):
+    def __init__(self, emb_size=256, heads=8, depth=4, n_classes=1, **kwargs):
         super().__init__()
         self.biot = BIOTEncoder(emb_size=emb_size, heads=heads, depth=depth, **kwargs)
         self.classifier = ClassificationHead(emb_size, n_classes)
@@ -160,47 +160,7 @@ class BIOTClassifier(nn.Module):
         return x
 
 
-# unsupervised pre-train module
-class UnsupervisedPretrain(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, n_channels=18, **kwargs):
-        super(UnsupervisedPretrain, self).__init__()
-        self.biot = BIOTEncoder(emb_size, heads, depth, n_channels, **kwargs)
-        self.prediction = nn.Sequential(
-            nn.Linear(256, 256),
-            nn.GELU(),
-            nn.Linear(256, 256),
-        )
 
-    def forward(self, x, n_channel_offset=0):
-        emb = self.biot(x, n_channel_offset, perturb=True)
-        emb = self.prediction(emb)
-        pred_emb = self.biot(x, n_channel_offset)
-        return emb, pred_emb
-
-
-# supervised pre-train module
-class SupervisedPretrain(nn.Module):
-    def __init__(self, emb_size=256, heads=8, depth=4, **kwargs):
-        super().__init__()
-        self.biot = BIOTEncoder(emb_size=emb_size, heads=heads, depth=depth)
-        self.classifier_chb_mit = ClassificationHead(emb_size, 1)
-        self.classifier_iiic_seizure = ClassificationHead(emb_size, 6)
-        self.classifier_tuab = ClassificationHead(emb_size, 1)
-        self.classifier_tuev = ClassificationHead(emb_size, 6)
-
-    def forward(self, x, task="chb-mit"):
-        x = self.biot(x)
-        if task == "chb-mit":
-            x = self.classifier_chb_mit(x)
-        elif task == "iiic-seizure":
-            x = self.classifier_iiic_seizure(x)
-        elif task == "tuab":
-            x = self.classifier_tuab(x)
-        elif task == "tuev":
-            x = self.classifier_tuev(x)
-        else:
-            raise NotImplementedError
-        return x
 
 
 if __name__ == "__main__":
@@ -210,6 +170,6 @@ if __name__ == "__main__":
     print("emb shape:", out.shape)
     print("classification head output shape:", out.shape)
 
-    model = UnsupervisedPretrain(n_fft=200, hop_length=200, depth=4, heads=8)
+    #model = UnsupervisedPretrain(n_fft=200, hop_length=200, depth=4, heads=8)
     out1, out2 = model(x)
     print(out1.shape, out2.shape)
