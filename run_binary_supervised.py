@@ -171,7 +171,7 @@ def supervised(config):
         enable_checkpointing=True,
         logger=logger,
         max_epochs=config["epochs"],
-        callbacks=[early_stop_callback],
+        #callbacks=[early_stop_callback],
     )
 
     trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
