@@ -1,5 +1,4 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import argparse
 import pickle
 import sys
@@ -163,7 +162,7 @@ def supervised(config):
     early_stop_callback = EarlyStopping(monitor="val_auroc", patience=5, verbose=False, mode="max")
 
     trainer = pl.Trainer(
-        devices= [1],
+        devices= 1,
         accelerator="gpu",
         strategy= "auto", #DDPStrategy(find_unused_parameters=False),
         benchmark=True,
