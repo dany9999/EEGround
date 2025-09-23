@@ -135,14 +135,13 @@ class BIOTEncoder(nn.Module):
                 ts_new = np.random.randint(ts // 2, ts)
                 selected_ts = np.random.choice(range(ts), ts_new, replace=False)
                 channel_emb = channel_emb[:, selected_ts]
-                print(f"shape del embedding perturbato: {channel_emb.shape}")
+                
             emb_seq.append(channel_emb) # (batch_size, ts, emb)
 
-        print ("emb_seq", emb_seq[0].shape)
+       
         emb = torch.cat(emb_seq, dim=1) # (batch_size, 16 * ts, emb)
-        print ("emb", emb.shape)
         emb = self.transformer(emb).mean(dim=1) # (batch_size, emb)
-        print ("emb after transformer", emb.shape)
+        
         return emb
 
 
@@ -155,7 +154,6 @@ class BIOTClassifier(nn.Module):
 
     def forward(self, x):
         x = self.biot(x)
-        print(f"out_biot shape: {x.shape}")
         x = self.classifier(x)
         return x
 
@@ -167,8 +165,7 @@ if __name__ == "__main__":
     x = torch.randn(1, 16, 1000)
     model = BIOTClassifier(n_fft=200, hop_length=200, depth=4, heads=8)
     out = model(x)
-    print("emb shape:", out.shape)
-    print("classification head output shape:", out.shape)
+   
 
     #model = UnsupervisedPretrain(n_fft=200, hop_length=200, depth=4, heads=8)
     out1, out2 = model(x)
