@@ -13,6 +13,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
@@ -171,7 +172,15 @@ def supervised(config):
     version = f"CHB-MIT-{config["finetune_mode"]}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_auroc", patience=5, verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=5, verbose=False, mode="max")
+
+
+    checkpoint_callback = ModelCheckpoint(
+    monitor="val_pr_auc",
+    mode="max",
+    save_top_k=1,
+    filename="best-model"
+    )
 
     trainer = pl.Trainer(
         devices= 1,
@@ -181,11 +190,11 @@ def supervised(config):
         enable_checkpointing=True,
         logger=logger,
         max_epochs=config["epochs"],
-        #callbacks=[early_stop_callback],
+        callbacks=[early_stop_callback, checkpoint_callback],
     )
 
     trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-    pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader)[0]
+    pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
     print(pretrain_result)
 
 
