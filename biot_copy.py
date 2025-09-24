@@ -9,6 +9,7 @@ import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, average_precision_score
+from pyhealth.metrics import binary_metrics_fn
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
@@ -29,25 +30,8 @@ class LitModel_finetune(pl.LightningModule):
         self.threshold = 0.5
         self.config = config
 
-        # memorizza output per epoch
-        self.val_results = {"preds": [], "targets": []}
-        self.test_results = {"preds": [], "targets": []}
-
-    @staticmethod
-    def compute_binary_metrics(y_true, y_pred, threshold=0.5):
-        y_pred_bin = (y_pred >= threshold).astype(int)
 
 
-        metrics = {}
-        metrics["accuracy"] = accuracy_score(y_true, y_pred_bin)
-        metrics["balanced_accuracy"] = balanced_accuracy_score(y_true, y_pred_bin)
-        if len(np.unique(y_true)) > 1:
-            metrics["roc_auc"] = roc_auc_score(y_true, y_pred)
-            metrics["pr_auc"] = average_precision_score(y_true, y_pred)
-        else:
-            metrics["roc_auc"] = 0.0
-            metrics["pr_auc"] = 0.0
-        return metrics
 
     def training_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
@@ -62,28 +46,37 @@ class LitModel_finetune(pl.LightningModule):
             prob = self.model(X)
             step_result = torch.sigmoid(prob).cpu().numpy()
             step_gt = y.cpu().numpy()
-        self.val_results["preds"].append(step_result)
-        self.val_results["targets"].append(step_gt)
+        return step_result, step_gt
 
 
-    def on_validation_epoch_end(self):
-        preds = np.concatenate(self.val_results["preds"])
-        targets = np.concatenate(self.val_results["targets"])
+    def on_validation_epoch_end(self, val_step_outputs):
+        gt = np.array([])
+        for out in val_step_outputs:
+            result = np.append(result, out[0])
+            gt = np.append(gt, out[1])
 
-        if sum(targets) * (len(targets) - sum(targets)) != 0:
-            self.threshold = np.sort(preds)[-int(np.sum(targets))]
-            result = self.compute_binary_metrics(targets, preds, threshold=self.threshold)
+        if (
+            sum(gt) * (len(gt) - sum(gt)) != 0
+        ):  # to prevent all 0 or all 1 and raise the AUROC error
+            self.threshold = np.sort(result)[-int(np.sum(gt))]
+            result = binary_metrics_fn(
+                gt,
+                result,
+                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                threshold=self.threshold,
+            )
         else:
-            result = {"accuracy": 0.0, "balanced_accuracy": 0.0, "pr_auc": 0.0, "roc_auc": 0.0}
-
+            result = {
+                "accuracy": 0.0,
+                "balanced_accuracy": 0.0,
+                "pr_auc": 0.0,
+                "roc_auc": 0.0,
+            }
         self.log("val_acc", result["accuracy"], sync_dist=True)
         self.log("val_bacc", result["balanced_accuracy"], sync_dist=True)
         self.log("val_pr_auc", result["pr_auc"], sync_dist=True)
         self.log("val_auroc", result["roc_auc"], sync_dist=True)
         print(result)
-
-        # resetta per il prossimo epoch
-        self.val_results = {"preds": [], "targets": []}
 
     def test_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
@@ -91,25 +84,35 @@ class LitModel_finetune(pl.LightningModule):
             convScore = self.model(X)
             step_result = torch.sigmoid(convScore).cpu().numpy()
             step_gt = y.cpu().numpy()
-        self.test_results["preds"].append(step_result)
-        self.test_results["targets"].append(step_gt)
+        return step_result, step_gt
 
-    def on_test_epoch_end(self):
-        preds = np.concatenate(self.test_results["preds"])
-        targets = np.concatenate(self.test_results["targets"])
-
-        if sum(targets) * (len(targets) - sum(targets)) != 0:
-            result = self.compute_binary_metrics(targets, preds, threshold=self.threshold)
+    def on_test_epoch_end(self, test_step_outputs):
+        result = np.array([])
+        gt = np.array([])
+        for out in test_step_outputs:
+            result = np.append(result, out[0])
+            gt = np.append(gt, out[1])
+        if (
+            sum(gt) * (len(gt) - sum(gt)) != 0
+        ):  # to prevent all 0 or all 1 and raise the AUROC error
+            result = binary_metrics_fn(
+                gt,
+                result,
+                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                threshold=self.threshold,
+            )
         else:
-            result = {"accuracy": 0.0, "balanced_accuracy": 0.0, "pr_auc": 0.0, "roc_auc": 0.0}
-
+            result = {
+                "accuracy": 0.0,
+                "balanced_accuracy": 0.0,
+                "pr_auc": 0.0,
+                "roc_auc": 0.0,
+            }
         self.log("test_acc", result["accuracy"], sync_dist=True)
         self.log("test_bacc", result["balanced_accuracy"], sync_dist=True)
         self.log("test_pr_auc", result["pr_auc"], sync_dist=True)
         self.log("test_auroc", result["roc_auc"], sync_dist=True)
-        print(result)
 
-        self.test_results = {"preds": [], "targets": []}
         return result
 
     def configure_optimizers(self):
@@ -118,7 +121,7 @@ class LitModel_finetune(pl.LightningModule):
             lr=self.config["lr"],
             weight_decay=float(self.config["weight_decay"]),
         )
-        return [optimizer]
+        return [optimizer] 
 
 
 def predefined_split():
