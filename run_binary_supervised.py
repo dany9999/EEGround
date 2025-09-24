@@ -172,7 +172,7 @@ def supervised(config):
     version = f"CHB-MIT-{config["finetune_mode"]}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=5, verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_auroc", patience=20, verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
