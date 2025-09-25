@@ -73,7 +73,7 @@ class Trainer:
         if criterion_name == "focal":
             self.criterion = focal_loss
          
-        if criterion_name == "bce":
+        elif criterion_name == "bce":
             assert self.pos_weight is not None, "pos_weight must be provided for BCE"
             self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
 
