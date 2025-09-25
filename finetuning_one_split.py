@@ -70,14 +70,9 @@ class Trainer:
         "kappa": BinaryCohenKappa().to(self.device),
         }
 
-        # if criterion_name == "focal":
-        #     self.criterion = lambda logits, y: sigmoid_focal_loss(
-        #         inputs=logits,
-        #         targets=y,
-        #         alpha=0.8,
-        #         gamma=0.7,
-        #         reduction="mean"
-        #     )
+        if criterion_name == "focal":
+            self.criterion = focal_loss
+         
         if criterion_name == "bce":
             assert self.pos_weight is not None, "pos_weight must be provided for BCE"
             self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
@@ -94,7 +89,7 @@ class Trainer:
             y = batch["y"].to(self.device).float().view(-1, 1)
             self.optimizer.zero_grad()
             logits = self.model(x)
-            loss = focal_loss(logits, y)
+            loss = self.criterion(logits, y)
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
@@ -110,7 +105,7 @@ class Trainer:
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device).float().view(-1, 1)
                 logits = self.model(x)
-                loss = focal_loss(logits, y)
+                loss = self.criterion(logits, y)
                 running_loss += loss.item()
 
                 probs = torch.sigmoid(logits).view(-1)
@@ -135,7 +130,7 @@ class Trainer:
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device).float().view(-1, 1) 
                 logits = self.model(x)
-                loss = focal_loss(logits, y)
+                loss = self.criterion(logits, y)
                 running_loss += loss.item()
                 probs = torch.sigmoid(logits).view(-1)
                 y_int = y.long().view(-1)
@@ -366,7 +361,7 @@ def main(config: dict):
     # Calcolo pos_weight
     #pos_weight = compute_pos_weight(train_loader, device="cuda")
     
-    trainer = Trainer(model, optimizer, scheduler, save_every=config["save_every"])
+    trainer = Trainer(model, optimizer, scheduler, criterion_name= config["criterion_name"], save_every=config["save_every"])
     trainer.supervised(config, train_loader, val_loader, test_loader, 1)
 
 
