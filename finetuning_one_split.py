@@ -366,7 +366,7 @@ def main(config: dict):
     # Calcolo pos_weight
     #pos_weight = compute_pos_weight(train_loader, device="cuda")
     
-    trainer = Trainer(model, optimizer, scheduler, criterion_name= config["criterion_name"], save_every=config["save_every"])
+    trainer = Trainer(model, optimizer, scheduler, save_every=config["save_every"])
     trainer.supervised(config, train_loader, val_loader, test_loader, 1)
 
 
