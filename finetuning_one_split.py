@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
 from tqdm import tqdm
 from itertools import combinations
-from utils import load_config, BinaryBalancedAccuracy, compute_global_stats
+from utils import load_config, BinaryBalancedAccuracy, compute_global_stats, focal_loss
 from CHBMITLoader import make_loader
 from model.SupervisedClassifier import BIOTClassifier
 from torchmetrics.classification import (
@@ -20,7 +20,6 @@ from torchmetrics.classification import (
 )
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchvision.ops import sigmoid_focal_loss
 import json
 import random
 import numpy as np
@@ -63,15 +62,23 @@ class Trainer:
         self.pos_weight = pos_weight
         self.save_every = save_every
 
-        if criterion_name == "focal":
-            self.criterion = lambda logits, y: sigmoid_focal_loss(
-                inputs=logits,
-                targets=y,
-                alpha=0.8,
-                gamma=0.7,
-                reduction="mean"
-            )
-        elif criterion_name == "bce":
+        self.val_metrics = {
+        "acc": BinaryAccuracy().to(self.device),
+        "prauc": BinaryAveragePrecision().to(self.device),
+        "auroc": BinaryAUROC().to(self.device),
+        "balacc": BinaryBalancedAccuracy().to(self.device),
+        "kappa": BinaryCohenKappa().to(self.device),
+        }
+
+        # if criterion_name == "focal":
+        #     self.criterion = lambda logits, y: sigmoid_focal_loss(
+        #         inputs=logits,
+        #         targets=y,
+        #         alpha=0.8,
+        #         gamma=0.7,
+        #         reduction="mean"
+        #     )
+        if criterion_name == "bce":
             assert self.pos_weight is not None, "pos_weight must be provided for BCE"
             self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
 
@@ -87,7 +94,7 @@ class Trainer:
             y = batch["y"].to(self.device).float().view(-1, 1)
             self.optimizer.zero_grad()
             logits = self.model(x)
-            loss = self.criterion(logits, y)
+            loss = focal_loss(logits, y)
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
@@ -98,34 +105,37 @@ class Trainer:
     def val_step(self, val_loader):
         self.model.eval()
         running_loss = 0.0
-
-     
-
         with torch.no_grad():
             for batch in tqdm(val_loader, desc="Validation", dynamic_ncols=False):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device).float().view(-1, 1)
                 logits = self.model(x)
-                loss = self.criterion(logits, y)
+                loss = focal_loss(logits, y)
                 running_loss += loss.item()
-        
-        avg_loss =  running_loss / len(val_loader)
-        
-        print(f"Validation Loss: {avg_loss:.8f}")
 
-      
-        return avg_loss
+                probs = torch.sigmoid(logits).view(-1)
+                y_int = y.long().view(-1)
+                for m in self.val_metrics.values():
+                    m.update(probs, y_int)
+
+        avg_loss = running_loss / len(val_loader)
+        val_results = self.compute_metrics(self.val_metrics)
+
+        print(f"Validation Loss: {avg_loss:.8f}")
+        print(f"Validation Metrics: {val_results}")
+        
+        return avg_loss, val_results
 
     def test_step(self, test_loader, metrics):
         self.model.eval()
         running_loss = 0.0
-        per_file_preds = {}
+       
         with torch.no_grad():
             for batch in tqdm(test_loader, desc="Testing", dynamic_ncols=False):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device).float().view(-1, 1) 
                 logits = self.model(x)
-                loss = self.criterion(logits, y)
+                loss = focal_loss(logits, y)
                 running_loss += loss.item()
                 probs = torch.sigmoid(logits).view(-1)
                 y_int = y.long().view(-1)
@@ -137,7 +147,7 @@ class Trainer:
 
         avg_loss = running_loss / len(test_loader)
         print(f"Test Loss: {avg_loss:.4f}")
-        return avg_loss, per_file_preds
+        return avg_loss
 
     def compute_metrics(self, metrics):
         results = {}
@@ -160,7 +170,8 @@ class Trainer:
         ckpt_path = os.path.join(run_dir, "checkpoint.ckpt")
         best_model_path = os.path.join(run_dir, "best_model.pth")
 
-        best_val_loss = float("inf")
+       
+        best_val_metric = -float("inf")  # inizializza a -inf
         start_epoch = 0
         counter = 0
 
@@ -170,34 +181,51 @@ class Trainer:
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.scheduler.load_state_dict(checkpoint["scheduler"])
             start_epoch = checkpoint["epoch"] + 1
-            best_val_loss = checkpoint["best_val_loss"]
+            best_val_metric = checkpoint["best_val_metric"]
             counter = checkpoint["counter"]
-            print(f"=> Resumed from epoch {start_epoch}, best_val_loss={best_val_loss:.4f}")
+            print(f"=> Resumed from epoch {start_epoch}, best_val_metric={best_val_metric:.4f}")
 
         patience = config["early_stopping_patience"]
+
+        
 
         for epoch in range(start_epoch, config["epochs"]):
             print(f"\nEpoch {epoch + 1}/{config['epochs']}")
             train_loss = self.train_step(train_loader)
-            val_loss = self.val_step(val_loader)
+            val_loss, val_results = self.val_step(val_loader)
 
             writer.add_scalar("Loss/Train", train_loss, epoch + 1)
             writer.add_scalar("Loss/Val", val_loss, epoch + 1)
-           
+
+            for k, v in val_results.items():
+                writer.add_scalar(f"Val/{k}", v, epoch + 1)
 
             if hasattr(self, "scheduler") and self.scheduler is not None:
-                self.scheduler.step(val_loss)
+                self.scheduler.step(val_results["prauc"])
 
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
+            current_prauc = val_results["prauc"]
+
+            if current_prauc > best_val_metric:
+                best_val_metric = current_prauc
                 counter = 0
                 torch.save(self.model.state_dict(), best_model_path)
-                print(f"Saved best model to {best_model_path}")
+                print(f"Saved best model (PR-AUC={current_prauc:.4f}) to {best_model_path}")
             else:
                 counter += 1
-                #if counter >= patience:
-                #    print(f"Early stopping at epoch {epoch + 1}")
-                #    break
+                if counter >= patience:
+                    print(f"Early stopping at epoch {epoch+1} (no PR-AUC improvement)")
+                    break
+
+            # if val_loss < best_val_loss:
+            #     best_val_loss = val_loss
+            #     counter = 0
+            #     torch.save(self.model.state_dict(), best_model_path)
+            #     print(f"Saved best model to {best_model_path}")
+            # else:
+            #     counter += 1
+            #     #if counter >= patience:
+            #     #    print(f"Early stopping at epoch {epoch + 1}")
+            #     #    break
 
             if (epoch + 1) % self.save_every == 0:
                 torch.save({
@@ -205,10 +233,11 @@ class Trainer:
                     "model": self.model.state_dict(),
                     "optimizer": self.optimizer.state_dict(),
                     "scheduler": self.scheduler.state_dict() if self.scheduler else None,
-                    "best_val_loss": best_val_loss,
+                    "best_val_metric": best_val_metric,
                     "counter": counter
                 }, ckpt_path)
                 print(f"=> Checkpoint saved to {ckpt_path}")
+
 
         print(f"\nLoading best model from {best_model_path} for testing")
         self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
@@ -221,7 +250,7 @@ class Trainer:
             "kappa": BinaryCohenKappa().to(self.device),
         }
 
-        test_loss, per_file_preds = self.test_step(test_loader, test_metrics)
+        test_loss = self.test_step(test_loader, test_metrics)
         test_results = self.compute_metrics(test_metrics)
 
         print(f"\n=== Split {iteration_idx} Test Results ({finetune_mode}) ===")
@@ -235,8 +264,7 @@ class Trainer:
         "iteration": iteration_idx,
         "finetune_mode": finetune_mode,
         "test_loss": test_loss,
-        "metrics": test_results,
-        "per_file": per_file_preds,
+        "metrics": test_results
         }
 
         json_path = os.path.join(run_dir, f"results_split{iteration_idx}.json")
@@ -283,7 +311,7 @@ def load_train_objs(gpu_id, config, finetune_mode, resume=False):
 
     scheduler = ReduceLROnPlateau(
         optimizer,
-        mode="min",
+        mode="max",
         factor=0.1,
         patience=5
     )
@@ -325,15 +353,15 @@ def main(config: dict):
     torch.cuda.manual_seed_all(42)
 
 
-    train_mean, train_std = compute_global_stats(split["train"], dataset_path)
-    mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
-    std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
-    print("train_mean:", train_mean)
-    print("train_std:", train_std)
+    #train_mean, train_std = compute_global_stats(split["train"], dataset_path)
+    #mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
+    #std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
+    #print("train_mean:", train_mean)
+    #print("train_std:", train_std)
     
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, balanced=True, shuffle=True)
-    val_loader   = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
-    test_loader  = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config,  balanced=True, shuffle=True)
+    val_loader   = make_loader(split["val"], dataset_path, gt_path, config, shuffle=False)
+    test_loader  = make_loader(split["test"], dataset_path, gt_path, config, shuffle=False)
     
     # Calcolo pos_weight
     #pos_weight = compute_pos_weight(train_loader, device="cuda")
