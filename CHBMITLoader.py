@@ -5,25 +5,16 @@ import torch
 import h5py
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader, DistributedSampler
 from utils import load_config
-from torch.utils.data import WeightedRandomSampler
+from torch.utils.data import Dataset, DataLoader, DistributedSampler, WeightedRandomSampler
 
 
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4,mean = None, std=None, transform=None):
+                 segment_duration_sec=4, transform=None):
         self.index = []  # (fpath, seg_idx, label, file_id)
         self.transform = transform
         self.segment_duration_sec = segment_duration_sec
-
-        self.mean = torch.as_tensor(mean, dtype=torch.float32) if mean is not None else None
-        self.std  = torch.as_tensor(std,  dtype=torch.float32)  if std  is not None else None
-        if self.mean is not None and self.mean.ndim == 1:
-            self.mean = self.mean[:, None]
-        if self.std is not None and self.std.ndim == 1:
-            self.std = self.std[:, None]
-        self.eps = 1e-6
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
@@ -34,9 +25,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
             # parsing ground truth CSV
             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
-          
             seizure_map = {}
-     
             
             for _, row in gt_df.iterrows():
                 edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
@@ -46,63 +35,39 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
                     seizure_map[edf_base] = intervals
 
-
-            # Scorri gli h5 nella cartella del paziente
+            # scansiona gli h5 del paziente
             for fname in sorted(os.listdir(patient_folder)):
                 if not fname.endswith(".h5"):
                     continue
-                edf_base = fname.replace(".h5", "")
-                edf_base = edf_base.replace("eeg_", "")
+                edf_base = fname.replace(".h5", "").replace("eeg_", "")
                 fpath = os.path.join(patient_folder, fname)
 
                 with h5py.File(fpath, 'r') as f:
                     n_segments = f['signals'].shape[0]
-               
 
                 intervals = seizure_map.get(edf_base, [])
 
-                # crea un indice di segmenti con etichetta
-                min_overlap_ratio = 0.5  # es: almeno il 50% della finestra deve essere dentro la seizure
-
+                # crea indice dei segmenti
                 for i in range(n_segments):
                     seg_start = i * self.segment_duration_sec
-                    seg_end   = seg_start + self.segment_duration_sec
-
+                    seg_end = seg_start + self.segment_duration_sec
                     label = 0
                     for (st, en) in intervals:
-                        # Calcola overlap con finestra
-                        overlap_start = max(seg_start, st)
-                        overlap_end   = min(seg_end, en)
-                        overlap = max(0, overlap_end - overlap_start)
-
-                        window_len = seg_end - seg_start
-                        overlap_ratio = overlap / window_len
-
-                        if overlap_ratio >= min_overlap_ratio:
+                        # LOGICA PAPER: positivo se inizio o fine dentro crisi
+                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
                             label = 1
                             break
-
                     self.index.append((fpath, i, label, edf_base))
 
-            
-
     def parse_intervals(self, start_val, end_val):
-        """
-        Converte i campi Start/End in una lista di tuple [(st1, en1), (st2, en2), ...]
-        Supporta:
-        - singoli numeri: 3367
-        - intervalli multipli separati da trattini: 834-2378-3362
-        - più intervalli separati da virgola: 263-843-1524,318-1020-1595
-        """
         intervals = []
         if pd.isna(start_val) or pd.isna(end_val):
             return intervals
         start_parts = str(start_val).split(',')
-        end_parts   = str(end_val).split(',')
+        end_parts = str(end_val).split(',')
         for s_group, e_group in zip(start_parts, end_parts):
             starts = [float(x) for x in s_group.split('-') if x.strip() not in ["", "0"]]
-            ends   = [float(x) for x in e_group.split('-') if x.strip() not in ["", "0"]]
-            # Associa ciascun start con il corrispondente end
+            ends = [float(x) for x in e_group.split('-') if x.strip() not in ["", "0"]]
             for st, en in zip(starts, ends):
                 intervals.append((st, en))
         return intervals
@@ -114,19 +79,18 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, i, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
             x = f['signals'][i][:18]  # (channels, time)
-        x = torch.tensor(x, dtype=torch.float32)
 
-        # normalizzazione globale
-        if self.mean is not None and self.std is not None:
-            x = (x - self.mean) / (self.std + self.eps)
+        # normalizzazione percentile 95 per canale
+        x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
+
+        x = torch.tensor(x, dtype=torch.float32)
 
         if self.transform:
             x = self.transform(x)
         return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
 
 
-    
-def make_loader(patient_ids, dataset_path, gt_path, config, mean=None, std=None,
+def make_loader(patient_ids, dataset_path, gt_path, config,
                 shuffle=True, is_ddp=False, rank=0, world_size=1, balanced=False):
 
     dataset = CHBMITAllSegmentsLabeledDataset(
@@ -134,42 +98,27 @@ def make_loader(patient_ids, dataset_path, gt_path, config, mean=None, std=None,
         data_dir=dataset_path,
         gt_dir=gt_path,
         segment_duration_sec=config.get("segment_duration_sec", 4),
-        mean=mean,
-        std=std,
         transform=None
     )
 
-
-
     if balanced:
-            # Estrai le label dal dataset
-            targets = [label for _, _, label, _ in dataset.index]
+        targets = [label for _, _, label, _ in dataset.index]
+        class_counts = np.bincount(targets)
+        class_weights = 1. / class_counts
+        sample_weights = [class_weights[t] for t in targets]
 
-            class_counts = np.bincount(targets)
-            class_weights = 1. / class_counts
-            sample_weights = [class_weights[t] for t in targets]
+        sampler = WeightedRandomSampler(
+            weights=torch.DoubleTensor(sample_weights),
+            num_samples=len(sample_weights),
+            replacement=True
+        )
 
-            sampler = WeightedRandomSampler(
-                weights=torch.DoubleTensor(sample_weights),
-                num_samples=len(sample_weights),
-                replacement=True
-            )
-
-            loader = DataLoader(dataset,
-                                batch_size=config["batch_size"],
-                                sampler=sampler,
-                                num_workers=config["num_workers"],
-                                pin_memory=True)
-    elif is_ddp:
-        sampler = DistributedSampler(dataset,
-                                    num_replicas=world_size,
-                                    rank=rank,
-                                    shuffle=shuffle)
         loader = DataLoader(dataset,
                             batch_size=config["batch_size"],
                             sampler=sampler,
                             num_workers=config["num_workers"],
                             pin_memory=True)
+   
     else:
         loader = DataLoader(dataset,
                             batch_size=config["batch_size"],
@@ -178,6 +127,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, mean=None, std=None,
                             pin_memory=False)
 
     return loader
+
 
 if __name__ == "__main__":
     # Example usage

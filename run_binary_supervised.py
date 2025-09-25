@@ -149,13 +149,13 @@ def prepare_CHB_MIT_dataloader(config):
     torch.cuda.manual_seed_all(42)
     split = predefined_split()
 
-    train_mean, train_std = compute_global_stats(split["train"], dataset_path)
-    mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
-    std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
+    #train_mean, train_std = compute_global_stats(split["train"], dataset_path)
+    #mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
+    #std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config, mean_t, std_t, balanced=False, shuffle=True)
-    val_loader = make_loader(split["val"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
-    test_loader = make_loader(split["test"], dataset_path, gt_path, config, mean_t, std_t, shuffle=False)
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config, balanced=False, shuffle=True)
+    val_loader = make_loader(split["val"], dataset_path, gt_path, config,  shuffle=False)
+    test_loader = make_loader(split["test"], dataset_path, gt_path, config, shuffle=False)
     return train_loader, test_loader, val_loader
 
 
@@ -172,7 +172,7 @@ def supervised(config):
     version = f"CHB-MIT-{config["finetune_mode"]}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_auroc", patience=20, verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=20, verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
