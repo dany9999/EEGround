@@ -10,24 +10,26 @@ from torch.utils.data import Dataset, DataLoader, DistributedSampler, WeightedRa
 
 
 
+import os
+import torch
+import h5py
+import numpy as np
+import pandas as pd
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+
+
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4, overlap=0, transform=None):
-        """
-        patient_ids: lista di pazienti (es. ["chb01", "chb02"])
-        data_dir: path ai .h5
-        gt_dir: path ai file CSV ground truth
-        segment_duration_sec: lunghezza finestra in secondi
-        overlap: overlap in secondi (solo per train)
-        """
-        self.index = []  # (fpath, seg_start_sec, label, file_id)
+                 segment_duration_sec=4, overlap=0, transform=None, fs=250):
+        self.index = []  # (fpath, start_idx, end_idx, label, file_id)
         self.transform = transform
         self.segment_duration_sec = segment_duration_sec
         self.overlap = overlap
+        self.fs = fs
 
         step = self.segment_duration_sec - self.overlap
         if step <= 0:
-            raise ValueError("overlap deve essere minore della durata del segmento")
+            raise ValueError("overlap deve essere minore di segment_duration_sec")
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
@@ -39,7 +41,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             # parsing ground truth CSV
             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
             seizure_map = {}
-
+            
             for _, row in gt_df.iterrows():
                 edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
                 if isinstance(row["class_name"], str) and "no seizure" in row["class_name"].lower():
@@ -56,23 +58,28 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 fpath = os.path.join(patient_folder, fname)
 
                 with h5py.File(fpath, 'r') as f:
-                    n_samples = f['signals'].shape[1]  # dimensione temporale
-                    total_duration = n_samples / 250.0  # se i segnali sono a 250Hz
+                    n_samples = f['signals'].shape[1]  # dimensione temporale (timepoints)
+                    total_duration = n_samples / self.fs
 
                 intervals = seizure_map.get(edf_base, [])
 
-                # crea indice dei segmenti con step ridotto
-                start = 0
-                while start + self.segment_duration_sec <= total_duration:
-                    seg_start = start
-                    seg_end = seg_start + self.segment_duration_sec
+                # crea indice dei segmenti con overlapping
+                start_time = 0
+                while start_time + self.segment_duration_sec <= total_duration:
+                    seg_start_sec = start_time
+                    seg_end_sec = seg_start_sec + self.segment_duration_sec
+                    start_idx = int(seg_start_sec * self.fs)
+                    end_idx = int(seg_end_sec * self.fs)
+
+                    # etichetta
                     label = 0
                     for (st, en) in intervals:
-                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
+                        if (seg_start_sec >= st and seg_start_sec < en) or (seg_end_sec > st and seg_end_sec <= en):
                             label = 1
                             break
-                    self.index.append((fpath, seg_start, label, edf_base))
-                    start += step
+
+                    self.index.append((fpath, start_idx, end_idx, label, edf_base))
+                    start_time += step
 
     def parse_intervals(self, start_val, end_val):
         intervals = []
@@ -91,14 +98,9 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         return len(self.index)
 
     def __getitem__(self, idx):
-        fpath, seg_start, label, file_id = self.index[idx]
+        fpath, start_idx, end_idx, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
-            signals = f['signals'][:, :]  # (channels, time)
-
-        fs = 250  # frequenza di campionamento
-        start_idx = int(seg_start * fs)
-        end_idx = start_idx + self.segment_duration_sec * fs
-        x = signals[:, start_idx:end_idx]
+            x = f['signals'][:, start_idx:end_idx]  # (channels, time)
 
         # normalizzazione percentile 95 per canale
         x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
@@ -114,7 +116,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
     """
     Costruisce un DataLoader per CHB-MIT
     - balanced=True -> WeightedRandomSampler
-    - is_train=True -> applica overlap (se definito in config)
+    - is_train=True -> applica overlap (definito in config["overlap"])
     """
     overlap = config.get("overlap", 0) if is_train else 0
 
@@ -124,11 +126,12 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
         gt_dir=gt_path,
         segment_duration_sec=config.get("segment_duration_sec", 4),
         overlap=overlap,
-        transform=None
+        transform=None,
+        fs=config.get("fs", 250)
     )
 
     if balanced:
-        targets = [label for _, _, label, _ in dataset.index]
+        targets = [label for _, _, _, label, _ in dataset.index]
         class_counts = np.bincount(targets)
         class_weights = 1. / class_counts
         sample_weights = [class_weights[t] for t in targets]
