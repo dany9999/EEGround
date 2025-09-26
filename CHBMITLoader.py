@@ -169,7 +169,7 @@ if __name__ == "__main__":
     gt_path = "../../Datasets/chb_mit/GT"
 
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
-                           balanced=False, shuffle=True, is_train=True)  # overlap applicato
+                            shuffle=True, balanced=False, is_train=True)  # overlap applicato
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                            shuffle=False, is_train=False)  # no overlap
     loader_test  = make_loader(test_patients, dataset_path, gt_path, config,
