@@ -1,5 +1,3 @@
-
-
 import os
 import torch
 import h5py
@@ -8,14 +6,126 @@ import pandas as pd
 from utils import load_config
 from torch.utils.data import Dataset, DataLoader, DistributedSampler, WeightedRandomSampler
 
+# class CHBMITAllSegmentsLabeledDataset(Dataset):
+#     def __init__(self, patient_ids, data_dir, gt_dir,
+#                  segment_duration_sec=4, transform=None):
+#         self.index = []  # (fpath, seg_idx, label, file_id)
+#         self.transform = transform
+#         self.segment_duration_sec = segment_duration_sec
+
+#         for patient in patient_ids:
+#             patient_folder = os.path.join(data_dir, patient)
+#             gt_file = os.path.join(gt_dir, f"{patient}.csv")
+#             if not os.path.exists(gt_file):
+#                 print(f" GT not found for {patient}, skipping")
+#                 continue
+
+#             # parsing ground truth CSV
+#             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
+#             seizure_map = {}
+            
+#             for _, row in gt_df.iterrows():
+#                 edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
+#                 if isinstance(row["class_name"], str) and "no seizure" in row["class_name"].lower():
+#                     seizure_map[edf_base] = []
+#                 else:
+#                     intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
+#                     seizure_map[edf_base] = intervals
+
+#             # scansiona gli h5 del paziente
+#             for fname in sorted(os.listdir(patient_folder)):
+#                 if not fname.endswith(".h5"):
+#                     continue
+#                 edf_base = fname.replace(".h5", "").replace("eeg_", "")
+#                 fpath = os.path.join(patient_folder, fname)
+
+#                 with h5py.File(fpath, 'r') as f:
+#                     n_segments = f['signals'].shape[0]
+
+#                 intervals = seizure_map.get(edf_base, [])
+
+#                 # crea indice dei segmenti
+#                 for i in range(n_segments):
+#                     seg_start = i * self.segment_duration_sec
+#                     seg_end = seg_start + self.segment_duration_sec
+#                     label = 0
+#                     for (st, en) in intervals:
+#                         # LOGICA PAPER: positivo se inizio o fine dentro crisi
+#                         if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
+#                             label = 1
+#                             break
+#                     self.index.append((fpath, i, label, edf_base))
+
+#     def parse_intervals(self, start_val, end_val):
+#         intervals = []
+#         if pd.isna(start_val) or pd.isna(end_val):
+#             return intervals
+#         start_parts = str(start_val).split(',')
+#         end_parts = str(end_val).split(',')
+#         for s_group, e_group in zip(start_parts, end_parts):
+#             starts = [float(x) for x in s_group.split('-') if x.strip() not in ["", "0"]]
+#             ends = [float(x) for x in e_group.split('-') if x.strip() not in ["", "0"]]
+#             for st, en in zip(starts, ends):
+#                 intervals.append((st, en))
+#         return intervals
+
+#     def __len__(self):
+#         return len(self.index)
+
+#     def __getitem__(self, idx):
+#         fpath, i, label, file_id = self.index[idx]
+#         with h5py.File(fpath, 'r') as f:
+#             x = f['signals'][i][:18]  # (channels, time)
+
+#         # normalizzazione percentile 95 per canale
+#         x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
+
+#         x = torch.tensor(x, dtype=torch.float32)
+
+#         if self.transform:
+#             x = self.transform(x)
+#         return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
+
+# def make_loader(patient_ids, dataset_path, gt_path, config,
+#                 shuffle=True, is_ddp=False, rank=0, world_size=1, balanced=False):
+
+#     dataset = CHBMITAllSegmentsLabeledDataset(
+#         patient_ids=patient_ids,
+#         data_dir=dataset_path,
+#         gt_dir=gt_path,
+#         segment_duration_sec=config.get("segment_duration_sec", 4),
+#         transform=None
+#     )
+
+#     if balanced:
+#         targets = [label for _, _, label, _ in dataset.index]
+#         class_counts = np.bincount(targets)
+#         class_weights = 1. / class_counts
+#         sample_weights = [class_weights[t] for t in targets]
+
+#         sampler = WeightedRandomSampler(
+#             weights=torch.DoubleTensor(sample_weights),
+#             num_samples=len(sample_weights),
+#             replacement=True
+#         )
+
+#         loader = DataLoader(dataset,
+#                             batch_size=config["batch_size"],
+#                             sampler=sampler,
+#                             num_workers=config["num_workers"],
+#                             pin_memory=True)
+   
+#     else:
+#         loader = DataLoader(dataset,
+#                             batch_size=config["batch_size"],
+#                             shuffle=shuffle,
+#                             num_workers=config["num_workers"],
+#                             pin_memory=False)
+
+#     return loader
 
 
-import os
-import torch
-import h5py
-import numpy as np
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+
 
 
 class CHBMITAllSegmentsLabeledDataset(Dataset):
@@ -29,7 +139,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
         step = self.segment_duration_sec - self.overlap
         if step <= 0:
-            raise ValueError("overlap deve essere minore di segment_duration_sec")
+            raise ValueError("overlap deve essere minore della durata del segmento")
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
@@ -38,7 +148,6 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 print(f" GT not found for {patient}, skipping")
                 continue
 
-            # parsing ground truth CSV
             gt_df = pd.read_csv(gt_file, sep=';', engine='python')
             seizure_map = {}
             
@@ -50,7 +159,6 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
                     seizure_map[edf_base] = intervals
 
-            # scansiona gli h5 del paziente
             for fname in sorted(os.listdir(patient_folder)):
                 if not fname.endswith(".h5"):
                     continue
@@ -58,27 +166,24 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 fpath = os.path.join(patient_folder, fname)
 
                 with h5py.File(fpath, 'r') as f:
-                    n_samples = f['signals'].shape[1]  # dimensione temporale (timepoints)
+                    n_samples = f['signals'].shape[1]  # timepoints
                     total_duration = n_samples / self.fs
 
                 intervals = seizure_map.get(edf_base, [])
 
-                # crea indice dei segmenti con overlapping
+                # segmenti con step ridotto (overlap)
                 start_time = 0
                 while start_time + self.segment_duration_sec <= total_duration:
-                    seg_start_sec = start_time
-                    seg_end_sec = seg_start_sec + self.segment_duration_sec
-                    start_idx = int(seg_start_sec * self.fs)
-                    end_idx = int(seg_end_sec * self.fs)
+                    seg_start = int(start_time * self.fs)
+                    seg_end = seg_start + int(self.segment_duration_sec * self.fs)
 
-                    # etichetta
                     label = 0
                     for (st, en) in intervals:
-                        if (seg_start_sec >= st and seg_start_sec < en) or (seg_end_sec > st and seg_end_sec <= en):
+                        if (start_time >= st and start_time < en) or ((start_time + self.segment_duration_sec) > st and (start_time + self.segment_duration_sec) <= en):
                             label = 1
                             break
 
-                    self.index.append((fpath, start_idx, end_idx, label, edf_base))
+                    self.index.append((fpath, seg_start, seg_end, label, edf_base))
                     start_time += step
 
     def parse_intervals(self, start_val, end_val):
@@ -98,11 +203,10 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         return len(self.index)
 
     def __getitem__(self, idx):
-        fpath, start_idx, end_idx, label, file_id = self.index[idx]
+        fpath, seg_start, seg_end, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
-            x = f['signals'][:, start_idx:end_idx]  # (channels, time)
+            x = f['signals'][:, seg_start:seg_end]  # (channels, time)
 
-        # normalizzazione percentile 95 per canale
         x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
         x = torch.tensor(x, dtype=torch.float32)
 
@@ -110,14 +214,9 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             x = self.transform(x)
         return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
 
-
 def make_loader(patient_ids, dataset_path, gt_path, config,
-                shuffle=True, balanced=False, is_train=False):
-    """
-    Costruisce un DataLoader per CHB-MIT
-    - balanced=True -> WeightedRandomSampler
-    - is_train=True -> applica overlap (definito in config["overlap"])
-    """
+                shuffle=True, is_ddp=False, rank=0, world_size=1, balanced=False, is_train=False):
+
     overlap = config.get("overlap", 0) if is_train else 0
 
     dataset = CHBMITAllSegmentsLabeledDataset(
@@ -130,30 +229,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
         fs=config.get("fs", 250)
     )
 
-    if balanced:
-        targets = [label for _, _, _, label, _ in dataset.index]
-        class_counts = np.bincount(targets)
-        class_weights = 1. / class_counts
-        sample_weights = [class_weights[t] for t in targets]
 
-        sampler = WeightedRandomSampler(
-            weights=torch.DoubleTensor(sample_weights),
-            num_samples=len(sample_weights),
-            replacement=True
-        )
-
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            sampler=sampler,
-                            num_workers=config["num_workers"],
-                            pin_memory=True)
-    else:
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            shuffle=shuffle,
-                            num_workers=config["num_workers"],
-                            pin_memory=True)
-    return loader
 
 if __name__ == "__main__":
     # Example usage
@@ -167,6 +243,8 @@ if __name__ == "__main__":
 
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
+
+
 
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
                             shuffle=True, balanced=False, is_train=True)  # overlap applicato
