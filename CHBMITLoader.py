@@ -214,21 +214,44 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             x = self.transform(x)
         return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
 
-def make_loader(patient_ids, dataset_path, gt_path, config,
-                shuffle=True, is_ddp=False, rank=0, world_size=1, balanced=False, is_train=False):
 
-    overlap = config.get("overlap", 0) if is_train else 0
+def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False):
 
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
         data_dir=dataset_path,
         gt_dir=gt_path,
-        segment_duration_sec=config.get("segment_duration_sec", 4),
-        overlap=overlap,
-        transform=None,
-        fs=config.get("fs", 250)
+        segment_duration_sec=4,
+        overlap= 0.5,
+        transform=None
     )
 
+    if balanced:
+        targets = [label for _, _, label, _ in dataset.index]
+        class_counts = np.bincount(targets)
+        class_weights = 1. / class_counts
+        sample_weights = [class_weights[t] for t in targets]
+
+        sampler = WeightedRandomSampler(
+            weights=torch.DoubleTensor(sample_weights),
+            num_samples=len(sample_weights),
+            replacement=True
+        )
+
+        loader = DataLoader(dataset,
+                            batch_size=config["batch_size"],
+                            sampler=sampler,
+                            num_workers=config["num_workers"],
+                            pin_memory=True)
+   
+    else:
+        loader = DataLoader(dataset,
+                            batch_size=config["batch_size"],
+                            shuffle=shuffle,
+                            num_workers=config["num_workers"],
+                            pin_memory=False)
+
+    return loader
 
 
 if __name__ == "__main__":
