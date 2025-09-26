@@ -184,16 +184,16 @@ if __name__ == "__main__":
     print(f"Test set: {len(test_set)} samples")
 
 
-    num_pos = sum([1 for _,_,_,label,_ in train_set.index if label==1])
-    num_neg = sum([1 for _,_,_, label,_ in train_set.index if label==0])
+    num_pos = sum([1 for *_, label, _ in train_set.index if label == 1])
+    num_neg = sum([1 for *_, label, _ in train_set.index if label == 0])
     print(f"TRAIN --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
 
-    num_pos = sum([1 for _,_,_,label,_ in val_set.index if label==1])
-    num_neg = sum([1 for _,_,_, label,_ in val_set.index if label==0])
+    num_pos = sum([1 for *_, label, _ in val_set.index if label == 1])
+    num_neg = sum([1 for *_, label, _ in val_set.index if label == 0])
     print(f"VAL --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
 
-    num_pos = sum([1 for _,_,_,label,_ in test_set.index if label==1])
-    num_neg = sum([1 for _,_,_, label,_ in test_set.index if label==0])
+    num_pos = sum([1 for *_, label, _ in test_set.index if label == 1])
+    num_neg = sum([1 for *_, label, _ in test_set.index if label == 0])
     print(f"TEST --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
 
 
