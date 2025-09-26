@@ -27,8 +27,11 @@ class LitModel_finetune(pl.LightningModule):
     def __init__(self, config, model):
         super().__init__()
         self.model = model
-        self.threshold = 0.5
+        self.threshold = config["threshold"]
         self.config = config
+        self.alpha_focal = config["focal_alpha"]
+        self.gamma_focal = config["focal_gamma"]
+
 
         # memorizza output per epoch
         self.val_results = {"preds": [], "targets": []}
@@ -39,7 +42,7 @@ class LitModel_finetune(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
         prob = self.model(X)
-        loss = focal_loss(prob, y)
+        loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
         self.log("train_loss", loss)
         return loss
 
@@ -193,11 +196,52 @@ def supervised(config):
         callbacks=[early_stop_callback, checkpoint_callback],
     )
 
-    trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-    pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
-    print(pretrain_result)
+    # trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    # pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
+    # print(pretrain_result)
+   
+    trainer.fit(lightning_model, train_loader, val_loader)
 
+    # 🔑 metriche di validazione
+    val_results = trainer.validate(lightning_model, dataloaders=val_loader, ckpt_path="best")[0]
+
+    # test (solo per log)
+    test_results = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
+    print("Test results:", test_results)
+
+    return val_results   # ora Optuna riceve un dict
+
+
+# if __name__ == "__main__":
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)
+
+import optuna
+
+def objective(trial):
+    # Carica config base
+    config = load_config("configs/finetuning.yml")
+
+    # Suggerisci iperparametri
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-3)
+    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.1, 0.9)
+    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 0.5, 3.0)
+    config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
+
+    # Limita epoche per tuning veloce
+    config["epochs"] = 30
+
+    # Allena e ottieni risultati
+    results = supervised(config)  # deve ritornare i risultati
+    return results["val_pr_auc"]  # metriche monitorate
 
 if __name__ == "__main__":
-    config = load_config("configs/finetuning.yml")
-    supervised(config)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=30)
+
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"Value: {trial.value}")
+    print("Params:")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
