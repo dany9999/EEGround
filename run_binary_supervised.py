@@ -137,8 +137,8 @@ class LitModel_finetune(pl.LightningModule):
 
 def predefined_split():
     train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
@@ -202,14 +202,13 @@ def supervised(config):
    
     trainer.fit(lightning_model, train_loader, val_loader)
 
-    # 🔑 metriche di validazione
-    val_results = trainer.validate(lightning_model, dataloaders=val_loader, ckpt_path="best")[0]
+
 
     # test (solo per log)
     test_results = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
     print("Test results:", test_results)
 
-    return val_results   # ora Optuna riceve un dict
+ 
 
 
 if __name__ == "__main__":
