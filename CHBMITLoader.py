@@ -305,7 +305,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         if self.transform is not None and label == 1:
             x = self.transform(x)
 
-        return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
+        return {"x": x, "y": torch.tensor(label, dtype=torch.long)}
 
 
 # ------------------------------
@@ -337,13 +337,13 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
                             batch_size=config["batch_size"],
                             sampler=sampler,
                             num_workers=config["num_workers"],
-                            pin_memory=True)
+                            pin_memory=False)
     else:
         loader = DataLoader(dataset,
                             batch_size=config["batch_size"],
                             shuffle=shuffle,
                             num_workers=config["num_workers"],
-                            pin_memory=True)
+                            pin_memory=False)
     return loader
 
 
