@@ -201,6 +201,8 @@ def supervised(config):
     # print(pretrain_result)
    
     trainer.fit(lightning_model, train_loader, val_loader)
+    val_metrics = trainer.validate(model=lightning_model, dataloaders=val_loader, ckpt_path="best")[0]
+
 
 
 
@@ -208,39 +210,41 @@ def supervised(config):
     test_results = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
     print("Test results:", test_results)
 
+    return val_metrics
+
  
 
 
-if __name__ == "__main__":
-    config = load_config("configs/finetuning.yml")
-    supervised(config)
-
-# import optuna
-
-# def objective(trial):
-#     # Carica config base
-#     config = load_config("configs/finetuning.yml")
-
-#     # Suggerisci iperparametri
-#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-3)
-#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.1, 0.9)
-#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 0.5, 3.0)
-#     config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
-
-#     # Limita epoche per tuning veloce
-#     config["epochs"] = 30
-
-#     # Allena e ottieni risultati
-#     results = supervised(config)  # deve ritornare i risultati
-#     return results["val_pr_auc"]  # metriche monitorate
-
 # if __name__ == "__main__":
-#     study = optuna.create_study(direction="maximize")
-#     study.optimize(objective, n_trials=30)
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)
 
-#     print("Best trial:")
-#     trial = study.best_trial
-#     print(f"Value: {trial.value}")
-#     print("Params:")
-#     for k, v in trial.params.items():
-#         print(f"  {k}: {v}")
+import optuna
+
+def objective(trial):
+    # Carica config base
+    config = load_config("configs/finetuning.yml")
+
+    # Suggerisci iperparametri
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-3)
+    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.1, 0.9)
+    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 0.5, 3.0)
+    config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
+
+    # Limita epoche per tuning veloce
+    config["epochs"] = 30
+
+    # Allena e ottieni risultati
+    results = supervised(config)  # deve ritornare i risultati
+    return results["val_pr_auc"]  # metriche monitorate
+
+if __name__ == "__main__":
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=30)
+
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"Value: {trial.value}")
+    print("Params:")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
