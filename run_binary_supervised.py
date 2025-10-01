@@ -187,7 +187,7 @@ def supervised(config):
     version = f"CHB-MIT-{config["finetune_mode"]}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=20, verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=15, verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
@@ -244,7 +244,7 @@ def objective(trial):
     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
 
     # Limita epoche per tuning veloce
-    config["epochs"] = 30
+    config["epochs"] = 60
 
     # Allena e ottieni risultati
     results = supervised(config)  # deve ritornare i risultati
