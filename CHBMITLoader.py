@@ -216,15 +216,18 @@ class EEGAugment:
 
 
 # ------------------------------
-# Dataset CHB-MIT
+# Dataset CHB-MIT con undersampling
 # ------------------------------
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4, transform=None, pos_oversample_k=0):
+                 segment_duration_sec=4, transform=None,
+                 pos_oversample_k=0, neg_undersample_ratio=None):
         self.index = []  # (fpath, seg_idx, label, file_id)
         self.transform = transform
         self.segment_duration_sec = segment_duration_sec
         self.pos_oversample_k = int(pos_oversample_k)
+
+        tmp_index = []  # raccolgo tutti i segmenti prima di applicare undersampling
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
@@ -269,12 +272,24 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                         if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
                             label = 1
                             break
-                    # una entry sempre
-                    self.index.append((fpath, i, label, edf_base))
+                    tmp_index.append((fpath, i, label, edf_base))
                     # repliche extra se positivo
                     if label == 1 and self.pos_oversample_k > 0:
                         for _ in range(self.pos_oversample_k):
-                            self.index.append((fpath, i, label, edf_base))
+                            tmp_index.append((fpath, i, label, edf_base))
+
+        # ------------------------------
+        # Applica undersampling negativi
+        # ------------------------------
+        if neg_undersample_ratio is not None and neg_undersample_ratio < 1.0:
+            pos_samples = [x for x in tmp_index if x[2] == 1]
+            neg_samples = [x for x in tmp_index if x[2] == 0]
+            keep_n = int(len(neg_samples) * neg_undersample_ratio)
+            neg_samples = random.sample(neg_samples, keep_n)
+            self.index = pos_samples + neg_samples
+            random.shuffle(self.index)
+        else:
+            self.index = tmp_index
 
     def parse_intervals(self, start_val, end_val):
         intervals = []
@@ -309,10 +324,11 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
 
 # ------------------------------
-# make_loader
+# make_loader con undersampling
 # ------------------------------
 def make_loader(patient_ids, dataset_path, gt_path, config,
-                shuffle=True, balanced=False, pos_oversample_k=0, transform=None):
+                shuffle=True, balanced=False, pos_oversample_k=0,
+                transform=None, neg_undersample_ratio=None):
 
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
@@ -321,6 +337,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
         segment_duration_sec=config.get("segment_duration_sec", 4),
         transform=transform,
         pos_oversample_k=pos_oversample_k,
+        neg_undersample_ratio=neg_undersample_ratio
     )
 
     if balanced:
@@ -365,7 +382,8 @@ if __name__ == "__main__":
 
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
                                shuffle=True, balanced=False,
-                               pos_oversample_k=4, transform=augment_pos)
+                               pos_oversample_k=4, transform=augment_pos,
+                               neg_undersample_ratio=0.3)  # <-- tieni solo 30% dei negativi
 
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False,

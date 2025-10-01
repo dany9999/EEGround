@@ -137,8 +137,8 @@ class LitModel_finetune(pl.LightningModule):
 
 def predefined_split():
     train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
@@ -229,7 +229,7 @@ def objective(trial):
     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-3)
     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.1, 0.9)
     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 0.5, 3.0)
-    config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
+    #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
 
     # Limita epoche per tuning veloce
     config["epochs"] = 30
@@ -240,7 +240,7 @@ def objective(trial):
 
 if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=30)
+    study.optimize(objective, n_trials=10)
 
     print("Best trial:")
     trial = study.best_trial
