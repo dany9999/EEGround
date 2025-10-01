@@ -20,7 +20,7 @@ from utils import focal_loss, compute_global_stats, load_config
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader import make_loader
+from CHBMITLoader import make_loader, EEGAugment
 
 
 class LitModel_finetune(pl.LightningModule):
@@ -156,9 +156,21 @@ def prepare_CHB_MIT_dataloader(config):
     #mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
     #std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config, balanced=False, shuffle=True)
-    val_loader = make_loader(split["val"], dataset_path, gt_path, config,  shuffle=False)
-    test_loader = make_loader(split["test"], dataset_path, gt_path, config, shuffle=False)
+    
+    augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
+    
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+                               shuffle=True, balanced=False,
+                               pos_oversample_k=4, transform=augment_pos,
+                               neg_undersample_ratio=0.3)  # <-- tieni solo 30% dei negativi
+
+    val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+                               shuffle=False, balanced=False,
+                               pos_oversample_k=0, transform=None)
+
+    test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+                               shuffle=False, balanced=False,
+                               pos_oversample_k=0, transform=None)
     return train_loader, test_loader, val_loader
 
 
