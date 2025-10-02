@@ -157,21 +157,30 @@ def prepare_CHB_MIT_dataloader(config):
     #std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
     
-    augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
+    #augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
     
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                               shuffle=True, balanced=False,
-                               pos_oversample_k=0, transform=augment_pos,
-                               neg_undersample_ratio=None)  # <-- tieni solo 30% dei negativi
+    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+    #                            shuffle=True, balanced=False,
+    #                            pos_oversample_k=0, transform=augment_pos,
+    #                            neg_undersample_ratio=None)  # <-- tieni solo 30% dei negativi
 
-    val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                               shuffle=False, balanced=False,
-                               pos_oversample_k=0, transform=None)
+    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+    #                            shuffle=False, balanced=False,
+    #                            pos_oversample_k=0, transform=None)
 
-    test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-                               shuffle=False, balanced=False,
-                               pos_oversample_k=0, transform=None)
+    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+    #                            shuffle=False, balanced=False,
+    #                            pos_oversample_k=0, transform=None)
+    
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config, shuffle=True, balanced=False)
+    val_loader   = make_loader(split["val"], dataset_path, gt_path, config, shuffle=False)
+    test_loader  = make_loader(split["test"], dataset_path, gt_path, config, shuffle=False)
+
     return train_loader, test_loader, val_loader
+
+    train_loader = make_loader(train_patients, dataset_path, gt_path, config, shuffle=True, balanced=False)
+    loader_val   = make_loader(val_patients, dataset_path, gt_path, config, shuffle=False)
+    loader_test  = make_loader(test_patients, dataset_path, gt_path, config, shuffle=False)
 
 
 def supervised(config):
