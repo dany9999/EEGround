@@ -13,7 +13,7 @@ heads: 8
 depth: 4
 criterion_name: "focal"  # oppure: "bce", "focal"
 focal_alpha: 0.8
-focal_gamma: 2.6
+focal_gamma: 0.7
 threshold: 0.5
 
 n_channels: 18
