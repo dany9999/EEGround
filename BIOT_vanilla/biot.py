@@ -70,8 +70,8 @@ class BIOTEncoder(nn.Module):
         heads=8,
         depth=4,
         n_channels=18,
-        n_fft=250,
-        hop_length=125,
+        n_fft=200,
+        hop_length=100,
         **kwargs
     ):
         super().__init__()
