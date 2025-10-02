@@ -20,7 +20,7 @@ from utils import focal_loss, compute_global_stats, load_config
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader import make_loader, EEGAugment
+from CHBMITLoader import make_loader
 
 
 class LitModel_finetune(pl.LightningModule):
