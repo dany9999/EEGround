@@ -175,6 +175,7 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 import random
+from scipy.signal import resample  # per il downsampling
 
 
 # ------------------------------
@@ -191,20 +192,16 @@ class EEGAugment:
         self.mask_max_ratio = mask_max_ratio
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (C, T)
         C, T = x.shape[-2], x.shape[-1]
 
-        # jitter
         if random.random() < self.p_jitter:
             x = x + self.jitter_std * torch.randn_like(x)
 
-        # scaling per canale
         if random.random() < self.p_scale:
             low, high = self.scale_range
             scales = torch.empty(C, 1, device=x.device).uniform_(low, high)
             x = x * scales
 
-        # time masking: nasconde un blocco temporale
         if random.random() < self.p_mask:
             max_w = int(self.mask_max_ratio * T)
             if max_w > 0:
@@ -216,18 +213,16 @@ class EEGAugment:
 
 
 # ------------------------------
-# Dataset CHB-MIT con undersampling
+# Dataset CHB-MIT con runtime windows 10s@200Hz
 # ------------------------------
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4, transform=None,
-                 pos_oversample_k=0, neg_undersample_ratio=None):
-        self.index = []  # (fpath, seg_idx, label, file_id)
-        self.transform = transform
-        self.segment_duration_sec = segment_duration_sec
-        self.pos_oversample_k = int(pos_oversample_k)
+                 win_sec=10, step_sec=10, orig_fs=250, new_fs=200,
+                 transform=None, pos_oversample_k=0, neg_undersample_ratio=None):
 
-        tmp_index = []  # raccolgo tutti i segmenti prima di applicare undersampling
+        self.index = []  # (x_window, label)
+        self.transform = transform
+        self.pos_oversample_k = int(pos_oversample_k)
 
         for patient in patient_ids:
             patient_folder = os.path.join(data_dir, patient)
@@ -257,39 +252,42 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     continue
                 edf_base = fname.replace(".h5", "").replace("eeg_", "")
                 fpath = os.path.join(patient_folder, fname)
-
-                with h5py.File(fpath, 'r') as f:
-                    n_segments = f['signals'].shape[0]
-
                 intervals = seizure_map.get(edf_base, [])
 
-                # crea indice dei segmenti
-                for i in range(n_segments):
-                    seg_start = i * self.segment_duration_sec
-                    seg_end = seg_start + self.segment_duration_sec
+                with h5py.File(fpath, 'r') as f:
+                    segs = f['signals'][:]  # (n_segments, C, Tseg)
+                    X = np.concatenate([seg[:18] for seg in segs], axis=-1)  # (C, Ttot)
+
+                win_len = win_sec * orig_fs
+                step_len = step_sec * orig_fs
+                total_len = X.shape[-1]
+
+                for start in range(0, total_len - win_len + 1, step_len):
+                    end = start + win_len
+                    x_win = X[:, start:end]
+                    # downsample a 200Hz
+                    x_ds = resample(x_win, win_sec * new_fs, axis=-1)
+                    # normalizzazione percentile 95
+                    x_ds = x_ds / (np.quantile(np.abs(x_ds), q=0.95, axis=-1, keepdims=True) + 1e-8)
+                    # label
                     label = 0
                     for (st, en) in intervals:
-                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
+                        if not (end/orig_fs <= st or start/orig_fs >= en):
                             label = 1
                             break
-                    tmp_index.append((fpath, i, label, edf_base))
-                    # repliche extra se positivo
+                    self.index.append((x_ds.astype(np.float32), label))
                     if label == 1 and self.pos_oversample_k > 0:
                         for _ in range(self.pos_oversample_k):
-                            tmp_index.append((fpath, i, label, edf_base))
+                            self.index.append((x_ds.astype(np.float32), label))
 
-        # ------------------------------
-        # Applica undersampling negativi
-        # ------------------------------
+        # undersampling negativi
         if neg_undersample_ratio is not None and neg_undersample_ratio < 1.0:
-            pos_samples = [x for x in tmp_index if x[2] == 1]
-            neg_samples = [x for x in tmp_index if x[2] == 0]
+            pos_samples = [x for x in self.index if x[1] == 1]
+            neg_samples = [x for x in self.index if x[1] == 0]
             keep_n = int(len(neg_samples) * neg_undersample_ratio)
             neg_samples = random.sample(neg_samples, keep_n)
             self.index = pos_samples + neg_samples
             random.shuffle(self.index)
-        else:
-            self.index = tmp_index
 
     def parse_intervals(self, start_val, end_val):
         intervals = []
@@ -298,33 +296,24 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         start_parts = str(start_val).split(',')
         end_parts = str(end_val).split(',')
         for s_group, e_group in zip(start_parts, end_parts):
-            starts = [float(x) for x in s_group.split('-') if x.strip() not in ["", "0"]]
-            ends = [float(x) for x in e_group.split('-') if x.strip() not in ["", "0"]]
+            starts = [float(x) for x in s_group.split('-') if x.strip()]
+            ends = [float(x) for x in e_group.split('-') if x.strip()]
             for st, en in zip(starts, ends):
                 intervals.append((st, en))
         return intervals
 
-    def __len__(self):
-        return len(self.index)
+    def __len__(self): return len(self.index)
 
     def __getitem__(self, idx):
-        fpath, i, label, file_id = self.index[idx]
-        with h5py.File(fpath, 'r') as f:
-            x = f['signals'][i][:18]  # (channels, time)
-
-        # normalizzazione percentile 95 per canale
-        x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
+        x, label = self.index[idx]
         x = torch.tensor(x, dtype=torch.float32)
-
-        # Augmentation SOLO sui positivi
         if self.transform is not None and label == 1:
             x = self.transform(x)
-
         return {"x": x, "y": torch.tensor(label, dtype=torch.long)}
 
 
 # ------------------------------
-# make_loader con undersampling
+# make_loader
 # ------------------------------
 def make_loader(patient_ids, dataset_path, gt_path, config,
                 shuffle=True, balanced=False, pos_oversample_k=0,
@@ -334,14 +323,17 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
         patient_ids=patient_ids,
         data_dir=dataset_path,
         gt_dir=gt_path,
-        segment_duration_sec=config.get("segment_duration_sec", 4),
+        win_sec=config.get("win_sec", 10),
+        step_sec=config.get("step_sec", 10),
+        orig_fs=250,
+        new_fs=200,
         transform=transform,
         pos_oversample_k=pos_oversample_k,
         neg_undersample_ratio=neg_undersample_ratio
     )
 
     if balanced:
-        targets = [label for _, _, label, _ in dataset.index]
+        targets = [label for _, label in dataset.index]
         class_counts = np.bincount(targets)
         class_weights = 1. / class_counts
         sample_weights = [class_weights[t] for t in targets]
@@ -383,7 +375,7 @@ if __name__ == "__main__":
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
                                shuffle=True, balanced=False,
                                pos_oversample_k=4, transform=augment_pos,
-                               neg_undersample_ratio=0.3)  # <-- tieni solo 30% dei negativi
+                               neg_undersample_ratio=0.3)
 
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False,
@@ -393,12 +385,18 @@ if __name__ == "__main__":
                                shuffle=False, balanced=False,
                                pos_oversample_k=0, transform=None)
 
-    # Debug numeri
-    for name, ds in [("TRAIN", loader_train.dataset), ("VAL", loader_val.dataset), ("TEST", loader_test.dataset)]:
-        num_pos = sum([1 for _, _, label, _ in ds.index if label == 1])
-        num_neg = sum([1 for _, _, label, _ in ds.index if label == 0])
-        print(f"{name} --- Total: {len(ds)} | Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/(num_neg+1e-8):.6f}")
-
+    # Debug numeri e shape
+    for name, ds in [("TRAIN", loader_train.dataset),
+                     ("VAL", loader_val.dataset),
+                     ("TEST", loader_test.dataset)]:
+        labels = [lbl for _, lbl in ds.index]
+        num_pos = sum(1 for lbl in labels if lbl == 1)
+        num_neg = sum(1 for lbl in labels if lbl == 0)
+        ratio = num_pos / (num_neg + 1e-8)
+        # prendi un campione qualsiasi
+        x0, y0 = ds[0]["x"], ds[0]["y"]
+        print(f"{name} --- Total: {len(ds)} | Positives: {num_pos}, Negatives: {num_neg}, "
+              f"Ratio: {ratio:.6f} | Sample shape: {tuple(x0.shape)} | Label: {y0.item()}")
 
 # import os
 # import torch
