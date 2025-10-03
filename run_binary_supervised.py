@@ -236,7 +236,7 @@ if __name__ == "__main__":
     config = load_config("configs/finetuning.yml")
     supervised(config)
 
-import optuna
+# import optuna
 
 # def objective(trial):
 #     # Carica config base
