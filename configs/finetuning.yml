@@ -25,7 +25,8 @@ resume: False
 
 
 dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
-pretrained_ckpt: ./logs/pretrain/model_epoch_25.pt
+pretrain_model_path: "BIOT_vanilla/pretrained_models/EEG-PREST-16-channels.ckpt"
+
 
 save_dir: ./checkpoints_finetuning
 log_dir: ./logs/finetuning_from_scratch
