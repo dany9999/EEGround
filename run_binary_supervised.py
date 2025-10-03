@@ -183,8 +183,8 @@ def supervised(config):
     train_loader, test_loader, val_loader = prepare_CHB_MIT_dataloader(config)
     model = BIOTClassifier(
         n_channels=config["n_channels"],
-        n_fft=200,
-        hop_length=100,
+        n_fft=250,
+        hop_length=125,
     )
 
     lightning_model = LitModel_finetune(config, model)
