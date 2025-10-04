@@ -3,7 +3,7 @@
 epochs: 60
 batch_size: 512
 
-lr: 0.00086
+lr: 0.000006
 weight_decay: 1e-5
 
 num_workers: 10
@@ -12,8 +12,8 @@ emb_size: 256
 heads: 8
 depth: 4
 criterion_name: "focal"  # oppure: "bce", "focal"
-focal_alpha: 0.73
-focal_gamma: 1.87
+focal_alpha: 0.44
+focal_gamma: 1.59
 threshold: 0.5
 
 n_channels: 16
