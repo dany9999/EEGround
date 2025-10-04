@@ -260,7 +260,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 with h5py.File(fpath, 'r') as f:
                     segs = f['signals'][:]  # (n_segments, C, Tseg)
-                    X = np.concatenate([seg[:16] for seg in segs], axis=-1)  # (C, Ttot)
+                    X = np.concatenate([seg[:18] for seg in segs], axis=-1)  # (C, Ttot)
 
                 win_len = win_sec * orig_fs
                 step_len = step_sec * orig_fs
