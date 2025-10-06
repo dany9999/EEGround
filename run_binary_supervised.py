@@ -136,9 +136,9 @@ class LitModel_finetune(pl.LightningModule):
 
 
 def predefined_split():
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 21)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(21, 23)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(23, 25)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
