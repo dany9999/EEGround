@@ -260,38 +260,65 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 with h5py.File(fpath, 'r') as f:
                     segs = f['signals'][:]  # (n_segments, C, Tseg)
-                    X250 = np.concatenate([seg[:18] for seg in segs], axis=-1)  # (C, Ttot)
+                    X250 = np.concatenate([seg[:18] for seg in segs], axis=-1)  # usa 18 canali; per BIOT 16 derivazioni, vedi nota sotto
 
-                # ---- RESAMPLE UNA SOLA VOLTA A 200 Hz ----
-                    Ttot_250 = X250.shape[-1]
-                    Ttot_200 = int(round(Ttot_250 * new_fs / orig_fs))
-                    X200 = resample(X250, Ttot_200, axis=-1)  # (18, Ttot@200Hz)
+                # --- resample UNA volta a 200 Hz ---
+                Ttot_250 = X250.shape[-1]
+                Ttot_200 = int(round(Ttot_250 * new_fs / orig_fs))
+                X200 = resample(X250, Ttot_200, axis=-1)  # (C, T@200Hz)
 
-                    # ---- Sliding window nel dominio 200Hz ----
-                    win_len_200  = int(win_sec  * new_fs)   # 10s -> 2000
-                    step_len_200 = int(step_sec * new_fs)   # 5s  -> 1000 (overlap 50%)
-                    total_len_200 = X200.shape[-1]
+                win_len = int(win_sec * new_fs)          # 10s -> 2000
+                step_std = win_len                        # non-overlap globale (10s)
+                pos_step = int(5 * new_fs)                # overlap 5s SOLO nelle crisi
+                total_len = X200.shape[-1]
 
-                    for start_200 in range(0, total_len_200 - win_len_200 + 1, step_len_200):
-                        end_200 = start_200 + win_len_200
-                        x_win = X200[:, start_200:end_200]  # (18, 2000)
+                added_starts = set()
 
-                        # normalizzazione percentile 95 per canale
+                # 1) finestre NON sovrapposte su tutto il tracciato
+                for start in range(0, total_len - win_len + 1, step_std):
+                    end = start + win_len
+                    x_win = X200[:, start:end]
+                    # normalizzazione percentile 95
+                    x_win = x_win / (np.quantile(np.abs(x_win), q=0.95, axis=-1, keepdims=True) + 1e-8)
+
+                    # label via overlap (in secondi, ora siamo a 200Hz)
+                    start_sec, end_sec = start / new_fs, end / new_fs
+                    label = 0
+                    for (st, en) in intervals:
+                        if not (end_sec <= st or start_sec >= en):
+                            label = 1
+                            break
+
+                    self.index.append((x_win.astype(np.float32), label))
+                    added_starts.add(start)
+
+                # 2) finestre AGGIUNTIVE con step=5s SOLO dentro (o a cavallo di) crisi
+                for (st, en) in intervals:
+                    # generiamo start every 5s in un range che copra anche i bordi crisi
+                    # estendiamo di (win_len - pos_step) per coprire finestre che iniziano prima dell'onset ma includono la crisi
+                    start_min = max(0, int((st * new_fs) - (win_len - pos_step)))
+                    start_max = min(total_len - win_len, int(en * new_fs))
+                    # allineiamo a griglia 5s
+                    start_5s = start_min - (start_min % pos_step)
+                    for start in range(start_5s, start_max + 1, pos_step):
+                        if start in added_starts:
+                            continue  # finestra già aggiunta dallo stream non-overlap
+                        end = start + win_len
+                        if end > total_len:
+                            continue
+                        start_sec, end_sec = start / new_fs, end / new_fs
+                        # aggiungi SOLO se davvero overlappa la crisi
+                        overlaps = any(not (end_sec <= st_i or start_sec >= en_i) for (st_i, en_i) in intervals)
+                        if not overlaps:
+                            continue
+
+                        x_win = X200[:, start:end]
                         x_win = x_win / (np.quantile(np.abs(x_win), q=0.95, axis=-1, keepdims=True) + 1e-8)
-
-                        # label: lavora in secondi (dominio 200 Hz)
-                        start_sec = start_200 / new_fs
-                        end_sec   = end_200   / new_fs
-                        label = 0
-                        for (st, en) in intervals:
-                            if not (end_sec <= st or start_sec >= en):  # overlap > 0
-                                label = 1
-                                break
-
-                        self.index.append((x_win.astype(np.float32), label))
-                        if label == 1 and self.pos_oversample_k > 0:
+                        self.index.append((x_win.astype(np.float32), 1))  # forziamo label=1 per le aggiunte positive
+                        added_starts.add(start)
+                        if self.pos_oversample_k > 0:
                             for _ in range(self.pos_oversample_k):
-                                self.index.append((x_win.astype(np.float32), label))
+                                self.index.append((x_win.astype(np.float32), 1))
 
         # undersampling negativi
         if neg_undersample_ratio is not None and neg_undersample_ratio < 1.0:
