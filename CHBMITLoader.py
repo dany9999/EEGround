@@ -221,7 +221,7 @@ class EEGAugment:
 # ------------------------------
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 win_sec=10, step_sec=10, orig_fs=250, new_fs=200,
+                 win_sec=10, step_sec=5, orig_fs=250, new_fs=200,
                  transform=None, pos_oversample_k=0, neg_undersample_ratio=None):
 
         self.index = []  # (x_window, label)
@@ -376,9 +376,9 @@ if __name__ == "__main__":
 
     augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
 
-    loader_train = make_loader(train_patients, dataset_path, gt_path, config,
+    loader_train = make_loader(train_patients, dataset_path, gt_path,config,
                                shuffle=True, balanced=False,
-                               pos_oversample_k=4, transform=augment_pos, neg_undersample_ratio=0.3) 
+                               pos_oversample_k=0, transform=augment_pos, neg_undersample_ratio=0.0) 
 
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False,
