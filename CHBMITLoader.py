@@ -260,29 +260,38 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 with h5py.File(fpath, 'r') as f:
                     segs = f['signals'][:]  # (n_segments, C, Tseg)
-                    X = np.concatenate([seg[:18] for seg in segs], axis=-1)  # (C, Ttot)
+                    X250 = np.concatenate([seg[:18] for seg in segs], axis=-1)  # (C, Ttot)
 
-                win_len = win_sec * orig_fs
-                step_len = step_sec * orig_fs
-                total_len = X.shape[-1]
+                # ---- RESAMPLE UNA SOLA VOLTA A 200 Hz ----
+                    Ttot_250 = X250.shape[-1]
+                    Ttot_200 = int(round(Ttot_250 * new_fs / orig_fs))
+                    X200 = resample(X250, Ttot_200, axis=-1)  # (18, Ttot@200Hz)
 
-                for start in range(0, total_len - win_len + 1, step_len):
-                    end = start + win_len
-                    x_win = X[:, start:end]
-                    # downsample a 200Hz
-                    x_ds = resample(x_win, win_sec * new_fs, axis=-1)
-                    # normalizzazione percentile 95
-                    x_ds = x_ds / (np.quantile(np.abs(x_ds), q=0.95, axis=-1, keepdims=True) + 1e-8)
-                    # label
-                    label = 0
-                    for (st, en) in intervals:
-                        if not (end/orig_fs <= st or start/orig_fs >= en):
-                            label = 1
-                            break
-                    self.index.append((x_ds.astype(np.float32), label))
-                    if label == 1 and self.pos_oversample_k > 0:
-                        for _ in range(self.pos_oversample_k):
-                            self.index.append((x_ds.astype(np.float32), label))
+                    # ---- Sliding window nel dominio 200Hz ----
+                    win_len_200  = int(win_sec  * new_fs)   # 10s -> 2000
+                    step_len_200 = int(step_sec * new_fs)   # 5s  -> 1000 (overlap 50%)
+                    total_len_200 = X200.shape[-1]
+
+                    for start_200 in range(0, total_len_200 - win_len_200 + 1, step_len_200):
+                        end_200 = start_200 + win_len_200
+                        x_win = X200[:, start_200:end_200]  # (18, 2000)
+
+                        # normalizzazione percentile 95 per canale
+                        x_win = x_win / (np.quantile(np.abs(x_win), q=0.95, axis=-1, keepdims=True) + 1e-8)
+
+                        # label: lavora in secondi (dominio 200 Hz)
+                        start_sec = start_200 / new_fs
+                        end_sec   = end_200   / new_fs
+                        label = 0
+                        for (st, en) in intervals:
+                            if not (end_sec <= st or start_sec >= en):  # overlap > 0
+                                label = 1
+                                break
+
+                        self.index.append((x_win.astype(np.float32), label))
+                        if label == 1 and self.pos_oversample_k > 0:
+                            for _ in range(self.pos_oversample_k):
+                                self.index.append((x_win.astype(np.float32), label))
 
         # undersampling negativi
         if neg_undersample_ratio is not None and neg_undersample_ratio < 1.0:
@@ -327,8 +336,8 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
         patient_ids=patient_ids,
         data_dir=dataset_path,
         gt_dir=gt_path,
-        win_sec=config.get("win_sec", 10),
-        step_sec=config.get("step_sec", 10),
+        win_sec=10,
+        step_sec=5,
         orig_fs=250,
         new_fs=200,
         transform=transform,
@@ -378,7 +387,7 @@ if __name__ == "__main__":
 
     loader_train = make_loader(train_patients, dataset_path, gt_path,config,
                                shuffle=True, balanced=False,
-                               pos_oversample_k=0, transform=augment_pos, neg_undersample_ratio=0.0) 
+                               pos_oversample_k=0, transform=augment_pos, neg_undersample_ratio=None) 
 
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False,
