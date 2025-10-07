@@ -261,13 +261,13 @@ def objective(trial):
     config = load_config("configs/finetuning.yml")
 
     # Suggerisci iperparametri
-    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-3)
-    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.1, 0.9)
-    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 0.5, 3.0)
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 5e-4)
+    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
+    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
 
     # Limita epoche per tuning veloce
-    config["epochs"] = 60
+    config["epochs"] = 100
 
     # Allena e ottieni risultati
     results = supervised(config)  # deve ritornare i risultati
@@ -275,7 +275,7 @@ def objective(trial):
 
 if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=30)
 
     print("Best trial:")
     trial = study.best_trial
