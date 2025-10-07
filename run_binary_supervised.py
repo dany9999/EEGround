@@ -261,7 +261,7 @@ def objective(trial):
     config = load_config("configs/finetuning.yml")
 
     # Suggerisci iperparametri
-    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-2)
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
