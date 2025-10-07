@@ -210,11 +210,11 @@ def supervised(config):
     version = f"CHB-MIT-{config["finetune_mode"]}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=config["early_stopping_patience"], verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
-    monitor="val_pr_auc",
+    monitor="val_bacc",
     mode="max",
     save_top_k=1,
     filename="best-model"
@@ -261,7 +261,7 @@ def objective(trial):
     config = load_config("configs/finetuning.yml")
 
     # Suggerisci iperparametri
-    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 5e-4)
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-2)
     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
@@ -271,7 +271,7 @@ def objective(trial):
 
     # Allena e ottieni risultati
     results = supervised(config)  # deve ritornare i risultati
-    return results["val_pr_auc"]  # metriche monitorate
+    return results["val_bacc"]  # metriche monitorate
 
 if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
