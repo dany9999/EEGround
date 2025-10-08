@@ -161,7 +161,7 @@ def prepare_CHB_MIT_dataloader(config):
     
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                                shuffle=True, balanced=False,
-                               pos_oversample_k=4, transform=augment_pos,
+                               pos_oversample_k=0, transform=augment_pos,
                                neg_undersample_ratio=None)  # <-- tieni solo 30% dei negativi
 
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
