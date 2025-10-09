@@ -414,7 +414,7 @@ if __name__ == "__main__":
 
     loader_train = make_loader(train_patients, dataset_path, gt_path,config,
                                shuffle=True, balanced=False,
-                               pos_oversample_k=4, transform=augment_pos, neg_undersample_ratio=0.25) 
+                               pos_oversample_k=4, transform=augment_pos, neg_undersample_ratio=0.27) 
 
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False,
