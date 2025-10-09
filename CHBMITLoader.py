@@ -406,9 +406,9 @@ if __name__ == "__main__":
     dataset_path = config["dataset_path"]
     gt_path = "../../Datasets/chb_mit/GT"
 
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 21)]
-    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(21, 23)]
-    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(23, 25)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
+    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
 
     augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
 
