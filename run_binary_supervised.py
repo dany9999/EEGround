@@ -162,7 +162,7 @@ def prepare_CHB_MIT_dataloader(config):
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                                shuffle=True, balanced=False,
                                pos_oversample_k=4, transform=augment_pos,
-                               neg_undersample_ratio=0.2)  # <-- tieni solo tot% dei negativi
+                               neg_undersample_ratio=0.28)  # <-- tieni solo tot% dei negativi
 
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
                                shuffle=False, balanced=False,
@@ -184,8 +184,8 @@ def supervised(config):
     
     model = BIOTClassifier(
         n_channels=config["n_channels"],
-        n_fft=200,
-        hop_length=100,
+        n_fft=250,
+        hop_length=125,
     )
 
     # # 🔹 Caricamento pesi pretrained se specificato
@@ -250,37 +250,37 @@ def supervised(config):
  
 
 
-# if __name__ == "__main__":
-#     config = load_config("configs/finetuning.yml")
-#     supervised(config)
-
-import optuna
-
-def objective(trial):
-    # Carica config base
-    config = load_config("configs/finetuning.yml")
-
-    # Suggerisci iperparametri
-    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
-    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
-    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
-    config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
-    #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
-
-    # Limita epoche per tuning veloce
-    config["epochs"] = 100
-
-    # Allena e ottieni risultati
-    results = supervised(config)  # deve ritornare i risultati
-    return results["val_pr_auc"]  # metriche monitorate
-
 if __name__ == "__main__":
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=15)
+    config = load_config("configs/finetuning.yml")
+    supervised(config)
 
-    print("Best trial:")
-    trial = study.best_trial
-    print(f"Value: {trial.value}")
-    print("Params:")
-    for k, v in trial.params.items():
-        print(f"  {k}: {v}")
+# import optuna
+
+# def objective(trial):
+#     # Carica config base
+#     config = load_config("configs/finetuning.yml")
+
+#     # Suggerisci iperparametri
+#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
+#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
+#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
+#     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
+#     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
+
+#     # Limita epoche per tuning veloce
+#     config["epochs"] = 100
+
+#     # Allena e ottieni risultati
+#     results = supervised(config)  # deve ritornare i risultati
+#     return results["val_pr_auc"]  # metriche monitorate
+
+# if __name__ == "__main__":
+#     study = optuna.create_study(direction="maximize")
+#     study.optimize(objective, n_trials=15)
+
+#     print("Best trial:")
+#     trial = study.best_trial
+#     print(f"Value: {trial.value}")
+#     print("Params:")
+#     for k, v in trial.params.items():
+#         print(f"  {k}: {v}")
