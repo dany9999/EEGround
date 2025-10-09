@@ -260,16 +260,16 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 with h5py.File(fpath, 'r') as f:
                     segs = f['signals'][:]  # (n_segments, C, Tseg)
-                    X250 = np.concatenate([seg[:16] for seg in segs], axis=-1)  # usa 18 canali; per BIOT 16 derivazioni, vedi nota sotto
+                    X250 = np.concatenate([seg[:16] for seg in segs], axis=-1)
 
                 # --- resample UNA volta a 200 Hz ---
                 Ttot_250 = X250.shape[-1]
                 Ttot_200 = int(round(Ttot_250 * new_fs / orig_fs))
                 X200 = resample(X250, Ttot_200, axis=-1)  # (C, T@200Hz)
 
-                win_len = int(win_sec * new_fs)          # 10s -> 2000
-                step_std = win_len                        # non-overlap globale (10s)
-                pos_step = int(5 * new_fs)                # overlap 5s SOLO nelle crisi
+                win_len = int(win_sec * new_fs)        
+                step_std = win_len                        
+                pos_step = int(5 * new_fs)                
                 total_len = X200.shape[-1]
 
                 added_starts = set()
@@ -281,7 +281,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     # normalizzazione percentile 95
                     x_win = x_win / (np.quantile(np.abs(x_win), q=0.95, axis=-1, keepdims=True) + 1e-8)
 
-                    # label via overlap (in secondi, ora siamo a 200Hz)
+                    
                     start_sec, end_sec = start / new_fs, end / new_fs
                     label = 0
                     for (st, en) in intervals:
@@ -294,8 +294,8 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 # 2) finestre AGGIUNTIVE con step=5s SOLO dentro (o a cavallo di) crisi
                 for (st, en) in intervals:
-                    # generiamo start every 5s in un range che copra anche i bordi crisi
-                    # estendiamo di (win_len - pos_step) per coprire finestre che iniziano prima dell'onset ma includono la crisi
+                    
+                    
                     start_min = max(0, int((st * new_fs) - (win_len - pos_step)))
                     start_max = min(total_len - win_len, int(en * new_fs))
                     # allineiamo a griglia 5s
