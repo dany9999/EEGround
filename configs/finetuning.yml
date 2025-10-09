@@ -1,9 +1,9 @@
 
 
-epochs: 100
+epochs: 60
 batch_size: 512
 
-lr: 0.00006
+lr: 0.0003
 weight_decay: 1e-5
 
 num_workers: 10
@@ -12,11 +12,11 @@ emb_size: 256
 heads: 8
 depth: 4
 criterion_name: "focal"  # oppure: "bce", "focal"
-focal_alpha: 0.8
-focal_gamma: 3.0
+focal_alpha: 0.68
+focal_gamma: 1.11
 threshold: 0.5
 
-n_channels: 16
+n_channels: 18
 n_classes: 1
 
 early_stopping_patience: 15

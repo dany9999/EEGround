@@ -260,7 +260,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
                 with h5py.File(fpath, 'r') as f:
                     segs = f['signals'][:]  # (n_segments, C, Tseg)
-                    X250 = np.concatenate([seg[:16] for seg in segs], axis=-1)
+                    X250 = np.concatenate([seg[:18] for seg in segs], axis=-1)
 
                 # --- resample UNA volta a 200 Hz ---
                 Ttot_250 = X250.shape[-1]
@@ -414,7 +414,7 @@ if __name__ == "__main__":
 
     loader_train = make_loader(train_patients, dataset_path, gt_path,config,
                                shuffle=True, balanced=False,
-                               pos_oversample_k=0, transform=augment_pos, neg_undersample_ratio=None) 
+                               pos_oversample_k=4, transform=augment_pos, neg_undersample_ratio=0.2) 
 
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False,
