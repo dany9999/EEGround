@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from utils import load_config
 from torch.utils.data import Dataset, DataLoader, DistributedSampler, WeightedRandomSampler
+from scipy.signal import resample_poly  # per il downsampling
 
 # seizure detection labeling senza oversampling e undersampling
 
@@ -78,11 +79,13 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, i, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
             x = f['signals'][i][:16]  # (channels, time)
-
-            x_200 = np.resample(x, int(x.shape[-1] * 200 / 250), axis=-1)  # downsample a 200Hz
+            target_fs = 200
+            orig_fs = 250
+            x_200 = resample_poly(x, up=target_fs, down=orig_fs, axis=-1) 
+            
 
         # normalizzazione percentile 95 per canale
-        x = x_200 / (np.quantile(np.abs(x_200), q=0.95, axis=-1, keepdims=True) + 1e-8)
+        x_200 = x_200 / (np.quantile(np.abs(x_200), q=0.95, axis=-1, keepdims=True) + 1e-8)
 
         x_200 = torch.tensor(x_200, dtype=torch.float32)
 
