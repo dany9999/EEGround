@@ -50,10 +50,12 @@ class LitModel_finetune(pl.LightningModule):
         X, y = batch["x"], batch["y"]
         with torch.no_grad():
             prob = self.model(X)
+            loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
             step_result = torch.sigmoid(prob).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
         self.val_results["targets"].append(step_gt)
+        return loss
 
 
     def on_validation_epoch_end(self):
@@ -184,8 +186,8 @@ def supervised(config):
     
     model = BIOTClassifier(
         n_channels=config["n_channels"],
-        n_fft=250,
-        hop_length=125,
+        n_fft=200,
+        hop_length=100,
     )
 
     # # 🔹 Caricamento pesi pretrained se specificato
