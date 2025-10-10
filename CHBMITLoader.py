@@ -79,14 +79,17 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         with h5py.File(fpath, 'r') as f:
             x = f['signals'][i][:16]  # (channels, time)
 
-        # normalizzazione percentile 95 per canale
-        x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
+            x_200 = np.resample(x, int(x.shape[-1] * 200 / 250), axis=-1)  # downsample a 200Hz
 
-        x = torch.tensor(x, dtype=torch.float32)
+        # normalizzazione percentile 95 per canale
+        x = x_200 / (np.quantile(np.abs(x_200), q=0.95, axis=-1, keepdims=True) + 1e-8)
+
+        x_200 = torch.tensor(x_200, dtype=torch.float32)
 
         if self.transform:
-            x = self.transform(x)
-        return {"x": x, "y": torch.tensor(label, dtype=torch.long), "file": file_id}
+            x_200 = self.transform(x_200)
+
+        return {"x": x_200, "y": torch.tensor(label, dtype=torch.long)}
 
 def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False):
 
