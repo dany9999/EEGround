@@ -159,20 +159,27 @@ def prepare_CHB_MIT_dataloader(config):
     #std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
 
     
-    augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
+    #augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
     
+    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+    #                            shuffle=True, balanced=False,
+    #                            pos_oversample_k=4, transform=augment_pos,
+    #                            neg_undersample_ratio=0.3)  # <-- tieni solo tot% dei negativi
+
+    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+    #                            shuffle=False, balanced=False,
+    #                            pos_oversample_k=0, transform=None)
+
+    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+    #                            shuffle=False, balanced=False,
+    #                            pos_oversample_k=0, transform=None)
+
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                               shuffle=True, balanced=False,
-                               pos_oversample_k=4, transform=augment_pos,
-                               neg_undersample_ratio=0.3)  # <-- tieni solo tot% dei negativi
-
+                            shuffle=True, balanced=False)  
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                               shuffle=False, balanced=False,
-                               pos_oversample_k=0, transform=None)
-
+                           shuffle=False)  
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-                               shuffle=False, balanced=False,
-                               pos_oversample_k=0, transform=None)
+                           shuffle=False) 
     
 
 
