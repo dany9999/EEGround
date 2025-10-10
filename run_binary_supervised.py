@@ -55,6 +55,7 @@ class LitModel_finetune(pl.LightningModule):
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
         self.val_results["targets"].append(step_gt)
+        self.log("val_loss", loss)
         return loss
 
 
