@@ -170,10 +170,10 @@ if __name__ == "__main__":
     print(f"TEST --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {num_pos/num_neg:.6f}")
 
     # prendi un campione qualsiasi
-    for  ds in [("TRAIN", train_set), ("VAL", val_set), ("TEST", test_set)]:
+    for  name, ds in [("TRAIN", train_set), ("VAL", val_set), ("TEST", test_set)]:
         
         x0, y0 = ds[0]["x"], ds[0]["y"]
-        print(f" Sample shape: {tuple(x0.shape)} | Label: {y0.item()}")
+        print(f"{name} --- Sample shape: {tuple(x0.shape)} | Label: {y0.item()}")
 
 
 # seizure detection labeling senza oversampling e undersampling
