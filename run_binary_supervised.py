@@ -17,7 +17,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
-
+from sklearn.metrics import confusion_matrix
 
 
 
@@ -66,9 +66,7 @@ class LitModel_finetune(pl.LightningModule):
         result = np.concatenate(self.val_results["preds"])
         gt = np.concatenate(self.val_results["targets"])
 
-        if (
-            sum(gt) * (len(gt) - sum(gt)) != 0
-        ):  # to prevent all 0 or all 1 and raise the AUROC error
+        if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
             self.threshold = np.sort(result)[-int(np.sum(gt))]
             results = binary_metrics_fn(
                 gt,
@@ -76,21 +74,39 @@ class LitModel_finetune(pl.LightningModule):
                 metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
                 threshold=self.threshold,
             )
+
+            # Calcolo sensitivity & specificity
+            preds_bin = (result >= self.threshold).astype(int)
+            tn, fp, fn, tp = confusion_matrix(gt, preds_bin).ravel()
+            sensitivity = tp / (tp + fn + 1e-8)
+            specificity = tn / (tn + fp + 1e-8)
+
+            results["sensitivity"] = sensitivity
+            results["specificity"] = specificity
         else:
             results = {
                 "accuracy": 0.0,
                 "balanced_accuracy": 0.0,
                 "pr_auc": 0.0,
                 "roc_auc": 0.0,
+                "sensitivity": 0.0,
+                "specificity": 0.0,
             }
+
+        # Log metrics
         self.log("val_acc", results["accuracy"], sync_dist=True)
         self.log("val_bacc", results["balanced_accuracy"], sync_dist=True)
         self.log("val_pr_auc", results["pr_auc"], sync_dist=True)
         self.log("val_auroc", results["roc_auc"], sync_dist=True)
-        print(results)
-        # resetta per il prossimo epoch
-        self.val_results = {"preds": [], "targets": []}
+        self.log("val_sensitivity", results["sensitivity"], sync_dist=True)
+        self.log("val_specificity", results["specificity"], sync_dist=True)
 
+        print({
+            k: float(v) for k, v in results.items()
+        })
+
+        # resetta buffer per epoch successivo
+        self.val_results = {"preds": [], "targets": []}
         return results
 
     def test_step(self, batch, batch_idx):
@@ -102,33 +118,50 @@ class LitModel_finetune(pl.LightningModule):
         self.test_results["preds"].append(step_result)
         self.test_results["targets"].append(step_gt)
 
-    def on_test_epoch_end(self):
-        result = np.concatenate(self.test_results["preds"])
-        gt = np.concatenate(self.test_results["targets"])
+        def on_test_epoch_end(self):
+            result = np.concatenate(self.test_results["preds"])
+            gt = np.concatenate(self.test_results["targets"])
 
-        if (
-            sum(gt) * (len(gt) - sum(gt)) != 0
-        ):  # to prevent all 0 or all 1 and raise the AUROC error
-            results = binary_metrics_fn(
-                gt,
-                result,
-                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-                threshold=self.threshold,
-            )
-        else:
-            results = {
-                "accuracy": 0.0,
-                "balanced_accuracy": 0.0,
-                "pr_auc": 0.0,
-                "roc_auc": 0.0,
-            }
-        self.log("test_acc", results["accuracy"], sync_dist=True)
-        self.log("test_bacc", results["balanced_accuracy"], sync_dist=True)
-        self.log("test_pr_auc", results["pr_auc"], sync_dist=True)
-        self.log("test_auroc", results["roc_auc"], sync_dist=True)
+            if sum(gt) * (len(gt) - sum(gt)) != 0:
+                results = binary_metrics_fn(
+                    gt,
+                    result,
+                    metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                    threshold=self.threshold,
+                )
 
-        self.test_results = {"preds": [], "targets": []}
-        return results
+                # Calcolo sensitivity & specificity
+                preds_bin = (result >= self.threshold).astype(int)
+                tn, fp, fn, tp = confusion_matrix(gt, preds_bin).ravel()
+                sensitivity = tp / (tp + fn + 1e-8)
+                specificity = tn / (tn + fp + 1e-8)
+
+                results["sensitivity"] = sensitivity
+                results["specificity"] = specificity
+            else:
+                results = {
+                    "accuracy": 0.0,
+                    "balanced_accuracy": 0.0,
+                    "pr_auc": 0.0,
+                    "roc_auc": 0.0,
+                    "sensitivity": 0.0,
+                    "specificity": 0.0,
+                }
+
+            # Log metrics
+            self.log("test_acc", results["accuracy"], sync_dist=True)
+            self.log("test_bacc", results["balanced_accuracy"], sync_dist=True)
+            self.log("test_pr_auc", results["pr_auc"], sync_dist=True)
+            self.log("test_auroc", results["roc_auc"], sync_dist=True)
+            self.log("test_sensitivity", results["sensitivity"], sync_dist=True)
+            self.log("test_specificity", results["specificity"], sync_dist=True)
+
+            print({
+                k: float(v) for k, v in results.items()
+            })
+
+            self.test_results = {"preds": [], "targets": []}
+            return results
 
     
 
