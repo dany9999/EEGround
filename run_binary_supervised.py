@@ -111,6 +111,7 @@ class LitModel_finetune(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
+        
         with torch.no_grad():
             convScore = self.model(X)
             step_result = torch.sigmoid(convScore).cpu().numpy()
