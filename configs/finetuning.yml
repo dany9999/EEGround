@@ -6,7 +6,7 @@ batch_size: 512
 lr: 0.00003
 weight_decay: 1e-5
 
-num_workers: 10
+num_workers: 20
 
 emb_size: 256
 heads: 8
