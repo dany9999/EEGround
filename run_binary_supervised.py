@@ -23,7 +23,7 @@ from sklearn.metrics import confusion_matrix
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader_8s_overlap import make_loader
+from CHBMITLoader_4s import make_loader
 
 
 class LitModel_finetune(pl.LightningModule):
