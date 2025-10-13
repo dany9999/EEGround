@@ -111,7 +111,7 @@ class LitModel_finetune(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
-        
+
         with torch.no_grad():
             convScore = self.model(X)
             step_result = torch.sigmoid(convScore).cpu().numpy()
@@ -119,50 +119,50 @@ class LitModel_finetune(pl.LightningModule):
         self.test_results["preds"].append(step_result)
         self.test_results["targets"].append(step_gt)
 
-        def on_test_epoch_end(self):
-            result = np.concatenate(self.test_results["preds"])
-            gt = np.concatenate(self.test_results["targets"])
+    def on_test_epoch_end(self):
+        result = np.concatenate(self.test_results["preds"])
+        gt = np.concatenate(self.test_results["targets"])
 
-            if sum(gt) * (len(gt) - sum(gt)) != 0:
-                results = binary_metrics_fn(
-                    gt,
-                    result,
-                    metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-                    threshold=self.threshold,
-                )
+        if sum(gt) * (len(gt) - sum(gt)) != 0:
+            results = binary_metrics_fn(
+                gt,
+                result,
+                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                threshold=self.threshold,
+            )
 
-                # Calcolo sensitivity & specificity
-                preds_bin = (result >= self.threshold).astype(int)
-                tn, fp, fn, tp = confusion_matrix(gt, preds_bin).ravel()
-                sensitivity = tp / (tp + fn + 1e-8)
-                specificity = tn / (tn + fp + 1e-8)
+            # Calcolo sensitivity & specificity
+            preds_bin = (result >= self.threshold).astype(int)
+            tn, fp, fn, tp = confusion_matrix(gt, preds_bin).ravel()
+            sensitivity = tp / (tp + fn + 1e-8)
+            specificity = tn / (tn + fp + 1e-8)
 
-                results["sensitivity"] = sensitivity
-                results["specificity"] = specificity
-            else:
-                results = {
-                    "accuracy": 0.0,
-                    "balanced_accuracy": 0.0,
-                    "pr_auc": 0.0,
-                    "roc_auc": 0.0,
-                    "sensitivity": 0.0,
-                    "specificity": 0.0,
-                }
+            results["sensitivity"] = sensitivity
+            results["specificity"] = specificity
+        else:
+            results = {
+                "accuracy": 0.0,
+                "balanced_accuracy": 0.0,
+                "pr_auc": 0.0,
+                "roc_auc": 0.0,
+                "sensitivity": 0.0,
+                "specificity": 0.0,
+            }
 
-            # Log metrics
-            self.log("test_acc", results["accuracy"], sync_dist=True)
-            self.log("test_bacc", results["balanced_accuracy"], sync_dist=True)
-            self.log("test_pr_auc", results["pr_auc"], sync_dist=True)
-            self.log("test_auroc", results["roc_auc"], sync_dist=True)
-            self.log("test_sensitivity", results["sensitivity"], sync_dist=True)
-            self.log("test_specificity", results["specificity"], sync_dist=True)
+        # Log metrics
+        self.log("test_acc", results["accuracy"], sync_dist=True)
+        self.log("test_bacc", results["balanced_accuracy"], sync_dist=True)
+        self.log("test_pr_auc", results["pr_auc"], sync_dist=True)
+        self.log("test_auroc", results["roc_auc"], sync_dist=True)
+        self.log("test_sensitivity", results["sensitivity"], sync_dist=True)
+        self.log("test_specificity", results["specificity"], sync_dist=True)
 
-            print({
-                k: float(v) for k, v in results.items()
-            })
+        print({
+            k: float(v) for k, v in results.items()
+        })
 
-            self.test_results = {"preds": [], "targets": []}
-            return results
+        self.test_results = {"preds": [], "targets": []}
+        return results
 
     
 
@@ -297,37 +297,37 @@ def supervised(config):
  
 
 
-# if __name__ == "__main__":
-#     config = load_config("configs/finetuning.yml")
-#     supervised(config)
-
-import optuna
-
-def objective(trial):
-    # Carica config base
-    config = load_config("configs/finetuning.yml")
-
-    # Suggerisci iperparametri
-    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
-    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
-    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
-    config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
-    #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
-
-    # Limita epoche per tuning veloce
-    config["epochs"] = 100
-
-    # Allena e ottieni risultati
-    results = supervised(config)  # deve ritornare i risultati
-    return results["val_pr_auc"]  # metriche monitorate
-
 if __name__ == "__main__":
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=15)
+    config = load_config("configs/finetuning.yml")
+    supervised(config)
 
-    print("Best trial:")
-    trial = study.best_trial
-    print(f"Value: {trial.value}")
-    print("Params:")
-    for k, v in trial.params.items():
-        print(f"  {k}: {v}")
+# import optuna
+
+# def objective(trial):
+#     # Carica config base
+#     config = load_config("configs/finetuning.yml")
+
+#     # Suggerisci iperparametri
+#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
+#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
+#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
+#     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
+#     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
+
+#     # Limita epoche per tuning veloce
+#     config["epochs"] = 100
+
+#     # Allena e ottieni risultati
+#     results = supervised(config)  # deve ritornare i risultati
+#     return results["val_pr_auc"]  # metriche monitorate
+
+# if __name__ == "__main__":
+#     study = optuna.create_study(direction="maximize")
+#     study.optimize(objective, n_trials=10)
+
+#     print("Best trial:")
+#     trial = study.best_trial
+#     print(f"Value: {trial.value}")
+#     print("Params:")
+#     for k, v in trial.params.items():
+#         print(f"  {k}: {v}")
