@@ -91,7 +91,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, seg_idx, label, file_id = self.index[idx]
 
         with h5py.File(fpath, 'r') as f:
-            x = f['signals'][seg_idx][:16]  # (channels, time)
+            x = f['signals'][seg_idx][:18]  # (channels, time)
 
         # Normalizzazione percentile 95 per canale
         x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
