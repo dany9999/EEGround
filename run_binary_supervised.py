@@ -23,7 +23,7 @@ from sklearn.metrics import confusion_matrix
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader_4s import make_loader
+from CHBMITLoader_8s_overlap import make_loader
 
 
 class LitModel_finetune(pl.LightningModule):
@@ -231,8 +231,8 @@ def supervised(config):
     
     model = BIOTClassifier(
         n_channels=config["n_channels"],
-        n_fft=250,
-        hop_length=125,
+        n_fft=200,
+        hop_length=100,
     )
 
     # # 🔹 Caricamento pesi pretrained se specificato
