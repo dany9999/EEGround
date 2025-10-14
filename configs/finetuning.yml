@@ -21,7 +21,7 @@ n_classes: 1
 
 early_stopping_patience: 15
 save_every: 10
-resume: False
+resume: True
 
 
 dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
