@@ -231,8 +231,8 @@ def supervised(config):
     
     model = BIOTClassifier(
         n_channels=config["n_channels"],
-        n_fft=200,
-        hop_length=100,
+        n_fft=250,
+        hop_length=125,
     )
 
     # # 🔹 Caricamento pesi pretrained se specificato
@@ -257,11 +257,11 @@ def supervised(config):
     version = f"CHB-MIT-{config["finetune_mode"]}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=config["early_stopping_patience"], verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_auroc", patience=config["early_stopping_patience"], verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
-    monitor="val_pr_auc",
+    monitor="val_auroc",
     mode="max",
     save_top_k=1,
     filename="best-model"
