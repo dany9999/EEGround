@@ -331,3 +331,54 @@ if __name__ == "__main__":
 #     print("Params:")
 #     for k, v in trial.params.items():
 #         print(f"  {k}: {v}")
+
+
+# import optuna
+# import pandas as pd
+# import os
+
+# def objective(trial):
+#     # Carica config base
+#     config = load_config("configs/finetuning.yml")
+
+#     # Suggerisci iperparametri
+#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
+#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
+#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
+#     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
+#     config["epochs"] = 100
+
+#     # Allena il modello e restituisci la metrica monitorata
+#     results = supervised(config)
+#     return results["val_pr_auc"]
+
+# if __name__ == "__main__":
+#     #  Usa storage persistente per poter riprendere dopo uno stop
+#     storage_name = "sqlite:///optuna_finetuning.db"
+#     study_name = "finetuning_tuning"
+
+#     study = optuna.create_study(
+#         study_name=study_name,
+#         direction="maximize",
+#         storage=storage_name,
+#         load_if_exists=True,
+#     )
+
+#     #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
+#     study.optimize(objective, n_trials=10)
+
+#     #  Stampa il risultato migliore
+#     print("Best trial:")
+#     trial = study.best_trial
+#     print(f"  Value: {trial.value}")
+#     for k, v in trial.params.items():
+#         print(f"  {k}: {v}")
+
+#     # Esporta risultati su CSV
+#     df = study.trials_dataframe()
+
+#     # Crea cartella risultati se non esiste
+#     os.makedirs("results", exist_ok=True)
+#     output_path = f"results/{study_name}_results.csv"
+#     df.to_csv(output_path, index=False)
+#     print(f"\n Risultati salvati in {output_path}")
