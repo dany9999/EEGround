@@ -68,6 +68,7 @@ class LitModel_finetune(pl.LightningModule):
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
             #self.threshold = np.sort(result)[-int(np.sum(gt))]
+
             results = binary_metrics_fn(
                 gt,
                 result,
@@ -235,7 +236,7 @@ def supervised(config):
         hop_length=100,
     )
 
-    # # 🔹 Caricamento pesi pretrained se specificato
+    # #  Caricamento pesi pretrained se specificato
     # if config.get("pretrain_model_path", ""):
     #     state = torch.load(config["pretrain_model_path"], map_location="cpu")
     #     model_dict = model.biot.state_dict()
