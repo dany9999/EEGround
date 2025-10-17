@@ -214,12 +214,12 @@ def prepare_CHB_MIT_dataloader(config):
     #                            pos_oversample_k=0, transform=None)
 
     # con oversamplig overlap o senza
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                            shuffle=True, balanced=False)  
-    val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                           shuffle=False)  
-    test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-                           shuffle=False) 
+    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+    #                         shuffle=True, balanced=False)  
+    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+    #                        shuffle=False)  
+    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+    #                        shuffle=False) 
     # udersampoling
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                            shuffle=True, balanced=True, neg_to_pos_ratio=5)
