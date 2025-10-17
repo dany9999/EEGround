@@ -12,8 +12,8 @@ emb_size: 256
 heads: 8
 depth: 4
 criterion_name: "focal"  # oppure: "bce", "focal"
-focal_alpha: 0.8
-focal_gamma: 1.0
+focal_alpha: 0.5
+focal_gamma: 1.6
 threshold: 0.5
 
 n_channels: 16

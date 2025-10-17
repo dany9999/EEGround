@@ -61,16 +61,16 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     self.index.append((fpath, i, label, edf_base))
 
                 # # === Campioni aggiuntivi (solo dentro intervalli epilettici, overlap 4 s) ===
-                if len(intervals) > 0:
-                    for (st, en) in intervals:
-                        # converti tempi in indici di segmento (4 s ciascuno)
-                        start_idx = int(st // self.segment_duration_sec)
-                        end_idx = int(en // self.segment_duration_sec)
-                        # scorri a passo 1 → overlap 4 s (cioè 50%)
-                        for i in range(start_idx, max(start_idx + 1, end_idx - 1), 1):
-                            if i + 1 >= n_segments:
-                                break
-                            self.index.append((fpath, i, 1, edf_base))  # label forzato = 1
+                # if len(intervals) > 0:
+                #     for (st, en) in intervals:
+                #         # converti tempi in indici di segmento (4 s ciascuno)
+                #         start_idx = int(st // self.segment_duration_sec)
+                #         end_idx = int(en // self.segment_duration_sec)
+                #         # scorri a passo 1 → overlap 4 s (cioè 50%)
+                #         for i in range(start_idx, max(start_idx + 1, end_idx - 1), 1):
+                #             if i + 1 >= n_segments:
+                #                 break
+                #             self.index.append((fpath, i, 1, edf_base))  # label forzato = 1
 
         # Rimuovi eventuali duplicati (stesso file e indice)
         self.index = list(dict.fromkeys(self.index))
