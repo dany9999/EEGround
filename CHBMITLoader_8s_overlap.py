@@ -117,7 +117,43 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 # Loader con opzione di bilanciamento
 # =====================================================
 
-def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False):
+# def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False):
+#     dataset = CHBMITAllSegmentsLabeledDataset(
+#         patient_ids=patient_ids,
+#         data_dir=dataset_path,
+#         gt_dir=gt_path,
+#         segment_duration_sec=config.get("segment_duration_sec", 4),
+#         transform=None
+#     )
+
+#     if balanced:
+#         targets = [label for _, _, label, _ in dataset.index]
+#         class_counts = np.bincount(targets)
+#         class_weights = 1. / class_counts
+#         sample_weights = [class_weights[t] for t in targets]
+
+#         sampler = WeightedRandomSampler(
+#             weights=torch.DoubleTensor(sample_weights),
+#             num_samples=len(sample_weights),
+#             replacement=True
+#         )
+
+#         loader = DataLoader(dataset,
+#                             batch_size=config["batch_size"],
+#                             sampler=sampler,
+#                             num_workers=config["num_workers"],
+#                             pin_memory=True)
+#     else:
+#         loader = DataLoader(dataset,
+#                             batch_size=config["batch_size"],
+#                             shuffle=shuffle,
+#                             num_workers=config["num_workers"],
+#                             pin_memory=False)
+
+#     return loader
+
+def make_loader(patient_ids, dataset_path, gt_path, config,
+                shuffle=True, balanced=False, neg_to_pos_ratio=5):
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
         data_dir=dataset_path,
@@ -126,29 +162,36 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
         transform=None
     )
 
+    # ============================
+    # 🔹 Undersampling manuale (solo se balanced=True)
+    # ============================
     if balanced:
-        targets = [label for _, _, label, _ in dataset.index]
-        class_counts = np.bincount(targets)
-        class_weights = 1. / class_counts
-        sample_weights = [class_weights[t] for t in targets]
+        labels = np.array([label for _, _, label, _ in dataset.index])
+        pos_indices = np.where(labels == 1)[0]
+        neg_indices = np.where(labels == 0)[0]
 
-        sampler = WeightedRandomSampler(
-            weights=torch.DoubleTensor(sample_weights),
-            num_samples=len(sample_weights),
-            replacement=True
-        )
+        num_pos = len(pos_indices)
+        num_neg_to_keep = min(len(neg_indices), num_pos * neg_to_pos_ratio)
 
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            sampler=sampler,
-                            num_workers=config["num_workers"],
-                            pin_memory=True)
-    else:
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            shuffle=shuffle,
-                            num_workers=config["num_workers"],
-                            pin_memory=False)
+        np.random.seed(42)
+        sampled_neg_indices = np.random.choice(neg_indices, size=num_neg_to_keep, replace=False)
+
+        final_indices = np.concatenate([pos_indices, sampled_neg_indices])
+        np.random.shuffle(final_indices)
+
+        dataset.index = [dataset.index[i] for i in final_indices]
+
+        print(f"⚖️ Kept {num_pos} positives and {num_neg_to_keep} negatives "
+              f"→ ratio {num_pos / num_neg_to_keep:.4f} ({num_pos+num_neg_to_keep} total)")
+
+    # ============================
+    # 🔹 DataLoader standard
+    # ============================
+    loader = DataLoader(dataset,
+                        batch_size=config["batch_size"],
+                        shuffle=shuffle,
+                        num_workers=config["num_workers"],
+                        pin_memory=False)
 
     return loader
 
