@@ -34,8 +34,11 @@ class LitModel_finetune(pl.LightningModule):
         self.config = config
         self.alpha_focal = config["focal_alpha"]
         self.gamma_focal = config["focal_gamma"]
-        pos_weight = torch.tensor([5.0])
-        self.criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        self.register_buffer(
+        "pos_weight",
+        torch.tensor([float(config.get("pos_weight", 5.0))], dtype=torch.float32)
+        )
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
 
         # memorizza output per epoch
         self.val_results = {"preds": [], "targets": []}
@@ -45,19 +48,21 @@ class LitModel_finetune(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
-        prob = self.model(X)
-        #loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
-        loss = self.criterion(prob, y)
+        y = y.float().unsqueeze(1)
+        logits = self.model(X)
+        #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        loss = self.criterion(logits, y)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
+        y = y.float().unsqueeze(1) 
         with torch.no_grad():
-            prob = self.model(X)
-            #loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
-            loss = self.criterion(prob, y)
-            step_result = torch.sigmoid(prob).cpu().numpy()
+            logits = self.model(X)
+            #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            loss = self.criterion(logits, y)
+            step_result = torch.sigmoid(logits).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
         self.val_results["targets"].append(step_gt)
@@ -71,6 +76,7 @@ class LitModel_finetune(pl.LightningModule):
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
             self.threshold = np.sort(result)[-int(np.sum(gt))]
+            print(f"  Nuova soglia ottimale: {self.threshold:.4f}")
 
             results = binary_metrics_fn(
                 gt,
@@ -265,7 +271,7 @@ def supervised(config):
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"CHB-MIT-{config["finetune_mode"]}"
+    version = f"CHB-MIT-{config['finetune_mode']}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
     early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=config["early_stopping_patience"], verbose=False, mode="max")
