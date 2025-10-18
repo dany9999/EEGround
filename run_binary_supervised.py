@@ -34,7 +34,8 @@ class LitModel_finetune(pl.LightningModule):
         self.config = config
         self.alpha_focal = config["focal_alpha"]
         self.gamma_focal = config["focal_gamma"]
-
+        pos_weight = torch.tensor([5.0])
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
         # memorizza output per epoch
         self.val_results = {"preds": [], "targets": []}
@@ -45,7 +46,8 @@ class LitModel_finetune(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         X, y = batch["x"], batch["y"]
         prob = self.model(X)
-        loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        #loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        loss = self.criterion(prob, y)
         self.log("train_loss", loss)
         return loss
 
@@ -53,7 +55,8 @@ class LitModel_finetune(pl.LightningModule):
         X, y = batch["x"], batch["y"]
         with torch.no_grad():
             prob = self.model(X)
-            loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            #loss = focal_loss(prob, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            loss = self.criterion(prob, y)
             step_result = torch.sigmoid(prob).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
