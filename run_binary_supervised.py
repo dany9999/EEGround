@@ -34,11 +34,8 @@ class LitModel_finetune(pl.LightningModule):
         self.config = config
         self.alpha_focal = config["focal_alpha"]
         self.gamma_focal = config["focal_gamma"]
-        self.register_buffer(
-        "pos_weight",
-        torch.tensor([float(config.get("pos_weight", 5.0))], dtype=torch.float32)
-        )
-        self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
+ 
+        self.criterion = nn.BCEWithLogitsLoss()
 
         # memorizza output per epoch
         self.val_results = {"preds": [], "targets": []}
