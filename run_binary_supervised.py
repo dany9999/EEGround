@@ -73,6 +73,9 @@ class LitModel_finetune(pl.LightningModule):
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
             self.threshold = np.sort(result)[-int(np.sum(gt))]
+
+            self.threshold = max(self.threshold, 0.5)
+
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
             results = binary_metrics_fn(
@@ -271,11 +274,11 @@ def supervised(config):
     version = f"CHB-MIT-{config['finetune_mode']}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_auroc", patience=config["early_stopping_patience"], verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
-    monitor="val_bacc",
+    monitor="val_auroc",
     mode="max",
     save_top_k=1,
     filename="best-model"
