@@ -74,7 +74,7 @@ class LitModel_finetune(pl.LightningModule):
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
             self.threshold = np.sort(result)[-int(np.sum(gt))]
 
-            self.threshold = max(self.threshold, 0.5)
+            self.threshold = np.clip(self.threshold, 0.4, 0.6)
 
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
