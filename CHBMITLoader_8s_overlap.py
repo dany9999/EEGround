@@ -97,18 +97,18 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             signals = f['signals']
             x1 = signals[seg_idx][:16]
             x2 = signals[seg_idx + 1][:16]
-            x_8s = np.concatenate([x1, x2], axis=-1)
+            x = np.concatenate([x1, x2], axis=-1)
 
         # Downsampling 250 → 200 Hz
-        x_200 = resample_poly(x_8s, up=4, down=5, axis=-1)
+        #x = resample_poly(x, up=4, down=5, axis=-1)
 
         # Normalizzazione percentile 95
-        x_200 = x_200 / (np.quantile(np.abs(x_200), q=0.95, axis=-1, keepdims=True) + 1e-8)
-        x_200 = torch.tensor(x_200, dtype=torch.float32)
+        x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
+        x = torch.tensor(x, dtype=torch.float32)
         if self.transform:
-            x_200 = self.transform(x_200)
+            x = self.transform(x)
 
-        return {"x": x_200, "y": torch.tensor(label, dtype=torch.long)}
+        return {"x": x, "y": torch.tensor(label, dtype=torch.long)}
     
 
 

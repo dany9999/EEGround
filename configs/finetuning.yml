@@ -16,7 +16,7 @@ focal_alpha: 0.8
 focal_gamma: 0.7
 threshold: 0.5
 
-n_channels: 16
+n_channels: 18
 n_classes: 1
 
 early_stopping_patience: 20
