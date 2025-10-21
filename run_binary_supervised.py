@@ -272,11 +272,11 @@ def supervised(config):
     version = f"CHB-MIT-{config['finetune_mode']}"
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
-    early_stop_callback = EarlyStopping(monitor="val_pr_auc", patience=config["early_stopping_patience"], verbose=False, mode="max")
+    early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
 
 
     checkpoint_callback = ModelCheckpoint(
-    monitor="val_pr_auc",
+    monitor="val_bacc",
     mode="max",
     save_top_k=1,
     filename="best-model"
@@ -365,12 +365,12 @@ def objective(trial):
 
     # Allena il modello e restituisci la metrica monitorata
     results = supervised(config)
-    return results["val_pr_auc"]
+    return results["val_bacc"]
 
 if __name__ == "__main__":
     #  Usa storage persistente per poter riprendere dopo uno stop
-    storage_name = "sqlite:///optuna_finetuning.db"
-    study_name = "finetuning_tuning"
+    storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
+    study_name = "finetuning_tuning_val_bacc"
 
     study = optuna.create_study(
         study_name=study_name,
