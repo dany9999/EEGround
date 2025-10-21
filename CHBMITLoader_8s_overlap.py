@@ -95,8 +95,8 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, seg_idx, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
             signals = f['signals']
-            x1 = signals[seg_idx][:16]
-            x2 = signals[seg_idx + 1][:16]
+            x1 = signals[seg_idx][:18]
+            x2 = signals[seg_idx + 1][:18]
             x = np.concatenate([x1, x2], axis=-1)
 
         # Downsampling 250 → 200 Hz
