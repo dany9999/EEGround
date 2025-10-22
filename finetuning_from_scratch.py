@@ -49,9 +49,10 @@ class Trainer:
         if criterion_name == "focal":
             alpha = float(config.get("focal_alpha", 0.5))
             gamma = float(config.get("focal_gamma", 2.0))
+            
             self.criterion = lambda logits, y: sigmoid_focal_loss(
                 inputs=logits.view(-1),
-                targets=y.view(-1),
+                targets=y.view(-1).float(),
                 alpha=alpha,
                 gamma=gamma,
                 reduction="mean"
