@@ -24,6 +24,8 @@ heads: 8
 depth: 4
 n_channels: 16
 n_classes: 1
+n_fft: 200
+hop_length: 100
 
 # =====================
 # LOSS FUNCTION

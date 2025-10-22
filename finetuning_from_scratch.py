@@ -220,7 +220,7 @@ def main():
 #     main()
 
 if __name__ == "__main__":
-    cv_folds = patientwise_splits(num_patients=23, test_patient_idx=None, n_splits=5, seed=42)
+    cv_folds = patientwise_splits(num_patients=23, test_patient_idx=23, n_splits=5, seed=42)
     for i, fold in enumerate(cv_folds):
         print(f"Fold {i+1}:")
         print(" Train:", fold["train"])
