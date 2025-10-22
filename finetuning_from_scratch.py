@@ -18,7 +18,7 @@ from torchmetrics.classification import (
     BinaryAccuracy, BinaryAveragePrecision, BinaryAUROC,
     BinarySpecificity, BinaryRecall
 )
-from torchmetrics.functional.classification import binary_focal_loss
+from torchvision.ops import sigmoid_focal_loss
 
 
 # ---------------------------------------------------------
@@ -50,13 +50,14 @@ class Trainer:
 
         # Loss
         if criterion_name == "focal":
-            self.alpha = float(config.get("focal_alpha", 0.5))
-            self.gamma = float(config.get("focal_gamma", 2.0))
-            self.criterion = lambda logits, y: binary_focal_loss(
-                preds=logits.view(-1),
-                target=y.view(-1).to(torch.long),
-                alpha=self.alpha, gamma=self.gamma,
-                reduction="mean", logits=True
+            alpha = float(config.get("focal_alpha", 0.5))
+            gamma = float(config.get("focal_gamma", 2.0))
+            self.criterion = lambda logits, y: sigmoid_focal_loss(
+                inputs=logits.view(-1),
+                targets=y.view(-1),
+                alpha=alpha,
+                gamma=gamma,
+                reduction="mean"
             )
         else:
             self.criterion = nn.BCEWithLogitsLoss()
