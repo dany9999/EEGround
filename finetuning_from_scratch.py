@@ -240,7 +240,7 @@ def main():
         )
 
         optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-        scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=5, verbose=False)
+        scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=5)
 
         trainer = Trainer(model, optimizer, scheduler, config)
         best_val, test_res = trainer.fit(train_loader, val_loader, test_loader, config)
