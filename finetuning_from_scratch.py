@@ -17,8 +17,8 @@ from sklearn.model_selection import KFold
 
 from utils import load_config
 from CHBMITLoader_8s_overlap import make_loader
-from model.SupervisedClassifier import BIOTClassifier
 
+from BIOT_vanilla.biot import BIOTClassifier
 
 # ---------------------------------------------------------
 # Utility
