@@ -77,7 +77,8 @@ class LitModel_finetune(pl.LightningModule):
         X, y = batch["x"], batch["y"]
         y = y.float().unsqueeze(1)
         logits = self.model(X)
-        loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        loss = self.criterion(logits, y)
+        #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
         self.log("train_loss", loss)
         return loss
 
@@ -86,7 +87,8 @@ class LitModel_finetune(pl.LightningModule):
         y = y.float().unsqueeze(1)
         with torch.no_grad():
             logits = self.model(X)
-            loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            loss = self.criterion(logits, y)
+            #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
             step_result = torch.sigmoid(logits).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
@@ -100,7 +102,7 @@ class LitModel_finetune(pl.LightningModule):
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:
             self.threshold, best_score, (sens, spec, prec, rec) = _pick_threshold(
-                gt, result, metric="bacc", beta=2.0
+                gt, result, metric="fbeta", beta=2.0
             )
             print(f"  Nuova soglia ottimale: {self.threshold:.4f}")
 
