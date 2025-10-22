@@ -1,34 +1,61 @@
 
 
+# =====================
+# TRAINING PARAMETERS
+# =====================
 epochs: 100
 batch_size: 128
-
-lr: 0.00003
-weight_decay: 1e-5
-
 num_workers: 20
+early_stopping_patience: 20
+save_every: 10
+resume: false  # può essere true per riprendere da checkpoint
 
+# =====================
+# OPTIMIZER
+# =====================
+lr: 7e-5          # learning rate iniziale
+weight_decay: 1e-6
+
+# =====================
+# MODEL ARCHITECTURE
+# =====================
 emb_size: 256
 heads: 8
 depth: 4
-criterion_name: "focal"  # oppure: "bce", "focal"
-focal_alpha: 0.8
-focal_gamma: 0.7
-threshold: 0.5
-
 n_channels: 16
 n_classes: 1
 
-early_stopping_patience: 20
-save_every: 10
-resume: False
+# =====================
+# LOSS FUNCTION
+# =====================
+criterion_name: "focal"   # "bce" o "focal"
+focal_alpha: 0.7
+focal_gamma: 4.5
+threshold: 0.5
+use_pos_weight: false     # se vuoi usare BCE bilanciata in futuro
 
+# =====================
+# FINETUNING SETTINGS
+# =====================
+finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
+pretrained_ckpt: "BIOT_vanilla/pretrained_models/EEG-PREST-16-channels.ckpt"
 
+# =====================
+# DATASET PATHS
+# =====================
 dataset_path: "../../Datasets/Bipolar/chb_mit/bipolar_data"
-pretrain_model_path: "BIOT_vanilla/pretrained_models/EEG-PREST-16-channels.ckpt"
+gt_path: "../../Datasets/chb_mit/GT"  # utile se la pipeline la richiede
 
+# =====================
+# OUTPUT DIRECTORIES
+# =====================
+save_dir: "./checkpoints_finetuning"
+log_dir: "./logs/finetuning_from_scratch"
 
-save_dir: ./checkpoints_finetuning
-log_dir: ./logs/finetuning_from_scratch
-
-finetune_mode: "from_scratch"  # oppure: "from_scratch", "full_finetune", "frozen_encoder" 
+# =====================
+# OPTUNA SETTINGS
+# =====================
+n_trials: 20
+seed: 42
+study_name: "BIOT_finetune_study"
+optuna_storage: "sqlite:///optuna_biot.db"
