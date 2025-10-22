@@ -341,3 +341,8 @@ def supervised(config):
 #     output_path = f"results/{study_name}_results.csv"
 #     df.to_csv(output_path, index=False)
 #     print(f"\n Risultati salvati in {output_path}")
+
+
+if __name__ == "__main__":
+    config = load_config("configs/finetuning.yml")
+    supervised(config)
