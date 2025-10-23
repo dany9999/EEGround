@@ -209,9 +209,9 @@ class LitModel_finetune(pl.LightningModule):
 #  Data Preparation
 # ---------------------------------------------------------
 def predefined_split():
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 17)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(17, 21)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(21, 24)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
@@ -229,7 +229,14 @@ def prepare_CHB_MIT_dataloader(config):
         split["train"], dataset_path, gt_path, config,
         shuffle=True, balanced=True, neg_to_pos_ratio=5
     )
-    val_loader = make_loader(
+    # 👇 Versione "bilanciata" per scelta soglia
+    val_loader_balanced = make_loader(
+        split["val"], dataset_path, gt_path, config,
+        shuffle=False, balanced=True, neg_to_pos_ratio=5
+    )
+
+    # 👇 Versione "reale" per logging metriche e early stopping
+    val_loader_real = make_loader(
         split["val"], dataset_path, gt_path, config,
         shuffle=False, balanced=False
     )
@@ -238,14 +245,14 @@ def prepare_CHB_MIT_dataloader(config):
         shuffle=False, balanced=False
     )
 
-    return train_loader, test_loader, val_loader
+    return train_loader, val_loader_real, val_loader_balanced, test_loader
 
 
 # ---------------------------------------------------------
 #  Training & Evaluation
 # ---------------------------------------------------------
 def supervised(config):
-    train_loader, test_loader, val_loader = prepare_CHB_MIT_dataloader(config)
+    train_loader, val_loader_real, val_loader_balanced, test_loader = prepare_CHB_MIT_dataloader(config)
 
     model = BIOTClassifier(
         n_channels=config["n_channels"],
@@ -259,8 +266,10 @@ def supervised(config):
     logger = TensorBoardLogger(save_dir="./", version=version, name="log")
 
     early_stop_callback = EarlyStopping(
-        monitor="val_bacc", patience=config["early_stopping_patience"],
-        verbose=False, mode="max"
+        monitor="val_bacc",
+        patience=config["early_stopping_patience"],
+        verbose=False,
+        mode="max"
     )
 
     checkpoint_callback = ModelCheckpoint(
@@ -281,9 +290,10 @@ def supervised(config):
         callbacks=[early_stop_callback, checkpoint_callback],
     )
 
-    trainer.fit(lightning_model, train_loader, val_loader)
+    # ⚙️ Addestramento + early stopping sulla validation reale
+    trainer.fit(lightning_model, train_loader, val_loader_real)
 
-    # Ricarica i migliori pesi e ricalcola la soglia ottimale
+    # 🔁 Ricarica i migliori pesi
     best_path = checkpoint_callback.best_model_path
     best_model = LitModel_finetune.load_from_checkpoint(
         best_path, config=config, model=BIOTClassifier(
@@ -293,14 +303,18 @@ def supervised(config):
         )
     )
 
-    # Valida per trovare la soglia migliore
-    trainer.validate(model=best_model, dataloaders=val_loader)
+    # 🧠 Trova soglia ottimale su validation bilanciata
+    print("\n===> Calcolo soglia ottimale su validation bilanciata...")
+    trainer.validate(model=best_model, dataloaders=val_loader_balanced)
+
+    # 🧪 Valuta su test reale
+    print("\n===> Test finale su distribuzione reale...")
     test_results = trainer.test(model=best_model, dataloaders=test_loader)[0]
     print("Test results:", test_results)
 
-    val_metrics = trainer.validate(model=best_model, dataloaders=val_loader)[0]
+    # 📊 Metriche su validation reale (solo report, no threshold tuning)
+    val_metrics = trainer.validate(model=best_model, dataloaders=val_loader_real)[0]
     return val_metrics
-
 
 # ---------------------------------------------------------
 #  Optuna
