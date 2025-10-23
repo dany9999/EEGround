@@ -217,7 +217,7 @@ def predefined_split():
 
 def prepare_CHB_MIT_dataloader(config):
     dataset_path = config["dataset_path"]
-    gt_path = "../../Datasets/chb_mit/GT"
+    gt_path = config["gt_path"]
 
     random.seed(42)
     np.random.seed(42)
@@ -227,7 +227,7 @@ def prepare_CHB_MIT_dataloader(config):
 
     train_loader = make_loader(
         split["train"], dataset_path, gt_path, config,
-        shuffle=True, balanced=True, neg_to_pos_ratio=5
+        shuffle=True, balanced=True, neg_to_pos_ratio=3.0
     )
     val_loader = make_loader(
         split["val"], dataset_path, gt_path, config,
