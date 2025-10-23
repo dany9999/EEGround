@@ -227,7 +227,7 @@ def prepare_CHB_MIT_dataloader(config):
 
     train_loader = make_loader(
         split["train"], dataset_path, gt_path, config,
-        shuffle=True, balanced=True, neg_to_pos_ratio=3
+        shuffle=True, balanced=True, neg_to_pos_ratio=5
     )
     val_loader = make_loader(
         split["val"], dataset_path, gt_path, config,
@@ -305,46 +305,46 @@ def supervised(config):
 # ---------------------------------------------------------
 #  Optuna
 # ---------------------------------------------------------
-# import optuna
-# import pandas as pd
+import optuna
+import pandas as pd
 
-# def objective(trial):
-#     config = load_config("configs/finetuning.yml")
-#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
-#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
-#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
-#     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
-#     config["epochs"] = 100
+def objective(trial):
+    config = load_config("configs/finetuning.yml")
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
+    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
+    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
+    config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
+    config["epochs"] = 100
 
-#     results = supervised(config)
-#     return results["val_bacc"]
-
-# if __name__ == "__main__":
-#     storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
-#     study_name = "finetuning_tuning_val_bacc"
-
-#     study = optuna.create_study(
-#         study_name=study_name,
-#         direction="maximize",
-#         storage=storage_name,
-#         load_if_exists=True,
-#     )
-
-#     study.optimize(objective, n_trials=15)
-
-#     print("Best trial:")
-#     trial = study.best_trial
-#     print(f"  Value: {trial.value}")
-#     for k, v in trial.params.items():
-#         print(f"  {k}: {v}")
-
-#     df = study.trials_dataframe()
-#     os.makedirs("results", exist_ok=True)
-#     output_path = f"results/{study_name}_results.csv"
-#     df.to_csv(output_path, index=False)
-#     print(f"\n Risultati salvati in {output_path}")
-
+    results = supervised(config)
+    return results["val_bacc"]
 
 if __name__ == "__main__":
-    config = load_config("configs/finetuning.yml")
-    supervised(config)
+    storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
+    study_name = "finetuning_tuning_val_bacc"
+
+    study = optuna.create_study(
+        study_name=study_name,
+        direction="maximize",
+        storage=storage_name,
+        load_if_exists=True,
+    )
+
+    study.optimize(objective, n_trials=15)
+
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
+
+    df = study.trials_dataframe()
+    os.makedirs("results", exist_ok=True)
+    output_path = f"results/{study_name}_results.csv"
+    df.to_csv(output_path, index=False)
+    print(f"\n Risultati salvati in {output_path}")
+
+
+# if __name__ == "__main__":
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)
