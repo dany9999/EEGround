@@ -227,7 +227,7 @@ def prepare_CHB_MIT_dataloader(config):
 
     train_loader = make_loader(
         split["train"], dataset_path, gt_path, config,
-        shuffle=True, balanced=True, neg_to_pos_ratio=3.0
+        shuffle=True, balanced=True, neg_to_pos_ratio=3
     )
     val_loader = make_loader(
         split["val"], dataset_path, gt_path, config,
