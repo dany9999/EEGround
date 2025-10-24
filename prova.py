@@ -77,8 +77,8 @@ class LitModel_finetune(pl.LightningModule):
         X, y = batch["x"], batch["y"]
         y = y.float().unsqueeze(1)
         logits = self.model(X)
-        loss = self.criterion(logits, y)
-        #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        #loss = self.criterion(logits, y)
+        loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
         self.log("train_loss", loss)
         return loss
 
@@ -87,8 +87,8 @@ class LitModel_finetune(pl.LightningModule):
         y = y.float().unsqueeze(1)
         with torch.no_grad():
             logits = self.model(X)
-            loss = self.criterion(logits, y)
-            #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            #loss = self.criterion(logits, y)
+            loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
             step_result = torch.sigmoid(logits).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
@@ -230,7 +230,7 @@ def prepare_CHB_MIT_dataloader(config):
         shuffle=True, balanced=True, neg_to_pos_ratio=5
     )
  
-    #  Versione "reale" per logging metriche e early stopping
+    
     val_loader = make_loader(
         split["val"], dataset_path, gt_path, config,
         shuffle=False, balanced=False
