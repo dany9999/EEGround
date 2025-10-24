@@ -229,14 +229,9 @@ def prepare_CHB_MIT_dataloader(config):
         split["train"], dataset_path, gt_path, config,
         shuffle=True, balanced=True, neg_to_pos_ratio=5
     )
-    # 👇 Versione "bilanciata" per scelta soglia
-    val_loader_balanced = make_loader(
-        split["val"], dataset_path, gt_path, config,
-        shuffle=False, balanced=True, neg_to_pos_ratio=5
-    )
-
-    # 👇 Versione "reale" per logging metriche e early stopping
-    val_loader_real = make_loader(
+ 
+    #  Versione "reale" per logging metriche e early stopping
+    val_loader = make_loader(
         split["val"], dataset_path, gt_path, config,
         shuffle=False, balanced=False
     )
@@ -245,14 +240,14 @@ def prepare_CHB_MIT_dataloader(config):
         shuffle=False, balanced=False
     )
 
-    return train_loader, val_loader_real, val_loader_balanced, test_loader
+    return train_loader, val_loader, test_loader
 
 
 # ---------------------------------------------------------
 #  Training & Evaluation
 # ---------------------------------------------------------
 def supervised(config):
-    train_loader, val_loader_real, val_loader_balanced, test_loader = prepare_CHB_MIT_dataloader(config)
+    train_loader, val_loader, test_loader = prepare_CHB_MIT_dataloader(config)
 
     model = BIOTClassifier(
         n_channels=config["n_channels"],
@@ -291,7 +286,7 @@ def supervised(config):
     )
 
     # Addestramento + early stopping sulla validation reale
-    trainer.fit(lightning_model, train_loader, val_loader_real)
+    trainer.fit(lightning_model, train_loader, val_loader)
 
     # Ricarica i migliori pesi
     best_path = checkpoint_callback.best_model_path
@@ -305,7 +300,7 @@ def supervised(config):
 
     # Trova soglia ottimale su validation bilanciata
     print("\n===> Calcolo soglia ottimale su validation bilanciata...")
-    trainer.validate(model=best_model, dataloaders=val_loader_balanced)
+    trainer.validate(model=best_model, dataloaders=val_loader)
 
     # Valuta su test reale
     print("\n===> Test finale su distribuzione reale...")
@@ -313,7 +308,7 @@ def supervised(config):
     print("Test results:", test_results)
 
     # Metriche su validation reale (solo report, no threshold tuning)
-    val_metrics = trainer.validate(model=best_model, dataloaders=val_loader_real)[0]
+    val_metrics = trainer.validate(model=best_model, dataloaders=val_loader)[0]
     return val_metrics
 
 # ---------------------------------------------------------
