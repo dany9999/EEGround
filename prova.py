@@ -102,7 +102,7 @@ class LitModel_finetune(pl.LightningModule):
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:
             self.threshold, best_score, (sens, spec, prec, rec) = _pick_threshold(
-                gt, result, metric="fbeta", beta=2.0
+                gt, result, metric="bacc", beta=2.0
             )
             print(f"  Nuova soglia ottimale: {self.threshold:.4f}")
 
@@ -290,10 +290,10 @@ def supervised(config):
         callbacks=[early_stop_callback, checkpoint_callback],
     )
 
-    # ⚙️ Addestramento + early stopping sulla validation reale
+    # Addestramento + early stopping sulla validation reale
     trainer.fit(lightning_model, train_loader, val_loader_real)
 
-    # 🔁 Ricarica i migliori pesi
+    # Ricarica i migliori pesi
     best_path = checkpoint_callback.best_model_path
     best_model = LitModel_finetune.load_from_checkpoint(
         best_path, config=config, model=BIOTClassifier(
@@ -303,16 +303,16 @@ def supervised(config):
         )
     )
 
-    # 🧠 Trova soglia ottimale su validation bilanciata
+    # Trova soglia ottimale su validation bilanciata
     print("\n===> Calcolo soglia ottimale su validation bilanciata...")
     trainer.validate(model=best_model, dataloaders=val_loader_balanced)
 
-    # 🧪 Valuta su test reale
+    # Valuta su test reale
     print("\n===> Test finale su distribuzione reale...")
     test_results = trainer.test(model=best_model, dataloaders=test_loader)[0]
     print("Test results:", test_results)
 
-    # 📊 Metriche su validation reale (solo report, no threshold tuning)
+    # Metriche su validation reale (solo report, no threshold tuning)
     val_metrics = trainer.validate(model=best_model, dataloaders=val_loader_real)[0]
     return val_metrics
 
