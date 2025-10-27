@@ -6,7 +6,7 @@
 epochs: 100
 batch_size: 128
 num_workers: 20
-early_stopping_patience: 20
+early_stopping_patience: 10
 save_every: 10
 resume: false  # può essere true per riprendere da checkpoint
 
@@ -57,7 +57,7 @@ log_dir: "./logs/finetuning_from_scratch"
 # =====================
 # OPTUNA SETTINGS
 # =====================
-n_trials: 20
+
 seed: 42
 study_name: "BIOT_finetune_study"
 optuna_storage: "sqlite:///optuna_biot.db"

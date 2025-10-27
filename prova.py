@@ -349,7 +349,7 @@ if __name__ == "__main__":
         load_if_exists=True,
     )
 
-    study.optimize(objective, n_trials=15)
+    study.optimize(objective, n_trials=20)
 
     print("Best trial:")
     trial = study.best_trial
