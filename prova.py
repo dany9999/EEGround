@@ -101,10 +101,18 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:
-            self.threshold, best_score, (sens, spec, prec, rec) = _pick_threshold(
-                gt, result, metric="bacc", beta=2.0
-            )
+            #self.threshold, best_score, (sens, spec, prec, rec) = _pick_threshold(
+            #    gt, result, metric="bacc", beta=2.0
+            #)
+            self.threshold = self.config.get("threshold", 0.5)
             print(f"  Nuova soglia ottimale: {self.threshold:.4f}")
+
+            preds_bin = (result >= self.threshold).astype(int)
+            tn, fp, fn, tp = confusion_matrix(gt, preds_bin, labels=[0, 1]).ravel()
+            sensitivity = tp / (tp + fn + 1e-12)
+            specificity = tn / (tn + fp + 1e-12)
+            precision = tp / (tp + fp + 1e-12)
+            recall = sensitivity
 
             results = binary_metrics_fn(
                 gt,
@@ -113,10 +121,10 @@ class LitModel_finetune(pl.LightningModule):
                 threshold=self.threshold,
             )
 
-            results["sensitivity"] = sens
-            results["specificity"] = spec
-            results["precision"] = prec
-            results["recall"] = rec
+            results["sensitivity"] = sensitivity
+            results["specificity"] = specificity
+            results["precision"] = precision
+            results["recall"] = recall
         else:
             results = {k: 0.0 for k in [
                 "accuracy", "balanced_accuracy", "pr_auc", "roc_auc",
@@ -151,6 +159,7 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.test_results["targets"])
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:
+            self.threshold = self.config.get("threshold", 0.5)
             results = binary_metrics_fn(
                 gt,
                 result,
@@ -323,6 +332,7 @@ def objective(trial):
     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
+    config["threshold"] = trial.suggest_float("threshold", 0.2, 0.7)
     config["epochs"] = 100
 
     results = supervised(config)
