@@ -13,7 +13,7 @@ resume: false  # può essere true per riprendere da checkpoint
 # =====================
 # OPTIMIZER
 # =====================
-lr: 0.00005          # learning rate iniziale
+lr: 0.000005          # learning rate iniziale
 weight_decay: 1e-6
 
 # =====================
@@ -32,7 +32,7 @@ hop_length: 100
 # =====================
 criterion_name: "focal"   # "bce" o "focal"
 focal_alpha: 0.25
-focal_gamma: 2.0
+focal_gamma: 1.7
 threshold: 0.5
 use_pos_weight: false     # se vuoi usare BCE bilanciata in futuro
 
