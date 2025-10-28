@@ -235,7 +235,7 @@ def prepare_CHB_MIT_dataloader(config):
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                            shuffle=True, balanced=True, neg_to_pos_ratio=5)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                           shuffle=False, balanced=True, neg_to_pos_ratio=5)
+                           shuffle=False, balanced=False)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
                            shuffle=False, balanced=False)
 
@@ -251,7 +251,7 @@ def supervised(config):
     model = BIOTClassifier(
         n_channels=config["n_channels"],
         n_fft=250,
-        hop_length=125,
+        hop_length=200,
     )
 
     # #  Caricamento pesi pretrained se specificato
