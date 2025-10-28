@@ -188,9 +188,9 @@ def predefined_split():
     # val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
     # test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
 
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(7, 19)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 19)]
     val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(23, 24)]
+    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
@@ -235,7 +235,7 @@ def prepare_CHB_MIT_dataloader(config):
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                            shuffle=True, balanced=True, neg_to_pos_ratio=5)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                           shuffle=False, balanced=False)
+                           shuffle=False, balanced=True, neg_to_pos_ratio=5)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
                            shuffle=False, balanced=False)
 
