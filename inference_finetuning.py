@@ -81,9 +81,11 @@ if __name__ == "__main__":
 
 
     # ESEMPIO SU UN FILE:
-    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/chb21/eeg_chb21_09.h5"
+    file_name = "eeg_chb21_09.h5" 
+    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/chb21/" + file_name
+    
     results = infer_file(h5_file, model, threshold)
 
-    print("\n=== RISULTATI INFERENZA ===")
+    print(f"\n=== RISULTATI INFERENZA {file_name} ===")
     for i, (prob, pred) in enumerate(results):
         print(f"Segmento {i:03d} → Prob: {prob:.4f}, Pred: {pred}")
