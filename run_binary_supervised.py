@@ -140,6 +140,7 @@ class LitModel_finetune(pl.LightningModule):
             )
 
             # Calcolo sensitivity & specificity
+            print("self.threshold:", self.threshold)
             preds_bin = (result >= self.threshold).astype(int)
             tn, fp, fn, tp = confusion_matrix(gt, preds_bin).ravel()
             sensitivity = tp / (tp + fn + 1e-8)
