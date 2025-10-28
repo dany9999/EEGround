@@ -91,7 +91,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, seg_idx, label, file_id = self.index[idx]
 
         with h5py.File(fpath, 'r') as f:
-            x = f['signals'][seg_idx][:18]  # (channels, time)
+            x = f['signals'][seg_idx][:16]  # (channels, time)
 
         # Normalizzazione percentile 95 per canale
         x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
@@ -109,7 +109,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 # Loader (facoltativamente bilanciato)
 # =====================================================
 
-def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False):
+def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False, neg_to_pos_ratio=5):
     dataset = CHBMITAllSegmentsLabeledDataset(
         patient_ids=patient_ids,
         data_dir=dataset_path,
@@ -119,31 +119,33 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
     )
 
     if balanced:
-        targets = [label for _, _, label, _ in dataset.index]
-        class_counts = np.bincount(targets)
-        class_weights = 1. / class_counts
-        sample_weights = [class_weights[t] for t in targets]
+        labels = np.array([label for _, _, label, _ in dataset.index])
+        pos_indices = np.where(labels == 1)[0]
+        neg_indices = np.where(labels == 0)[0]
 
-        sampler = WeightedRandomSampler(
-            weights=torch.DoubleTensor(sample_weights),
-            num_samples=len(sample_weights),
-            replacement=True
-        )
+        num_pos = len(pos_indices)
+        num_neg_to_keep = min(len(neg_indices), num_pos * neg_to_pos_ratio)
 
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            sampler=sampler,
-                            num_workers=config["num_workers"],
-                            pin_memory=True)
-    else:
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            shuffle=shuffle,
-                            num_workers=config["num_workers"],
-                            pin_memory=False)
+        np.random.seed(42)
+        sampled_neg_indices = np.random.choice(neg_indices, size=num_neg_to_keep, replace=False)
 
+        final_indices = np.concatenate([pos_indices, sampled_neg_indices])
+        np.random.shuffle(final_indices)
+
+        dataset.index = [dataset.index[i] for i in final_indices]
+
+        print(f"⚖️ Kept {num_pos} positives and {num_neg_to_keep} negatives "
+              f"→ ratio {num_pos / num_neg_to_keep:.4f} ({num_pos+num_neg_to_keep} total)")
+    
+    # ============================
+    #  DataLoader standard
+    # ============================
+    loader = DataLoader(dataset,
+                        batch_size=config["batch_size"],
+                        shuffle=shuffle,
+                        num_workers=config["num_workers"],
+                        pin_memory=False)
     return loader
-
 
 # =====================================================
 # MAIN – verifica dataset
@@ -151,7 +153,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 
 if __name__ == "__main__":
     # Split pazienti
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(7, 10)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(71, 20)]
     val_patients   = [f"chb{str(i).zfill(2)}" for i in range(11, 14)]
     test_patients  = [f"chb{str(i).zfill(2)}" for i in range(14, 16)]
 
@@ -161,7 +163,7 @@ if __name__ == "__main__":
 
     # Loader
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
-                               shuffle=True, balanced=False)
+                               shuffle=True, balanced=True, neg_to_pos_ratio=5)
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False)
     loader_test  = make_loader(test_patients, dataset_path, gt_path, config,
