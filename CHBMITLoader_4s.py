@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4, transform=None):
+                 segment_duration_sec=8, transform=None):
         """
         Dataset CHB-MIT:
         - segmenti da 4s a 250 Hz (senza concatenazione)
@@ -63,7 +63,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     label = 0
                     for (st, en) in intervals:
                         # se l’intervallo del segmento cade in una crisi → label 1
-                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
+                        if (seg_start >= st and seg_end <= en):
                             label = 1
                             break
                     self.index.append((fpath, i, label, edf_base))

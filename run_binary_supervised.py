@@ -246,8 +246,8 @@ def supervised(config):
     
     model = BIOTClassifier(
         n_channels=config["n_channels"],
-        n_fft=200,
-        hop_length=100,
+        n_fft=250,
+        hop_length=200,
     )
 
     # #  Caricamento pesi pretrained se specificato
