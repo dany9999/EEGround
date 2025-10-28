@@ -80,7 +80,7 @@ if __name__ == "__main__":
     model = load_trained_model(checkpoint, n_channels=16)
 
     # ESEMPIO SU UN FILE:
-    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/chb22/eeg_chb22_20.h5"
+    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/chb22/eeg_chb22_29.h5"
     results = infer_file(h5_file, model, threshold)
 
     print("\n=== RISULTATI INFERENZA ===")
