@@ -114,7 +114,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
         patient_ids=patient_ids,
         data_dir=dataset_path,
         gt_dir=gt_path,
-        segment_duration_sec=config.get("segment_duration_sec", 4),
+        segment_duration_sec=config.get("segment_duration_sec", 8),
         transform=None
     )
 
@@ -134,8 +134,8 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 
         dataset.index = [dataset.index[i] for i in final_indices]
 
-        print(f"⚖️ Kept {num_pos} positives and {num_neg_to_keep} negatives "
-              f"→ ratio {num_pos / num_neg_to_keep:.4f} ({num_pos+num_neg_to_keep} total)")
+        #print(f"⚖️ Kept {num_pos} positives and {num_neg_to_keep} negatives "
+        #      f"→ ratio {num_pos / num_neg_to_keep:.4f} ({num_pos+num_neg_to_keep} total)")
     
     # ============================
     #  DataLoader standard

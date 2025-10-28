@@ -47,8 +47,8 @@ class LitModel_finetune(pl.LightningModule):
         X, y = batch["x"], batch["y"]
         y = y.float().unsqueeze(1)
         logits = self.model(X)
-        loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
-        #loss = self.criterion(logits, y)
+        #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        loss = self.criterion(logits, y)
         self.log("train_loss", loss)
         return loss
 
@@ -57,8 +57,8 @@ class LitModel_finetune(pl.LightningModule):
         y = y.float().unsqueeze(1) 
         with torch.no_grad():
             logits = self.model(X)
-            loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
-            #loss = self.criterion(logits, y)
+            #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            loss = self.criterion(logits, y)
             step_result = torch.sigmoid(logits).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
@@ -184,9 +184,13 @@ class LitModel_finetune(pl.LightningModule):
 
 
 def predefined_split():
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    # train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
+    # val_patients = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    # test_patients = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(7, 19)]
+    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(23, 24)]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
