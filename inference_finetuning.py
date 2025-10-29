@@ -81,8 +81,10 @@ if __name__ == "__main__":
 
 
     # ESEMPIO SU UN FILE:
-    patient = "chb01/eeg_chb01_01.h5" 
-    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient
+    patient_test_seizure = "chb01/eeg_chb22_20.h5" 
+    patient_test_noseizure = "chb24/eeg_chb22_19.h5"
+
+    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_noseizure
     
     results = infer_file(h5_file, model, threshold)
 
