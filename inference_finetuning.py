@@ -81,8 +81,8 @@ if __name__ == "__main__":
 
 
     # ESEMPIO SU UN FILE:
-    patient_test_seizure = "chb01/eeg_chb22_20.h5" 
-    patient_test_noseizure = "chb24/eeg_chb22_19.h5"
+    patient_test_seizure = "chb22/eeg_chb22_20.h5" 
+    patient_test_noseizure = "chb22/eeg_chb22_19.h5"
 
     h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_noseizure
     
