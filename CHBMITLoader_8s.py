@@ -225,7 +225,7 @@ def predefined_split():
 
 
 def prepare_CHB_MIT_dataloader(config):
-    dataset_path = config["dataset_path"]
+    dataset_path = config["dataset_path_8s"]
     gt_path = config["gt_path"]
 
     random.seed(42)

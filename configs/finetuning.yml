@@ -45,7 +45,8 @@ pretrained_ckpt: "BIOT_vanilla/pretrained_models/EEG-PREST-16-channels.ckpt"
 # =====================
 # DATASET PATHS
 # =====================
-dataset_path: "../../Datasets/Bipolar/chb_mit/8sec"
+dataset_path_4s: "Datasets/Bipolar/chb_mit/bipolar_data"
+dataset_path_8s: "../../Datasets/Bipolar/chb_mit/8sec"
 gt_path: "../../Datasets/chb_mit/GT"  # utile se la pipeline la richiede
 
 # =====================
