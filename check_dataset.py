@@ -63,8 +63,10 @@ for root, _, files in os.walk(base_folder):
 print("\n Conteggio completato!\n")
 
 # Stampa un riepilogo ordinato
-totale = sum(segment_counts.values())
+totale = 0
 for subject, count in sorted(segment_counts.items()):
     print(f"{subject}: {count} segmenti")
-print(f"Totale: {totale} segmenti")
+    totale += count
+print(f"\nTotale segmenti in tutti i soggetti: {totale}\n")
+
 
