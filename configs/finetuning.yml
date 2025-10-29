@@ -22,7 +22,7 @@ weight_decay: 1e-6
 emb_size: 256
 heads: 8
 depth: 4
-n_channels: 16
+n_channels: 18
 n_classes: 1
 n_fft: 250
 hop_length: 125
@@ -53,7 +53,7 @@ gt_path: "../../Datasets/chb_mit/GT"  # utile se la pipeline la richiede
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "./logs/finetuning_from_scratch"
+log_dir: "log_finetuning_from_scratch_CHB-MIT"
 
 # =====================
 # OPTUNA SETTINGS

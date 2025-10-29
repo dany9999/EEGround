@@ -80,11 +80,11 @@ if __name__ == "__main__":
     model = load_trained_model(checkpoint, n_channels=16)
 
 
-    # ESEMPIO SU UN FILE:
-    patient_test_seizure_1 = "chb22/eeg_chb22_20.h5" 
-    patient_test_seizure_2 = "chb22/eeg_chb22_25.h5"
-    patient_test_noseizure_1 = "chb22/eeg_chb22_19.h5"
-    patient_test_noseizure_2 = "chb22/eeg_chb22_17.h5"
+    # ESEMPIO SU UN FILE: 
+    patient_test_seizure_1 = "chb22/eeg_chb22_20.h5" # buono
+    patient_test_seizure_2 = "chb22/eeg_chb22_25.h5" # male
+    patient_test_noseizure_1 = "chb22/eeg_chb22_19.h5" # buono
+    patient_test_noseizure_2 = "chb22/eeg_chb22_17.h5" # buono
 
     h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_noseizure_2
 
