@@ -30,6 +30,7 @@ import os
 
 
 base_folder = "../../Datasets/Bipolar/chb_mit/bipolar_data"
+base_folder = "../../Datasets/Bipolar/chb_mit/8sec"
 # Dizionario per accumulare i conteggi
 segment_counts = {}
 
