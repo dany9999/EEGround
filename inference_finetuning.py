@@ -81,13 +81,15 @@ if __name__ == "__main__":
 
 
     # ESEMPIO SU UN FILE:
-    patient_test_seizure = "chb22/eeg_chb22_20.h5" 
-    patient_test_noseizure = "chb22/eeg_chb22_19.h5"
+    patient_test_seizure_1 = "chb22/eeg_chb22_20.h5" 
+    patient_test_seizure_2 = "chb22/eeg_chb22_25.h5"
+    patient_test_noseizure_1 = "chb22/eeg_chb22_19.h5"
+    patient_test_noseizure_2 = "chb22/eeg_chb22_17.h5"
 
-    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_seizure
-    
+    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_noseizure_2
+
     results = infer_file(h5_file, model, threshold)
 
-    print(f"\n=== RISULTATI INFERENZA {patient_test_seizure} ===")
+    print(f"\n=== RISULTATI INFERENZA {patient_test_noseizure_2} ===")
     for i, (prob, pred) in enumerate(results):
         print(f"Segmento {i:03d} → Prob: {prob:.4f}, Pred: {pred}")
