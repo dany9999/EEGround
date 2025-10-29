@@ -207,7 +207,7 @@ if __name__ == "__main__":
     test_patients  = [f"chb{str(i).zfill(2)}" for i in range(21, 24)]
 
     config = load_config("configs/finetuning.yml")
-    dataset_path = config["dataset_path"]
+    dataset_path = config["dataset_path_4s"]
     gt_path = "../../Datasets/chb_mit/GT"
 
     # Loader
