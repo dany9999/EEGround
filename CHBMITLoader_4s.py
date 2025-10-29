@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
     # Loader
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
-                               shuffle=True, balanced=False, neg_to_pos_ratio=5)
+                               shuffle=True, balanced=True, neg_to_pos_ratio=5)
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, balanced=False)
     loader_test  = make_loader(test_patients, dataset_path, gt_path, config,
