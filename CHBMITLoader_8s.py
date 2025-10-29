@@ -1,205 +1,369 @@
+
 import os
+import argparse
+import pickle
+import sys
+import random
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
-import h5py
+import torch.nn as nn
 import numpy as np
-import pandas as pd
-from utils import load_config
-from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
-from scipy.signal import resample_poly  # per il downsampling
+from tqdm import tqdm
+from pyhealth.metrics import binary_metrics_fn
+import pytorch_lightning as pl
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
+
+from BIOT_vanilla.biot import BIOTClassifier
+from utils import focal_loss, compute_global_stats, load_config
+from sklearn.metrics import confusion_matrix
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from CHBMITLoader_8s_overlap import make_loader
 
 
-# =====================================================
-# Dataset CHB-MIT con segmenti da 8s (unione di 2x4s)
-# =====================================================
+# ---------------------------------------------------------
+#  Funzione per trovare la soglia migliore
+# ---------------------------------------------------------
+def _pick_threshold(y_true, y_score, metric="bacc", beta=2.0):
+    qs = np.linspace(0.0, 1.0, 201)
+    cand = np.unique(np.clip(np.quantile(y_score, qs), 1e-8, 1 - 1e-8))
+    best_t, best_val = 0.5, -1.0
+    best_stats = None
 
-class CHBMITAllSegmentsLabeledDataset(Dataset):
-    def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=4, transform=None):
-        """
-        Crea finestre da 8s unendo due segmenti consecutivi da 4s (250 Hz),
-        poi effettua resampling a 200 Hz.
-        """
-        self.index = []  # (fpath, seg_idx, label, file_id)
-        self.transform = transform
-        self.segment_duration_sec = segment_duration_sec
+    for t in cand:
+        pred = (y_score >= t).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_true, pred, labels=[0, 1]).ravel()
+        sens = tp / (tp + fn + 1e-12)
+        spec = tn / (tn + fp + 1e-12)
+        prec = tp / (tp + fp + 1e-12)
+        rec = sens
 
-        for patient in patient_ids:
-            patient_folder = os.path.join(data_dir, patient)
-            gt_file = os.path.join(gt_dir, f"{patient}.csv")
-            if not os.path.exists(gt_file):
-                print(f" GT not found for {patient}, skipping")
-                continue
+        if metric == "bacc":
+            val = 0.5 * (sens + spec)
+        elif metric == "fbeta":
+            # formula generale di F_beta
+            val = (1 + beta**2) * (prec * rec) / (beta**2 * prec + rec + 1e-12)
+        else:
+            val = 0.5 * (sens + spec)
 
-            # Parsing ground truth
-            gt_df = pd.read_csv(gt_file, sep=';', engine='python')
-            seizure_map = {}
-            for _, row in gt_df.iterrows():
-                edf_base = os.path.splitext(os.path.basename(row["Name of file"]))[0]
-                if isinstance(row["class_name"], str) and "no seizure" in row["class_name"].lower():
-                    seizure_map[edf_base] = []
-                else:
-                    intervals = self.parse_intervals(row["Start (sec)"], row["End (sec)"])
-                    seizure_map[edf_base] = intervals
+        if val > best_val:
+            best_val = val
+            best_t = float(t)
+            best_stats = (sens, spec, prec, rec)
 
-            # Scansiona gli .h5 del paziente
-            for fname in sorted(os.listdir(patient_folder)):
-                if not fname.endswith(".h5"):
-                    continue
-                edf_base = fname.replace(".h5", "").replace("eeg_", "")
-                fpath = os.path.join(patient_folder, fname)
-
-                with h5py.File(fpath, 'r') as f:
-                    n_segments = f['signals'].shape[0]
-
-                intervals = seizure_map.get(edf_base, [])
-
-                # indicizzazione ogni 2 segmenti → 8s
-                for i in range(0, n_segments - 1, 2):  # passo di 2 segmenti
-                    seg_start = i * self.segment_duration_sec
-                    seg_end = seg_start + 2 * self.segment_duration_sec  # 8s totali
-                    label = 0
-                    for (st, en) in intervals:
-                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
-                            label = 1
-                            break
-                    self.index.append((fpath, i, label, edf_base))
-
-    def parse_intervals(self, start_val, end_val):
-        """Parsa gli intervalli di crisi dal file GT CSV."""
-        intervals = []
-        if pd.isna(start_val) or pd.isna(end_val):
-            return intervals
-        start_parts = str(start_val).split(',')
-        end_parts = str(end_val).split(',')
-        for s_group, e_group in zip(start_parts, end_parts):
-            starts = [float(x) for x in s_group.split('-') if x.strip() not in ["", "0"]]
-            ends = [float(x) for x in e_group.split('-') if x.strip() not in ["", "0"]]
-            for st, en in zip(starts, ends):
-                intervals.append((st, en))
-        return intervals
-
-    def __len__(self):
-        return len(self.index)
-
-    def __getitem__(self, idx):
-        fpath, seg_idx, label, file_id = self.index[idx]
-
-        with h5py.File(fpath, 'r') as f:
-            signals = f['signals']
-            x1 = signals[seg_idx][:16]       # primo segmento 4s
-            x2 = signals[seg_idx + 1][:16]   # segmento successivo
-            x_8s = np.concatenate([x1, x2], axis=-1)  # unione temporale
-
-        # Downsampling da 250 → 200 Hz
-        x_200 = resample_poly(x_8s, up=4, down=5, axis=-1)
-
-        # Normalizzazione percentile 95 per canale
-        x_200 = x_200 / (np.quantile(np.abs(x_200), q=0.95, axis=-1, keepdims=True) + 1e-8)
-
-        # Conversione a tensore
-        x_200 = torch.tensor(x_200, dtype=torch.float32)
-
-        if self.transform:
-            x_200 = self.transform(x_200)
-
-        return {"x": x_200, "y": torch.tensor(label, dtype=torch.long)}
+    return best_t, best_val, best_stats
 
 
-# =====================================================
-# Loader con opzione di bilanciamento
-# =====================================================
+# ---------------------------------------------------------
+#  Lightning Module
+# ---------------------------------------------------------
+class LitModel_finetune(pl.LightningModule):
+    def __init__(self, config, model):
+        super().__init__()
+        self.model = model
+        self.threshold = config.get("threshold", 0.5)
+        self.config = config
+        self.alpha_focal = config["focal_alpha"]
+        self.gamma_focal = config["focal_gamma"]
+        self.criterion = nn.BCEWithLogitsLoss()
 
-def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanced=False):
-    dataset = CHBMITAllSegmentsLabeledDataset(
-        patient_ids=patient_ids,
-        data_dir=dataset_path,
-        gt_dir=gt_path,
-        segment_duration_sec=config.get("segment_duration_sec", 4),
-        transform=None
+        self.val_results = {"preds": [], "targets": []}
+        self.test_results = {"preds": [], "targets": []}
+
+    def training_step(self, batch, batch_idx):
+        X, y = batch["x"], batch["y"]
+        y = y.float().unsqueeze(1)
+        logits = self.model(X)
+        #loss = self.criterion(logits, y)
+        loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        self.log("train_loss", loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        X, y = batch["x"], batch["y"]
+        y = y.float().unsqueeze(1)
+        with torch.no_grad():
+            logits = self.model(X)
+            #loss = self.criterion(logits, y)
+            loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            step_result = torch.sigmoid(logits).cpu().numpy()
+            step_gt = y.cpu().numpy()
+        self.val_results["preds"].append(step_result)
+        self.val_results["targets"].append(step_gt)
+        self.log("val_loss", loss)
+        return loss
+
+    def on_validation_epoch_end(self):
+        result = np.concatenate(self.val_results["preds"])
+        gt = np.concatenate(self.val_results["targets"])
+
+        if sum(gt) * (len(gt) - sum(gt)) != 0:
+            #self.threshold, best_score, (sens, spec, prec, rec) = _pick_threshold(
+            #    gt, result, metric="bacc", beta=2.0
+            #)
+            self.threshold = self.config.get("threshold", 0.5)
+            print(f"  Nuova soglia ottimale: {self.threshold:.4f}")
+
+            preds_bin = (result >= self.threshold).astype(int)
+            tn, fp, fn, tp = confusion_matrix(gt, preds_bin, labels=[0, 1]).ravel()
+            sensitivity = tp / (tp + fn + 1e-12)
+            specificity = tn / (tn + fp + 1e-12)
+            precision = tp / (tp + fp + 1e-12)
+            recall = sensitivity
+
+            results = binary_metrics_fn(
+                gt,
+                result,
+                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                threshold=self.threshold,
+            )
+
+            results["sensitivity"] = sensitivity
+            results["specificity"] = specificity
+            results["precision"] = precision
+            results["recall"] = recall
+        else:
+            results = {k: 0.0 for k in [
+                "accuracy", "balanced_accuracy", "pr_auc", "roc_auc",
+                "sensitivity", "specificity", "precision", "recall"
+            ]}
+
+        self.log("val_acc", results["accuracy"], sync_dist=True)
+        self.log("val_bacc", results["balanced_accuracy"], sync_dist=True)
+        self.log("val_pr_auc", results["pr_auc"], sync_dist=True)
+        self.log("val_auroc", results["roc_auc"], sync_dist=True)
+        self.log("val_sensitivity", results["sensitivity"], sync_dist=True)
+        self.log("val_specificity", results["specificity"], sync_dist=True)
+        self.log("val_precision", results["precision"], sync_dist=True)
+        self.log("val_recall", results["recall"], sync_dist=True)
+        self.log("val_prevalence", gt.mean(), sync_dist=True)
+
+        print({k: float(v) for k, v in results.items()})
+        self.val_results = {"preds": [], "targets": []}
+        return results
+
+    def test_step(self, batch, batch_idx):
+        X, y = batch["x"], batch["y"]
+        with torch.no_grad():
+            convScore = self.model(X)
+            step_result = torch.sigmoid(convScore).cpu().numpy()
+            step_gt = y.cpu().numpy()
+        self.test_results["preds"].append(step_result)
+        self.test_results["targets"].append(step_gt)
+
+    def on_test_epoch_end(self):
+        result = np.concatenate(self.test_results["preds"])
+        gt = np.concatenate(self.test_results["targets"])
+
+        if sum(gt) * (len(gt) - sum(gt)) != 0:
+            self.threshold = self.config.get("threshold", 0.5)
+            results = binary_metrics_fn(
+                gt,
+                result,
+                metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                threshold=self.threshold,
+            )
+            preds_bin = (result >= self.threshold).astype(int)
+            tn, fp, fn, tp = confusion_matrix(gt, preds_bin, labels=[0, 1]).ravel()
+            sensitivity = tp / (tp + fn + 1e-12)
+            specificity = tn / (tn + fp + 1e-12)
+            precision = tp / (tp + fp + 1e-12)
+            recall = sensitivity
+
+            results["sensitivity"] = sensitivity
+            results["specificity"] = specificity
+            results["precision"] = precision
+            results["recall"] = recall
+        else:
+            results = {k: 0.0 for k in [
+                "accuracy", "balanced_accuracy", "pr_auc", "roc_auc",
+                "sensitivity", "specificity", "precision", "recall"
+            ]}
+
+        self.log("test_acc", results["accuracy"], sync_dist=True)
+        self.log("test_bacc", results["balanced_accuracy"], sync_dist=True)
+        self.log("test_pr_auc", results["pr_auc"], sync_dist=True)
+        self.log("test_auroc", results["roc_auc"], sync_dist=True)
+        self.log("test_sensitivity", results["sensitivity"], sync_dist=True)
+        self.log("test_specificity", results["specificity"], sync_dist=True)
+        self.log("test_precision", results["precision"], sync_dist=True)
+        self.log("test_recall", results["recall"], sync_dist=True)
+        self.log("test_prevalence", gt.mean(), sync_dist=True)
+
+        print({k: float(v) for k, v in results.items()})
+        self.test_results = {"preds": [], "targets": []}
+        return results
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(
+            self.model.parameters(),
+            lr=self.config["lr"],
+            weight_decay=float(self.config["weight_decay"]),
+        )
+        return [optimizer]
+
+    # Salva / carica soglia nel checkpoint
+    def on_save_checkpoint(self, checkpoint):
+        checkpoint["best_threshold"] = float(getattr(self, "threshold", 0.5))
+
+    def on_load_checkpoint(self, checkpoint):
+        if "best_threshold" in checkpoint:
+            self.threshold = float(checkpoint["best_threshold"])
+
+
+# ---------------------------------------------------------
+#  Data Preparation
+# ---------------------------------------------------------
+def predefined_split():
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 19)]
+    val_patients = [f"chb{str(i).zfill(2)}" for i in range(19, 23)]
+    test_patients = [f"chb{str(i).zfill(2)}" for i in range(23, 24)]
+    return {"train": train_patients, "val": val_patients, "test": test_patients}
+
+
+def prepare_CHB_MIT_dataloader(config):
+    dataset_path = config["dataset_path"]
+    gt_path = config["gt_path"]
+
+    random.seed(42)
+    np.random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed_all(42)
+    split = predefined_split()
+
+    train_loader = make_loader(
+        split["train"], dataset_path, gt_path, config,
+        shuffle=True, balanced=True, neg_to_pos_ratio=5
+    )
+ 
+    
+    val_loader = make_loader(
+        split["val"], dataset_path, gt_path, config,
+        shuffle=False, balanced=False
+    )
+    test_loader = make_loader(
+        split["test"], dataset_path, gt_path, config,
+        shuffle=False, balanced=False
     )
 
-    if balanced:
-        targets = [label for _, _, label, _ in dataset.index]
-        class_counts = np.bincount(targets)
-        class_weights = 1. / class_counts
-        sample_weights = [class_weights[t] for t in targets]
+    return train_loader, val_loader, test_loader
 
-        sampler = WeightedRandomSampler(
-            weights=torch.DoubleTensor(sample_weights),
-            num_samples=len(sample_weights),
-            replacement=True
+
+# ---------------------------------------------------------
+#  Training & Evaluation
+# ---------------------------------------------------------
+def supervised(config):
+    train_loader, val_loader, test_loader = prepare_CHB_MIT_dataloader(config)
+
+    model = BIOTClassifier(
+        n_channels=config["n_channels"],
+        n_fft=200,
+        hop_length=100,
+    )
+
+    lightning_model = LitModel_finetune(config, model)
+
+    version = f"CHB-MIT-{config['finetune_mode']}"
+    logger = TensorBoardLogger(save_dir="./", version=version, name="log")
+
+    early_stop_callback = EarlyStopping(
+        monitor="val_bacc",
+        patience=config["early_stopping_patience"],
+        verbose=False,
+        mode="max"
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        monitor="val_bacc",
+        mode="max",
+        save_top_k=1,
+        filename="best-model"
+    )
+
+    trainer = pl.Trainer(
+        devices=1,
+        accelerator="gpu",
+        strategy="auto",
+        benchmark=True,
+        enable_checkpointing=True,
+        logger=logger,
+        max_epochs=config["epochs"],
+        callbacks=[early_stop_callback, checkpoint_callback],
+    )
+
+    # Addestramento + early stopping sulla validation reale
+    trainer.fit(lightning_model, train_loader, val_loader)
+
+    # Ricarica i migliori pesi
+    best_path = checkpoint_callback.best_model_path
+    best_model = LitModel_finetune.load_from_checkpoint(
+        best_path, config=config, model=BIOTClassifier(
+            n_channels=config["n_channels"],
+            n_fft=200,
+            hop_length=100,
         )
+    )
 
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            sampler=sampler,
-                            num_workers=config["num_workers"],
-                            pin_memory=True)
-    else:
-        loader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            shuffle=shuffle,
-                            num_workers=config["num_workers"],
-                            pin_memory=False)
+    # Trova soglia ottimale su validation bilanciata
+    print("\n===> Calcolo soglia ottimale su validation bilanciata...")
+    trainer.validate(model=best_model, dataloaders=val_loader)
 
-    return loader
+    # Valuta su test reale
+    print("\n===> Test finale su distribuzione reale...")
+    test_results = trainer.test(model=best_model, dataloaders=test_loader)[0]
+    print("Test results:", test_results)
 
+    # Metriche su validation reale (solo report, no threshold tuning)
+    val_metrics = trainer.validate(model=best_model, dataloaders=val_loader)[0]
+    return val_metrics
 
-# =====================================================
-# MAIN di verifica distribuzione e forma dei dati
-# =====================================================
+# ---------------------------------------------------------
+#  Optuna
+# ---------------------------------------------------------
+import optuna
+import pandas as pd
+
+def objective(trial):
+    config = load_config("configs/finetuning.yml")
+    config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
+    config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
+    config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
+    config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
+    config["threshold"] = trial.suggest_float("threshold", 0.2, 0.7)
+    config["epochs"] = 100
+
+    results = supervised(config)
+    return results["val_bacc"]
 
 if __name__ == "__main__":
-    # Split dei pazienti
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
+    study_name = "finetuning_tuning_val_bacc"
 
-    config = load_config("configs/finetuning.yml")
-    dataset_path = config["dataset_path"]
-    gt_path = "../../Datasets/chb_mit/GT"
+    study = optuna.create_study(
+        study_name=study_name,
+        direction="maximize",
+        storage=storage_name,
+        load_if_exists=True,
+    )
 
-    # Loader
-    loader_train = make_loader(train_patients, dataset_path, gt_path, config,
-                               shuffle=True, balanced=False)
-    loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
-                               shuffle=False)
-    loader_test  = make_loader(test_patients, dataset_path, gt_path, config,
-                               shuffle=False)
+    study.optimize(objective, n_trials=20)
 
-    train_set = loader_train.dataset
-    val_set   = loader_val.dataset
-    test_set  = loader_test.dataset
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
 
-    # =====================================================
-    # Report dataset
-    # =====================================================
-    print("\n=== Dimensione dei set ===")
-    print(f"Train set: {len(train_set)} samples")
-    print(f"Validation set: {len(val_set)} samples")
-    print(f"Test set: {len(test_set)} samples")
+    df = study.trials_dataframe()
+    os.makedirs("results", exist_ok=True)
+    output_path = f"results/{study_name}_results.csv"
+    df.to_csv(output_path, index=False)
+    print(f"\n Risultati salvati in {output_path}")
 
-    # Distribuzione label
-    def count_labels(ds, name):
-        labels = [label for _, _, label, _ in ds.index]
-        num_pos = sum(1 for l in labels if l == 1)
-        num_neg = sum(1 for l in labels if l == 0)
-        ratio = num_pos / num_neg if num_neg > 0 else 0
-        print(f"{name} --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {ratio:.6f}")
 
-    print("\n=== Distribuzione etichette ===")
-    count_labels(train_set, "TRAIN")
-    count_labels(val_set, "VAL")
-    count_labels(test_set, "TEST")
-
-    # Controllo forma
-    print("\n=== Controllo forma dei campioni ===")
-    for name, ds in [("TRAIN", train_set), ("VAL", val_set), ("TEST", test_set)]:
-        sample = ds[0]
-        x0, y0 = sample["x"], sample["y"]
-        print(f"{name} --- Sample shape: {tuple(x0.shape)} | Label: {y0.item()}")
-
-    # Durata effettiva finestra
-    x0 = train_set[0]["x"].numpy()
-    durata = x0.shape[1] / 200
-    print(f"\nDurata stimata finestra: {durata:.2f}s (atteso ≈ 8.0s)")
+# if __name__ == "__main__":
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)

@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __init__(self, patient_ids, data_dir, gt_dir,
-                 segment_duration_sec=8, transform=None):
+                 segment_duration_sec=4, transform=None):
         """
         Dataset CHB-MIT:
         - segmenti da 4s a 250 Hz (senza concatenazione)
@@ -114,7 +114,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
         patient_ids=patient_ids,
         data_dir=dataset_path,
         gt_dir=gt_path,
-        segment_duration_sec=config.get("segment_duration_sec", 8),
+        segment_duration_sec=config.get("segment_duration_sec", 4),
         transform=None
     )
 
@@ -153,7 +153,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 
 if __name__ == "__main__":
     # Split pazienti
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 19)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
     val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
     test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
 
