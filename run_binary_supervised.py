@@ -313,6 +313,7 @@ def supervised(config):
         logger=logger,
         max_epochs=config["epochs"],
         callbacks=[early_stop_callback, checkpoint_callback],
+        log_every_n_steps=49, 
     )
 
     # trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
