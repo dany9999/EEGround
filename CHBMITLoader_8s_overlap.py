@@ -100,7 +100,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             x = np.concatenate([x1, x2], axis=-1)
 
         # Downsampling 250 → 200 Hz
-        x = resample_poly(x, up=4, down=5, axis=-1)
+        #x = resample_poly(x, up=4, down=5, axis=-1)
 
         # Normalizzazione percentile 95
         x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
@@ -163,7 +163,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
     )
 
     # ============================
-    # 🔹 Undersampling manuale (solo se balanced=True)
+    #  Undersampling manuale (solo se balanced=True)
     # ============================
     if balanced:
         labels = np.array([label for _, _, label, _ in dataset.index])
@@ -181,11 +181,11 @@ def make_loader(patient_ids, dataset_path, gt_path, config,
 
         dataset.index = [dataset.index[i] for i in final_indices]
 
-        print(f"⚖️ Kept {num_pos} positives and {num_neg_to_keep} negatives "
+        print(f" Kept {num_pos} positives and {num_neg_to_keep} negatives "
               f"→ ratio {num_pos / num_neg_to_keep:.4f} ({num_pos+num_neg_to_keep} total)")
 
     # ============================
-    # 🔹 DataLoader standard
+    #  DataLoader standard
     # ============================
     loader = DataLoader(dataset,
                         batch_size=config["batch_size"],
