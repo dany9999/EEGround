@@ -1,13 +1,39 @@
+# import h5py
+# import os
+
+# # Percorso della cartella (modifica se necessario)
+# folder = "../../Datasets/Bipolar/chb_mit/8sec/chb01"
+
+# print("Controllo delle shape dei file .h5\n")
+
+# for filename in sorted(os.listdir(folder)):
+#     if filename.endswith(".h5"):
+#         path = os.path.join(folder, filename)
+#         try:
+#             with h5py.File(path, "r") as f:
+#                 # Trova il nome del dataset principale
+#                 keys = list(f.keys())
+#                 if len(keys) == 0:
+#                     print(f"⚠️ {filename}: nessun dataset trovato.")
+#                     continue
+
+#                 # Assumiamo che ci sia un solo dataset principale
+#                 dset = f[keys[0]]
+#                 shape = dset.shape
+#                 print(f"{filename}: shape = {shape}")
+#         except Exception as e:
+#             print(f" Errore con {filename}: {e}")
+
+
 import h5py
 import os
 
-# Percorso principale
-base_folder = "/home/bit/Scrivania/Datasets/Bipolar/chb_mit/8sec"
 
+base_folder = "../../Datasets/Bipolar/chb_mit/8sec"
 # Dizionario per accumulare i conteggi
 segment_counts = {}
 
-print("Conteggio dei segmenti per ciascun soggetto...\n")
+print(" Conteggio dei segmenti per ciascun soggetto...\n")
 
 # Scansione di tutte le sottocartelle (es: chb01, chb02, ecc.)
 for root, _, files in os.walk(base_folder):
@@ -32,7 +58,7 @@ for root, _, files in os.walk(base_folder):
                 print(f" Errore con {subject}/{filename}: {e}")
 
     segment_counts[subject] = total_segments
-    print(f"📂 {subject}: {total_segments} segmenti totali")
+    print(f" {subject}: {total_segments} segmenti totali")
 
 print("\n Conteggio completato!\n")
 
