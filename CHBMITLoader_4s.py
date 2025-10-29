@@ -62,6 +62,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seg_end = seg_start + self.segment_duration_sec
                     label = 0
                     for (st, en) in intervals:
+
                         # se l’intervallo del segmento cade in una crisi → label 1
                         if (seg_start >= st and seg_end <= en):
                             label = 1
