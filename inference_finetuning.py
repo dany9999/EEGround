@@ -88,6 +88,6 @@ if __name__ == "__main__":
     
     results = infer_file(h5_file, model, threshold)
 
-    print(f"\n=== RISULTATI INFERENZA {patient} ===")
+    print(f"\n=== RISULTATI INFERENZA {patient_test_noseizure} ===")
     for i, (prob, pred) in enumerate(results):
         print(f"Segmento {i:03d} → Prob: {prob:.4f}, Pred: {pred}")
