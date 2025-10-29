@@ -200,4 +200,4 @@ if __name__ == "__main__":
     # Verifica durata
     x0 = train_set[0]["x"].numpy()
     sec = x0.shape[1] / 250
-    print(f"\nDurata stimata finestra: {sec:.2f}s (atteso ≈4.0s)")
+    print(f"\nDurata stimata finestra: {sec:.2f}s (atteso ≈8.0s)")
