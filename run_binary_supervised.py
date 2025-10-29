@@ -213,7 +213,7 @@ def predefined_split():
 
 
 def prepare_CHB_MIT_dataloader(config):
-    dataset_path = config["dataset_path_4s"]
+    dataset_path = config["dataset_path_8s"]
     gt_path = "../../Datasets/chb_mit/GT"
     
     random.seed(42)
@@ -313,8 +313,6 @@ def supervised(config):
         logger=logger,
         max_epochs=config["epochs"],
         callbacks=[early_stop_callback, checkpoint_callback],
-        limit_val_batches=1.0,   
-        limit_test_batches=1.0,
     )
 
     # trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
