@@ -291,8 +291,8 @@ def supervised(config):
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"CHB-MIT-{config['finetune_mode']}"
-    logger = TensorBoardLogger(save_dir="./", version=version, name="log")
+    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}"
+    logger = TensorBoardLogger(save_dir="./", version=version, name="log_finetuning_from_scratch_CHB-MIT")
 
     early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
 
