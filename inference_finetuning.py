@@ -72,10 +72,10 @@ def infer_file(h5_path, model, threshold=0.5):
 # MAIN USO DA TERMINALE
 # ----------------------------------------------------
 if __name__ == "__main__":
-    checkpoint = "log/CHB-MIT-from_scratch/checkpoints/best-model.ckpt"
+    checkpoint = "log_finetuning_from_scratch_CHB-MIT/lr5e-05-channels18-nfft250-hop125/checkpoints/best-model.ckpt"
 
     # Se in validazione hai stimato una threshold dinamica → mettila qui:
-    threshold = 0.18946151
+    threshold = 0.00525595
 
     model = load_trained_model(checkpoint, n_channels=16)
 
