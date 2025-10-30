@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 
 def compute_global_channel_stats(loader, n_channels=16, clip=5.0):
     """
-    Calcola μ e σ globali per canale su tutti i segmenti del TRAIN loader.
+    Calcola media e dev_std globali per canale su tutti i segmenti del TRAIN loader.
     Evita di caricare tutto in RAM (accumula streaming).
     """
     sum_c = np.zeros(n_channels)
@@ -33,7 +33,7 @@ def compute_global_channel_stats(loader, n_channels=16, clip=5.0):
 
     print("\n Statistiche globali calcolate:")
     for i, (m, s) in enumerate(zip(mu, sigma)):
-        print(f"  Ch {i+1:02d}: μ={m:.4f}, σ={s:.4f}")
+        print(f"  Ch {i+1:02}: μ={m}, σ={s}")
 
     return mu, sigma
 
