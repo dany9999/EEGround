@@ -15,11 +15,11 @@ def quantile_normalize(x, q=0.95):
 # ----------------------------------------------------
 # Carica modello dal checkpoint Lightning
 # ----------------------------------------------------
-def load_trained_model(checkpoint_path, n_channels=16):
+def load_trained_model(checkpoint_path, n_channels=18):
     model = BIOTClassifier(
         n_channels=n_channels,
         n_fft=250,
-        hop_length=200
+        hop_length=125
     )
 
     ckpt = torch.load(checkpoint_path, map_location="cpu")
@@ -58,7 +58,7 @@ def infer_file(h5_path, model, threshold=0.5):
     with h5py.File(h5_path, "r") as f:
         signals = f["signals"][:]  # shape (segments, 23, 2000)
 
-    signals = signals[:, :16, :]  # selezioniamo solo 16 canali
+    signals = signals[:, :18, :]  # selezioniamo solo 16 canali
     results = []
 
     for seg in signals:
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # Se in validazione hai stimato una threshold dinamica → mettila qui:
     threshold = 0.00525595
 
-    model = load_trained_model(checkpoint, n_channels=16)
+    model = load_trained_model(checkpoint, n_channels=18)
 
 
     # ESEMPIO SU UN FILE: 
