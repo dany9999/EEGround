@@ -127,8 +127,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
         if self.mu is not None and self.sigma is not None:
             x = apply_zscore(x, self.mu, self.sigma, clip=5.0)
-        else:
-            print("Mu e Sigma non definiti per normalizzazione Z-score.")       
+               
 
         x = torch.tensor(x, dtype=torch.float32)
         if self.transform:
