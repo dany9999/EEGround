@@ -69,10 +69,10 @@ def compute_global_channel_stats(loader, n_channels=16):
     return mu, sigma
 
 
-def apply_zscore(x, mu, sigma, clip=5.0):
+def apply_zscore(x, mu, sigma):
     """Applica z-score per canale e clip a ±clip."""
     x = (x - mu[:, None]) / (sigma[:, None] + 1e-8)
-    x = np.clip(x, -clip, clip)
+   
     return x.astype(np.float32)
 
 
@@ -156,12 +156,10 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, seg_idx, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
             x = f['signals'][seg_idx][:16]  # (channels, time)
-            #print("Shape:", x.shape)
-            #print("Range:", x.min(), x.max())
-            #print("Mean:", x.mean(), "Std:", x.std())
+
 
         if self.mu is not None and self.sigma is not None:
-            x = apply_zscore(x, self.mu, self.sigma, clip=5.0)
+            x = apply_zscore(x, self.mu, self.sigma)
                
 
         x = torch.tensor(x, dtype=torch.float32)

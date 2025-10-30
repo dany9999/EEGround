@@ -23,7 +23,7 @@ from sklearn.metrics import confusion_matrix
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader_8s import make_loader
+from CHBMITLoader_8s_new_norm import make_loader
 
 
 class LitModel_finetune(pl.LightningModule):
@@ -222,40 +222,24 @@ def prepare_CHB_MIT_dataloader(config):
     torch.cuda.manual_seed_all(42)
     split = predefined_split()
 
-    #train_mean, train_std = compute_global_stats(split["train"], dataset_path)
-    #mean_t = torch.tensor(train_mean, dtype=torch.float32).view(18, 1)
-    #std_t = torch.tensor(train_std, dtype=torch.float32).view(18, 1)
-
-    
-    #augment_pos = EEGAugment(p_jitter=0.7, p_scale=0.5, p_mask=0.3, jitter_std=0.02)
-    
-    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-    #                            shuffle=True, balanced=False,
-    #                            pos_oversample_k=4, transform=augment_pos,
-    #                            neg_undersample_ratio=0.3)  # <-- tieni solo tot% dei negativi
-
-    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-    #                            shuffle=False, balanced=False,
-    #                            pos_oversample_k=0, transform=None)
-
-    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-    #                            shuffle=False, balanced=False,
-    #                            pos_oversample_k=0, transform=None)
-
-    # con oversamplig overlap o senza
-    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-    #                         shuffle=True, balanced=False)  
-    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-    #                        shuffle=False)  
-    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-    #                        shuffle=False) 
+                  
     # udersampoling
+    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+    #                        shuffle=True, balanced=True, neg_to_pos_ratio=5)
+    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+    #                        shuffle=False, balanced=False)
+    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+    #                        shuffle=False, balanced=False)
+
+    mu = np.load("mu_train_finetuning_8s.npy")
+    sigma = np.load("sigma_train_finetuning_8s.npy")
+
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                           shuffle=True, balanced=True, neg_to_pos_ratio=5)
+                           shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                           shuffle=False, balanced=False)
+                           shuffle=False, mu=mu, sigma=sigma)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-                           shuffle=False, balanced=False)
+                           shuffle=False, mu=mu, sigma=sigma)
 
 
     return train_loader, test_loader, val_loader
