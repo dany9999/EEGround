@@ -37,7 +37,7 @@ from sklearn.preprocessing import StandardScaler
 
 #     return mu, sigma
 
-def compute_global_channel(loader, n_channels=16):
+def compute_global_channel_stats(loader, n_channels=16):
     """
     Calcola media e deviazione standard per canale su tutto il TRAIN loader in modo incrementale.
     """
