@@ -91,7 +91,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, seg_idx, label, file_id = self.index[idx]
 
         with h5py.File(fpath, 'r') as f:
-            x = f['signals'][seg_idx][:16]  # (channels, time)
+            x = f['signals'][seg_idx][:18]  # (channels, time)
 
         # Normalizzazione percentile 95 per canale
         #x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
@@ -154,8 +154,8 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 if __name__ == "__main__":
     # Split pazienti
     train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
-    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
+    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
 
     config = load_config("configs/finetuning.yml")
     dataset_path = config["dataset_path_8s"]
