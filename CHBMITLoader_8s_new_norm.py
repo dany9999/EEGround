@@ -5,35 +5,66 @@ import numpy as np
 import pandas as pd
 from utils import load_config
 from torch.utils.data import Dataset, DataLoader
-
+from sklearn.preprocessing import StandardScaler
 
 # =====================================================
 # FUNZIONI DI NORMALIZZAZIONE (Z-SCORE)
 # =====================================================
 
-def compute_global_channel_stats(loader, n_channels=16, clip=5.0):
-    """
-    Calcola media e dev_std globali per canale su tutti i segmenti del TRAIN loader.
-    Evita di caricare tutto in RAM (accumula streaming).
-    """
-    sum_c = np.zeros(n_channels)
-    sum_sq_c = np.zeros(n_channels)
-    count = 0
+# def compute_global_channel_stats(loader, n_channels=16, clip=5.0):
+#     """
+#     Calcola media e dev_std globali per canale su tutti i segmenti del TRAIN loader.
+#     Evita di caricare tutto in RAM (accumula streaming).
+#     """
+#     sum_c = np.zeros(n_channels)
+#     sum_sq_c = np.zeros(n_channels)
+#     count = 0
 
-    print("\n Calcolo statistiche globali per canale su TRAIN...")
-    for batch in loader:
+#     print("\n Calcolo statistiche globali per canale su TRAIN...")
+#     for batch in loader:
+#         x = batch["x"].numpy()  # [B, C, T]
+#         sum_c += x.sum(axis=(0, 2))
+#         sum_sq_c += (x ** 2).sum(axis=(0, 2))
+#         count += x.shape[0] * x.shape[2]
+
+#     mu = sum_c / count
+#     sigma = np.sqrt(sum_sq_c / count - mu**2)
+#     sigma = np.clip(sigma, 1e-6, np.inf)  # evita divisioni per zero
+
+#     print("\n Statistiche globali calcolate:")
+#     for i, (m, s) in enumerate(zip(mu, sigma)):
+#         print(f"  Ch {i+1:02}: μ={m}, σ={s}")
+
+#     return mu, sigma
+
+def compute_global_channel_stats_sklearn(loader, n_channels=16):
+    """
+    Calcola media e deviazione standard per canale su tutto il TRAIN loader in modo incrementale.
+    """
+    print("\n Calcolo statistiche globali per canale (StandardScaler)...")
+
+    # uno scaler per ogni canale
+    scalers = [StandardScaler(copy=False) for _ in range(n_channels)]
+
+    for batch_idx, batch in enumerate(loader):
         x = batch["x"].numpy()  # [B, C, T]
-        sum_c += x.sum(axis=(0, 2))
-        sum_sq_c += (x ** 2).sum(axis=(0, 2))
-        count += x.shape[0] * x.shape[2]
+        B, C, T = x.shape
 
-    mu = sum_c / count
-    sigma = np.sqrt(sum_sq_c / count - mu**2)
-    sigma = np.clip(sigma, 1e-6, np.inf)  # evita divisioni per zero
+        # Appiattisci la dimensione (B*T) per ogni canale e aggiorna in streaming
+        for c in range(C):
+            data_c = x[:, c, :].reshape(-1, 1)
+            scalers[c].partial_fit(data_c)
+
+        if batch_idx % 10 == 0:
+            print(f"  Elaborati {batch_idx+1}/{len(loader)} batch...")
+
+    mu = np.array([sc.mean_[0] for sc in scalers])
+    sigma = np.array([np.sqrt(sc.var_[0]) for sc in scalers])
+    sigma = np.clip(sigma, 1e-6, np.inf)
 
     print("\n Statistiche globali calcolate:")
     for i, (m, s) in enumerate(zip(mu, sigma)):
-        print(f"  Ch {i+1:02}: μ={m}, σ={s}")
+        print(f"  Ch {i+1:02}: μ={m:.6e}, σ={s:.6e}")
 
     return mu, sigma
 
