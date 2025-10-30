@@ -94,7 +94,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
             x = f['signals'][seg_idx][:18]  # (channels, time)
 
         # Normalizzazione percentile 95 per canale
-        x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
+        #x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
 
         # Tensor conversion
         x = torch.tensor(x, dtype=torch.float32)
