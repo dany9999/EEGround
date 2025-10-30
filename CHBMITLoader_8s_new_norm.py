@@ -93,6 +93,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                 with h5py.File(fpath, 'r') as f:
                     n_segments = f['signals'].shape[0]
 
+
                 intervals = seizure_map.get(edf_base, [])
                 for i in range(n_segments):
                     seg_start = i * self.segment_duration_sec
@@ -124,6 +125,9 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         fpath, seg_idx, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
             x = f['signals'][seg_idx][:16]  # (channels, time)
+            print("Shape:", x.shape)
+            print("Range:", x.min(), x.max())
+            print("Mean:", x.mean(), "Std:", x.std())
 
         if self.mu is not None and self.sigma is not None:
             x = apply_zscore(x, self.mu, self.sigma, clip=5.0)
