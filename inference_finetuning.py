@@ -91,5 +91,14 @@ if __name__ == "__main__":
     results = infer_file(h5_file, model, threshold)
 
     print(f"\n=== RISULTATI INFERENZA {patient_test_noseizure_2} ===")
+    seizure = 0
+    noseizure = 0
     for i, (prob, pred) in enumerate(results):
         print(f"Segmento {i:03d} → Prob: {prob:.4f}, Pred: {pred}")
+        if pred == 1:
+            seizure += 1
+        else:
+            noseizure += 1
+    print(f"\nTotale segmenti predetti come SEIZURE: {seizure}")
+    print(f"Totale segmenti predetti come NO-SEIZURE: {noseizure}")
+            
