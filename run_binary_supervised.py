@@ -23,7 +23,7 @@ from sklearn.metrics import confusion_matrix
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader_8s_new_norm import make_loader
+from CHBMITLoader_4s import make_loader
 
 
 class LitModel_finetune(pl.LightningModule):
@@ -213,7 +213,7 @@ def predefined_split():
 
 
 def prepare_CHB_MIT_dataloader(config):
-    dataset_path = config["dataset_path_8s"]
+    dataset_path = config["dataset_path_4s"]
     gt_path = "../../Datasets/chb_mit/GT"
     
     random.seed(42)
@@ -224,22 +224,22 @@ def prepare_CHB_MIT_dataloader(config):
 
                   
     # udersampoling
-    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-    #                        shuffle=True, balanced=True, neg_to_pos_ratio=5)
-    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-    #                        shuffle=False, balanced=False)
-    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-    #                        shuffle=False, balanced=False)
-
-    mu = np.load("mu_train_finetuning_8s_18channel.npy")
-    sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
-
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                           shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
+                           shuffle=True, balanced=True, neg_to_pos_ratio=5)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                           shuffle=False, mu=mu, sigma=sigma)
+                           shuffle=False, balanced=False)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-                           shuffle=False, mu=mu, sigma=sigma)
+                           shuffle=False, balanced=False)
+
+    # mu = np.load("mu_train_finetuning_8s_18channel.npy")
+    # sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
+
+    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+    #                        shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
+    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+    #                        shuffle=False, mu=mu, sigma=sigma)
+    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+    #                        shuffle=False, mu=mu, sigma=sigma)
 
 
     return train_loader, test_loader, val_loader

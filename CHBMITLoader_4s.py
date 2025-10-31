@@ -64,7 +64,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     for (st, en) in intervals:
 
                         # se l’intervallo del segmento cade in una crisi → label 1
-                        if (seg_start >= st and seg_end <= en):
+                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
                             label = 1
                             break
                     self.index.append((fpath, i, label, edf_base))
