@@ -258,23 +258,38 @@ def supervised(config):
 
     #  Caricamento pesi pretrained se specificato
     if config.get("pretrain_model_path", ""):
-        state = torch.load(config["pretrain_model_path"], map_location="cuda:0")
-        model_dict = model.biot.state_dict()
+        ckpt_path = config["pretrain_model_path"]
+        print(f"\n Caricamento pesi pretrained da: {ckpt_path}")
+        
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        checkpoint = torch.load(ckpt_path, map_location= device)
 
-        # allinea i layer con la stessa shape
-        compatible_state = {k: v for k, v in state.items()
-                            if k in model_dict and v.shape == model_dict[k].shape}
+        # gestisci il caso pytorch lightning
+        if "state_dict" in checkpoint:
+            state = checkpoint["state_dict"]
+        else:
+            state = checkpoint
+
+        model_dict = model.state_dict()
+
+        # Filtra solo layer compatibili (stesso nome e shape)
+        compatible_state = {k.replace("model.", "").replace("biot.", ""): v
+                            for k, v in state.items()
+                            if k.replace("model.", "").replace("biot.", "") in model_dict
+                            and v.shape == model_dict[k.replace("model.", "").replace("biot.", "")].shape}
+
         missing = set(model_dict.keys()) - set(compatible_state.keys())
-        print(f"Carico {len(compatible_state)} layer dai pretrained, "
-              f"{len(missing)} inizializzati random.")
+        print(f" Caricati {len(compatible_state)} layer dai pretrained.")
+        if missing:
+            print(f" {len(missing)} layer inizializzati random (non trovati nel checkpoint).")
 
-        # aggiorna i pesi
+        # aggiorna pesi compatibili
         model_dict.update(compatible_state)
-        model.biot.load_state_dict(model_dict)
-    
+        model.load_state_dict(model_dict)
     else:
-        print(" Nessun modello pretrained specificato, "
-              "tutti i pesi saranno inizializzati random.")
+        print(" Nessun modello pretrained specificato, tutti i pesi saranno inizializzati random.")
+    
+
 
 
     lightning_model = LitModel_finetune(config, model)
