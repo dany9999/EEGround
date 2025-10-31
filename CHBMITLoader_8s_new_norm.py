@@ -37,7 +37,7 @@ from sklearn.preprocessing import StandardScaler
 
 #     return mu, sigma
 
-def compute_global_channel_stats(loader, n_channels=16):
+def compute_global_channel_stats(loader, n_channels):
     """
     Calcola media e deviazione standard per canale su tutto il TRAIN loader in modo incrementale.
     """
@@ -155,7 +155,7 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
     def __getitem__(self, idx):
         fpath, seg_idx, label, file_id = self.index[idx]
         with h5py.File(fpath, 'r') as f:
-            x = f['signals'][seg_idx][:16]  # (channels, time)
+            x = f['signals'][seg_idx][:18]  # (channels, time)
 
 
         if self.mu is not None and self.sigma is not None:
@@ -229,9 +229,9 @@ if __name__ == "__main__":
                              shuffle=False, balanced=False)
 
     # Step 2️ - calcolo statistiche globali
-    mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=16)
-    np.save("mu_train_finetuning_8s.npy", mu)
-    np.save("sigma_train_finetuning_8s.npy", sigma)
+    mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
+    np.save("mu_train_finetuning_8s_18channel.npy", mu)
+    np.save("sigma_train_finetuning_8s_18channel.npy", sigma)
 
     # Step 3️ - loader finali con z-score
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
