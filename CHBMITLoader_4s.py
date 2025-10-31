@@ -154,7 +154,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 
 if __name__ == "__main__":
     # Split pazienti
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1,7)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
     val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
     test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
 
