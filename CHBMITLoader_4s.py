@@ -154,8 +154,8 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 
 if __name__ == "__main__":
     # Split pazienti
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 4)]
-    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(1, 4)]
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(10,11)]
+    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(11, 12)]
     test_patients  = [f"chb{str(i).zfill(2)}" for i in range(1, 4)]
 
     config = load_config("configs/finetuning.yml")
