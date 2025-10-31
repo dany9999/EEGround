@@ -38,7 +38,7 @@ def load_trained_model(checkpoint_path, n_channels=18):
 
 
 # ----------------------------------------------------
-# Inference su un singolo segmento EEG (16, 2000)
+# Inference su un singolo segmento EEG (18, 2000)
 # ----------------------------------------------------
 def infer_segment(model, x, threshold=0.5):
     x = quantile_normalize(x)  # IMPORTANTISSIMO
@@ -58,7 +58,7 @@ def infer_file(h5_path, model, threshold=0.5):
     with h5py.File(h5_path, "r") as f:
         signals = f["signals"][:]  # shape (segments, 23, 2000)
 
-    signals = signals[:, :18, :]  # selezioniamo solo 16 canali
+    signals = signals[:, :18, :]  # selezioniamo solo 18 canali
     results = []
 
     for seg in signals:
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     checkpoint = "log_finetuning_from_scratch_CHB-MIT/lr5e-05-channels18-nfft250-hop125/checkpoints/best-model.ckpt"
 
     # Se in validazione hai stimato una threshold dinamica → mettila qui:
-    threshold = 0.00525595
+    threshold = 0.00017155
 
     model = load_trained_model(checkpoint, n_channels=18)
 
