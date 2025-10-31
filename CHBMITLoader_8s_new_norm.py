@@ -160,8 +160,8 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
 
         if self.mu is not None and self.sigma is not None:
             x = apply_zscore(x, self.mu, self.sigma)
-        else:
-            print(" Attenzione: nessuna normalizzazione applicata!")
+        #else:
+        #    print(" Attenzione: nessuna normalizzazione applicata!")
                
 
         x = torch.tensor(x, dtype=torch.float32)
