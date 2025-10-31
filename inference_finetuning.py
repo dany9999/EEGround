@@ -36,12 +36,20 @@ def load_trained_model(checkpoint_path, n_channels=18):
     print(" Modello caricato correttamente.")
     return model
 
+def apply_zscore(x, mu, sigma):
+    """Applica z-score per canale e clip a ±clip."""
+    x = (x - mu[:, None]) / (sigma[:, None] + 1e-8)
+   
+    return x.astype(np.float32)
 
 # ----------------------------------------------------
 # Inference su un singolo segmento EEG (18, 2000)
 # ----------------------------------------------------
 def infer_segment(model, x, threshold=0.5):
-    x = quantile_normalize(x)  # IMPORTANTISSIMO
+    mu = np.load("mu_train_finetuning_8s_18channel.npy")
+    sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
+    
+    x = apply_zscore(x, mu, sigma)
     x = torch.tensor(x, dtype=torch.float32).unsqueeze(0)  # (1, C, T)
 
     with torch.no_grad():
