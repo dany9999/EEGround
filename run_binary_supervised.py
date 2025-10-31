@@ -259,33 +259,41 @@ def supervised(config):
     #  Caricamento pesi pretrained se specificato
     if config.get("pretrain_model_path", ""):
         ckpt_path = config["pretrain_model_path"]
-        print(f"\n Caricamento pesi pretrained da: {ckpt_path}")
-        
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        checkpoint = torch.load(ckpt_path, map_location= device)
+        print(f"\n🔹 Caricamento pesi pretrained da: {ckpt_path} su {device}")
 
-        # gestisci il caso pytorch lightning
+        checkpoint = torch.load(ckpt_path, map_location=device)
+
+        # Se è un checkpoint Lightning
         if "state_dict" in checkpoint:
-            state = checkpoint["state_dict"]
-        else:
-            state = checkpoint
+            checkpoint = checkpoint["state_dict"]
+
+        state = {}
+
+        # Aggiunge il prefisso 'biot.' se manca
+        for k, v in checkpoint.items():
+            if not k.startswith("biot."):
+                new_k = "biot." + k
+            else:
+                new_k = k
+            state[new_k] = v
 
         model_dict = model.state_dict()
 
-        # Filtra solo layer compatibili (stesso nome e shape)
-        compatible_state = {k.replace("model.", "").replace("biot.", ""): v
-                            for k, v in state.items()
-                            if k.replace("model.", "").replace("biot.", "") in model_dict
-                            and v.shape == model_dict[k.replace("model.", "").replace("biot.", "")].shape}
-
+        # Filtra solo layer compatibili
+        compatible_state = {k: v for k, v in state.items() if k in model_dict and v.shape == model_dict[k].shape}
         missing = set(model_dict.keys()) - set(compatible_state.keys())
-        print(f" Caricati {len(compatible_state)} layer dai pretrained.")
+
+        print(f"Caricati {len(compatible_state)} layer dai pretrained.")
         if missing:
             print(f" {len(missing)} layer inizializzati random (non trovati nel checkpoint).")
 
-        # aggiorna pesi compatibili
+        # Aggiorna il modello
         model_dict.update(compatible_state)
         model.load_state_dict(model_dict)
+        model.to(device)
+
+        print(" Modello caricato e spostato su GPU.")
     else:
         print(" Nessun modello pretrained specificato, tutti i pesi saranno inizializzati random.")
     
