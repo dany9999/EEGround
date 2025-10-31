@@ -86,11 +86,11 @@ if __name__ == "__main__":
     patient_test_noseizure_1 = "chb22/eeg_chb22_19.h5" 
     patient_test_noseizure_2 = "chb22/eeg_chb22_17.h5" 
 
-    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_seizure_2
+    h5_file = "../../Datasets/Bipolar/chb_mit/8sec/" + patient_test_noseizure_2
 
     results = infer_file(h5_file, model, threshold)
 
-    print(f"\n=== RISULTATI INFERENZA {patient_test_seizure_2} ===")
+    print(f"\n=== RISULTATI INFERENZA {patient_test_noseizure_2} ===")
     seizure = 0
     noseizure = 0
     for i, (prob, pred) in enumerate(results):
