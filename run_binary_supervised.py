@@ -235,7 +235,7 @@ def prepare_CHB_MIT_dataloader(config):
     sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                           shuffle=True, balanced=False, mu=mu, sigma=sigma)
+                           shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
                            shuffle=False, mu=mu, sigma=sigma)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,

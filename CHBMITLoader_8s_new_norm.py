@@ -131,7 +131,10 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seg_end = seg_start + self.segment_duration_sec
                     label = 0
                     for (st, en) in intervals:
-                        if (seg_start >= st and seg_end <= en):
+                        # if (seg_start >= st and seg_end <= en):
+                        #     label = 1
+                        #     break
+                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
                             label = 1
                             break
                     self.index.append((fpath, i, label, edf_base))
@@ -240,18 +243,41 @@ if __name__ == "__main__":
 
     # Step 3️ - loader finali con z-score
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
-                               shuffle=True, balanced=False, mu=mu, sigma=sigma)
+                               shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, mu=mu, sigma=sigma)
     loader_test  = make_loader(test_patients, dataset_path, gt_path, config,
                                shuffle=False, mu=mu, sigma=sigma)
 
-    print(f"\nTrain set: {len(loader_train.dataset)} samples")
-    print(f"Validation set: {len(loader_val.dataset)} samples")
-    print(f"Test set: {len(loader_test.dataset)} samples")
+    train_set = loader_train.dataset
+    val_set   = loader_val.dataset
+    test_set  = loader_test.dataset
 
-    # Verifica forme e durata
-    sample = loader_train.dataset[0]
-    x, y = sample["x"], sample["y"]
-    sec = x.shape[1] / 250
-    print(f"\nSegmento esempio: shape={tuple(x.shape)}, label={y.item()}, durata={sec:.2f}s")
+    print(f"\nTrain set: {len(train_set)} samples")
+    print(f"Validation set: {len(val_set)} samples")
+    print(f"Test set: {len(test_set)} samples")
+
+    # Distribuzione etichette
+    def count_labels(ds, name):
+        labels = [label for _, _, label, _ in ds.index]
+        num_pos = sum(1 for l in labels if l == 1)
+        num_neg = sum(1 for l in labels if l == 0)
+        ratio = num_pos / num_neg if num_neg > 0 else 0
+        print(f"{name} --- Positives: {num_pos}, Negatives: {num_neg}, Ratio: {ratio:.6f}")
+
+    print("\n=== Distribuzione etichette ===")
+    count_labels(train_set, "TRAIN")
+    count_labels(val_set, "VAL")
+    count_labels(test_set, "TEST")
+
+    # Controllo forma dei campioni
+    print("\n=== Controllo forma ===")
+    for name, ds in [("TRAIN", train_set), ("VAL", val_set), ("TEST", test_set)]:
+        sample = ds[0]
+        x0, y0 = sample["x"], sample["y"]
+        print(f"{name} --- shape: {tuple(x0.shape)} | label: {y0.item()}")
+
+    # Verifica durata
+    x0 = train_set[0]["x"].numpy()
+    sec = x0.shape[1] / 250
+    print(f"\nDurata stimata finestra: {sec:.2f}s (atteso ≈8.0s)")
