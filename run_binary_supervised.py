@@ -258,7 +258,7 @@ def supervised(config):
 
     #  Caricamento pesi pretrained se specificato
     if config.get("pretrain_model_path", ""):
-        state = torch.load(config["pretrain_model_path"], map_location="cpu")
+        state = torch.load(config["pretrain_model_path"], map_location="gpu")
         model_dict = model.biot.state_dict()
 
         # allinea i layer con la stessa shape
@@ -271,6 +271,10 @@ def supervised(config):
         # aggiorna i pesi
         model_dict.update(compatible_state)
         model.biot.load_state_dict(model_dict)
+    
+    else:
+        print(" Nessun modello pretrained specificato, "
+              "tutti i pesi saranno inizializzati random.")
 
 
     lightning_model = LitModel_finetune(config, model)
