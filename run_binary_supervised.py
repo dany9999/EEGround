@@ -256,26 +256,26 @@ def supervised(config):
         hop_length=config["hop_length"],
     )
 
-    # #  Caricamento pesi pretrained se specificato
-    # if config.get("pretrain_model_path", ""):
-    #     state = torch.load(config["pretrain_model_path"], map_location="cpu")
-    #     model_dict = model.biot.state_dict()
+    #  Caricamento pesi pretrained se specificato
+    if config.get("pretrain_model_path", ""):
+        state = torch.load(config["pretrain_model_path"], map_location="cpu")
+        model_dict = model.biot.state_dict()
 
-    #     # allinea i layer con la stessa shape
-    #     compatible_state = {k: v for k, v in state.items()
-    #                         if k in model_dict and v.shape == model_dict[k].shape}
-    #     missing = set(model_dict.keys()) - set(compatible_state.keys())
-    #     print(f"Carico {len(compatible_state)} layer dai pretrained, "
-    #           f"{len(missing)} inizializzati random.")
+        # allinea i layer con la stessa shape
+        compatible_state = {k: v for k, v in state.items()
+                            if k in model_dict and v.shape == model_dict[k].shape}
+        missing = set(model_dict.keys()) - set(compatible_state.keys())
+        print(f"Carico {len(compatible_state)} layer dai pretrained, "
+              f"{len(missing)} inizializzati random.")
 
-    #     # aggiorna i pesi
-    #     model_dict.update(compatible_state)
-    #     model.biot.load_state_dict(model_dict)
+        # aggiorna i pesi
+        model_dict.update(compatible_state)
+        model.biot.load_state_dict(model_dict)
 
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}"
+    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-pretrain"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
     early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
