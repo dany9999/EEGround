@@ -258,7 +258,7 @@ def supervised(config):
 
     #  Caricamento pesi pretrained se specificato
     if config.get("pretrain_model_path", ""):
-        state = torch.load(config["pretrain_model_path"], map_location="gpu")
+        state = torch.load(config["pretrain_model_path"], map_location="cuda:0")
         model_dict = model.biot.state_dict()
 
         # allinea i layer con la stessa shape
