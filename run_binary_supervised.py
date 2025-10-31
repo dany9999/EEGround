@@ -235,7 +235,7 @@ def prepare_CHB_MIT_dataloader(config):
     sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                           shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
+                           shuffle=True, balanced=False, mu=mu, sigma=sigma)
     val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
                            shuffle=False, mu=mu, sigma=sigma)
     test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
@@ -257,52 +257,52 @@ def supervised(config):
     )
 
     #  Caricamento pesi pretrained se specificato
-    if config.get("pretrain_model_path", ""):
-        ckpt_path = config["pretrain_model_path"]
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        print(f"\n🔹 Caricamento pesi pretrained da: {ckpt_path} su {device}")
+    # if config.get("pretrain_model_path", ""):
+    #     ckpt_path = config["pretrain_model_path"]
+    #     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #     print(f"\n Caricamento pesi pretrained da: {ckpt_path} su {device}")
 
-        checkpoint = torch.load(ckpt_path, map_location=device)
+    #     checkpoint = torch.load(ckpt_path, map_location=device)
 
-        # Se è un checkpoint Lightning
-        if "state_dict" in checkpoint:
-            checkpoint = checkpoint["state_dict"]
+    #     # Se è un checkpoint Lightning
+    #     if "state_dict" in checkpoint:
+    #         checkpoint = checkpoint["state_dict"]
 
-        state = {}
+    #     state = {}
 
-        # Aggiunge il prefisso 'biot.' se manca
-        for k, v in checkpoint.items():
-            if not k.startswith("biot."):
-                new_k = "biot." + k
-            else:
-                new_k = k
-            state[new_k] = v
+    #     # Aggiunge il prefisso 'biot.' se manca
+    #     for k, v in checkpoint.items():
+    #         if not k.startswith("biot."):
+    #             new_k = "biot." + k
+    #         else:
+    #             new_k = k
+    #         state[new_k] = v
 
-        model_dict = model.state_dict()
+    #     model_dict = model.state_dict()
 
-        # Filtra solo layer compatibili
-        compatible_state = {k: v for k, v in state.items() if k in model_dict and v.shape == model_dict[k].shape}
-        missing = set(model_dict.keys()) - set(compatible_state.keys())
+    #     # Filtra solo layer compatibili
+    #     compatible_state = {k: v for k, v in state.items() if k in model_dict and v.shape == model_dict[k].shape}
+    #     missing = set(model_dict.keys()) - set(compatible_state.keys())
 
-        print(f"Caricati {len(compatible_state)} layer dai pretrained.")
-        if missing:
-            print(f" {len(missing)} layer inizializzati random (non trovati nel checkpoint).")
+    #     print(f"Caricati {len(compatible_state)} layer dai pretrained.")
+    #     if missing:
+    #         print(f" {len(missing)} layer inizializzati random (non trovati nel checkpoint).")
 
-        # Aggiorna il modello
-        model_dict.update(compatible_state)
-        model.load_state_dict(model_dict)
-        model.to(device)
+    #     # Aggiorna il modello
+    #     model_dict.update(compatible_state)
+    #     model.load_state_dict(model_dict)
+    #     model.to(device)
 
-        print(" Modello caricato e spostato su GPU.")
-    else:
-        print(" Nessun modello pretrained specificato, tutti i pesi saranno inizializzati random.")
+    #     print(" Modello caricato e spostato su GPU.")
+    # else:
+    #     print(" Nessun modello pretrained specificato, tutti i pesi saranno inizializzati random.")
     
 
 
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-pretrain"
+    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
     early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")

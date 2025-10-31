@@ -229,13 +229,18 @@ if __name__ == "__main__":
                              shuffle=False, balanced=False)
 
     # Step 2️ - calcolo statistiche globali
-    mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
-    np.save("mu_train_finetuning_8s_18channel.npy", mu)
-    np.save("sigma_train_finetuning_8s_18channel.npy", sigma)
+    mu = np.load("mu_train_finetuning_8s_18channel.npy")
+    sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
+    
+    #mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
+
+ 
+    # np.save("mu_train_finetuning_8s_18channel.npy", mu)
+    # np.save("sigma_train_finetuning_8s_18channel.npy", sigma)
 
     # Step 3️ - loader finali con z-score
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
-                               shuffle=True, balanced=True, mu=mu, sigma=sigma)
+                               shuffle=True, balanced=False, mu=mu, sigma=sigma)
     loader_val   = make_loader(val_patients, dataset_path, gt_path, config,
                                shuffle=False, mu=mu, sigma=sigma)
     loader_test  = make_loader(test_patients, dataset_path, gt_path, config,
