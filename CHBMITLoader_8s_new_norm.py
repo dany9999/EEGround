@@ -231,8 +231,7 @@ if __name__ == "__main__":
     gt_path = "../../Datasets/chb_mit/GT"
 
     # Step 1️ - loader temporaneo (train completo)
-    loader_tmp = make_loader(train_patients, dataset_path, gt_path, config,
-                             shuffle=False, balanced=False)
+    #loader_tmp = make_loader(train_patients, dataset_path, gt_path, config, shuffle=False, balanced=False)
 
     # Step 2️ - calcolo statistiche globali
     mu = np.load("mu_train_finetuning_8s_18channel.npy")

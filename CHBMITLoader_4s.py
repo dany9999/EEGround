@@ -207,15 +207,17 @@ if __name__ == "__main__":
     dataset_path = config["dataset_path_4s"]
     gt_path = "../../Datasets/chb_mit/GT"
 
-    # Step 1️ - loader temporaneo (train completo)
-    loader_tmp = make_loader(train_patients, dataset_path, gt_path, config,
-                             shuffle=False, balanced=False)
+    # # Step 1️ - loader temporaneo (train completo)
+    # loader_tmp = make_loader(train_patients, dataset_path, gt_path, config, shuffle=False, balanced=False)
 
-    # Step 2️ - calcolo statistiche globali
-    mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
+    # # Step 2️ - calcolo statistiche globali
+    # mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
 
-    mu = np.save("mu_train_finetuning_4s_18channel.npy", mu)
-    sigma = np.save("sigma_train_finetuning_4s_18channel.npy", sigma)
+    # mu = np.save("mu_train_finetuning_4s_18channel.npy", mu)
+    # sigma = np.save("sigma_train_finetuning_4s_18channel.npy", sigma)
+
+    mu = np.load("mu_train_finetuning_4s_18channel.npy")
+    sigma = np.load("sigma_train_finetuning_4s_18channel.npy")
 
     # Loader
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,
