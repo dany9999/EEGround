@@ -11,31 +11,36 @@ from sklearn.preprocessing import StandardScaler
 # FUNZIONI DI NORMALIZZAZIONE (Z-SCORE)
 # =====================================================
 
-# def compute_global_channel_stats(loader, n_channels=16, clip=5.0):
-#     """
-#     Calcola media e dev_std globali per canale su tutti i segmenti del TRAIN loader.
-#     Evita di caricare tutto in RAM (accumula streaming).
-#     """
-#     sum_c = np.zeros(n_channels)
-#     sum_sq_c = np.zeros(n_channels)
-#     count = 0
 
-#     print("\n Calcolo statistiche globali per canale su TRAIN...")
-#     for batch in loader:
+
+# def compute_global_mean_std(loader):
+#     """
+#     Calcola la media e la deviazione standard globali (un singolo valore)
+#     su tutto il dataset caricato tramite un DataLoader.
+#     """
+#     total_sum = 0.0
+#     total_sq_sum = 0.0
+#     total_count = 0
+
+#     print("\n Calcolo media e std globali sul dataset...")
+#     for i, batch in enumerate(loader):
 #         x = batch["x"].numpy()  # [B, C, T]
-#         sum_c += x.sum(axis=(0, 2))
-#         sum_sq_c += (x ** 2).sum(axis=(0, 2))
-#         count += x.shape[0] * x.shape[2]
+#         total_sum += x.sum()
+#         total_sq_sum += (x ** 2).sum()
+#         total_count += np.prod(x.shape)
 
-#     mu = sum_c / count
-#     sigma = np.sqrt(sum_sq_c / count - mu**2)
-#     sigma = np.clip(sigma, 1e-6, np.inf)  # evita divisioni per zero
+#         if i % 10 == 0:
+#             print(f"  Elaborati {i+1}/{len(loader)} batch...")
 
-#     print("\n Statistiche globali calcolate:")
-#     for i, (m, s) in enumerate(zip(mu, sigma)):
-#         print(f"  Ch {i+1:02}: μ={m}, σ={s}")
+#     mean = total_sum / total_count
+#     std = np.sqrt(total_sq_sum / total_count - mean**2)
+#     std = max(std, 1e-6)  # evita divisioni per zero
 
-#     return mu, sigma
+#     print(f"\n Media globale: {mean:.6e}")
+#     print(f" Deviazione standard globale: {std:.6e}")
+#     return mean, std
+   
+
 
 def compute_global_channel_stats(loader, n_channels):
     """
@@ -131,12 +136,10 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
                     seg_end = seg_start + self.segment_duration_sec
                     label = 0
                     for (st, en) in intervals:
-                        # if (seg_start >= st and seg_end <= en):
-                        #     label = 1
-                        #     break
-                        if (seg_start >= st and seg_start < en) or (seg_end > st and seg_end <= en):
+                        if (seg_start >= st and seg_end <= en):
                             label = 1
                             break
+
                     self.index.append((fpath, i, label, edf_base))
 
     def parse_intervals(self, start_val, end_val):
