@@ -22,7 +22,7 @@ weight_decay: 1e-6
 emb_size: 256
 heads: 8
 depth: 4
-n_channels: 16
+n_channels: 18
 n_classes: 1
 n_fft: 250
 hop_length: 125

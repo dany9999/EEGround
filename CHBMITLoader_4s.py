@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from utils import load_config
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
-
+from sklearn.preprocessing import StandardScaler
 
 # =====================================================
 # Dataset CHB-MIT con segmenti da 4s a 250 Hz
@@ -181,8 +181,7 @@ def make_loader(patient_ids, dataset_path, gt_path, config, shuffle=True, balanc
 
         dataset.index = [dataset.index[i] for i in final_indices]
 
-        #print(f"⚖️ Kept {num_pos} positives and {num_neg_to_keep} negatives "
-        #      f"→ ratio {num_pos / num_neg_to_keep:.4f} ({num_pos+num_neg_to_keep} total)")
+
     
     # ============================
     #  DataLoader standard
