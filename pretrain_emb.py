@@ -87,32 +87,39 @@ def save_both_full_and_encoder(model, save_dir, epoch):
     """
     Salva sia il checkpoint completo del modello di pretraining (UnsupervisedPretrain)
     sia solo i pesi dell'encoder BIOTEMB, rinominati per il fine-tuning.
+    Gestisce anche modelli wrappati in nn.DataParallel.
     """
     os.makedirs(save_dir, exist_ok=True)
 
-    # --- 1 Salva il modello completo ---
+    # ---  Salva il modello completo ---
     full_ckpt = {
         "epoch": epoch,
         "model_state_dict": model.state_dict(),
     }
     full_path = os.path.join(save_dir, f"full_model_epoch_{epoch}.pt")
     torch.save(full_ckpt, full_path)
-    print(f"[✔] Checkpoint completo salvato in {full_path}")
+    print(f" Checkpoint completo salvato in {full_path}")
 
-    # --- 2️⃣ Estrai solo i pesi dell'encoder (BIOTEMB) ---
+    # --- 2️Estrai solo i pesi dell'encoder (BIOTEMB) ---
     raw_state = model.state_dict()
     encoder_state = {}
+
     for k, v in raw_state.items():
         key = k
+
+        #  Rimuovi "module." se presente (DataParallel)
         if key.startswith("module."):
-            key = key[len("module."):]  # rimuove prefisso DataParallel
+            key = key[len("module."):]
+
+        #  Gestisci sia "encoder." che "module.encoder."
         if key.startswith("encoder."):
-            key = re.sub(r"^encoder\.", "biot.", key)  # rinomina per BIOTClassifier
+            # Rinomina "encoder." → "biot." per compatibilità con BIOTClassifier
+            key = key.replace("encoder.", "biot.")
             encoder_state[key] = v
 
     encoder_path = os.path.join(save_dir, f"encoder_only_epoch_{epoch}.pt")
     torch.save(encoder_state, encoder_path)
-    print(f" Encoder salvato in {encoder_path}")
+    print(f" Encoder salvato in {encoder_path} ({len(encoder_state)} layer)")
 
 
 # ==== Main Training Loop ====
