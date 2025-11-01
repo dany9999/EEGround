@@ -198,7 +198,7 @@ class BIOTEncoder(nn.Module):
         else:
             masked_emb = emb
             mask = None
-            out_biot = self.transformer(masked_emb).mean(dim=1) # (batch_size, n_channels * ts, emb)
+            out_biot = self.transformer(masked_emb) # (batch_size, n_channels * ts, emb)
 
 
         
