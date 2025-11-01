@@ -48,7 +48,7 @@ pretrained_ckpt: "BIOT_vanilla/pretrained_models/EEG-PREST-16-channels.ckpt"
 dataset_path_4s: "../../Datasets/Bipolar/chb_mit/bipolar_data"
 dataset_path_8s: "../../Datasets/Bipolar/chb_mit/8sec"
 gt_path: "../../Datasets/chb_mit/GT"  # utile se la pipeline la richiede
-pretrain_model_path: BIOT_vanilla/pretrained_models/EEG-six-datasets-18-channels.ckpt
+pretrain_model_path: "logs/pretrain/encoder_only_epoch_1.pt"
 
 # =====================
 # OUTPUT DIRECTORIES

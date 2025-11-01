@@ -5,6 +5,7 @@ import sys
 import random
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
+import re
 import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
@@ -24,6 +25,46 @@ from sklearn.metrics import confusion_matrix
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from CHBMITLoader_4s import make_loader
+
+
+def load_pretrained_encoder_into_biot(model, ckpt_path, device="cpu"):
+    """
+    Carica i pesi pretrainati (encoder_only_epoch_X.pt o model_epoch_X.pt) 
+    nel modello BIOTClassifier, rinominando e filtrando automaticamente le chiavi.
+    """
+
+
+    print(f"\n Caricamento pesi pretrainati da: {ckpt_path}")
+    ckpt = torch.load(ckpt_path, map_location=device)
+
+    # Se è un checkpoint con struttura complessa (Lightning o torch.save(dict))
+    if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
+        sd = ckpt["model_state_dict"]
+    else:
+        sd = ckpt
+
+    # Normalizza chiavi (rimuove 'module.' se c'è)
+    new_sd = {}
+    for k, v in sd.items():
+        k_clean = k[len("module."):] if k.startswith("module.") else k
+        # Rimappa prefissi possibili
+        if k_clean.startswith("encoder."):
+            k_clean = re.sub(r"^encoder\.", "biot.", k_clean)
+        elif not k_clean.startswith("biot."):
+            k_clean = "biot." + k_clean
+        new_sd[k_clean] = v
+
+    model_dict = model.state_dict()
+    compatible = {k: v for k, v in new_sd.items() if k in model_dict and v.shape == model_dict[k].shape}
+    missing = set(model_dict.keys()) - set(compatible.keys())
+
+    model_dict.update(compatible)
+    model.load_state_dict(model_dict)
+    print(f" Caricati {len(compatible)} layer nel backbone BIOT. "
+          f"{len(missing)} layer mancanti (inizializzati da zero).")
+
+    return model
+
 
 
 class LitModel_finetune(pl.LightningModule):
@@ -259,49 +300,17 @@ def supervised(config):
         hop_length=config["hop_length"],
     )
 
-    #  Caricamento pesi pretrained se specificato
-    # if config.get("pretrain_model_path", ""):
-    #     ckpt_path = config["pretrain_model_path"]
-    #     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #     print(f"\n Caricamento pesi pretrained da: {ckpt_path} su {device}")
+    #  Carica i pesi pretrained se specificato
+    if config.get("pretrain_model_path", ""):
+        ckpt_path = config["pretrain_model_path"]
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(f"\n Carico encoder pretrainato da {ckpt_path} su {device}")
+        model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
+    else:
+        print(" Nessun modello pretrained specificato, pesi random.")
 
-    #     checkpoint = torch.load(ckpt_path, map_location=device)
 
-    #     # Se è un checkpoint Lightning
-    #     if "state_dict" in checkpoint:
-    #         checkpoint = checkpoint["state_dict"]
-
-    #     state = {}
-
-    #     # Aggiunge il prefisso 'biot.' se manca
-    #     for k, v in checkpoint.items():
-    #         if not k.startswith("biot."):
-    #             new_k = "biot." + k
-    #         else:
-    #             new_k = k
-    #         state[new_k] = v
-
-    #     model_dict = model.state_dict()
-
-    #     # Filtra solo layer compatibili
-    #     compatible_state = {k: v for k, v in state.items() if k in model_dict and v.shape == model_dict[k].shape}
-    #     missing = set(model_dict.keys()) - set(compatible_state.keys())
-
-    #     print(f"Caricati {len(compatible_state)} layer dai pretrained.")
-    #     if missing:
-    #         print(f" {len(missing)} layer inizializzati random (non trovati nel checkpoint).")
-
-    #     # Aggiorna il modello
-    #     model_dict.update(compatible_state)
-    #     model.load_state_dict(model_dict)
-    #     model.to(device)
-
-    #     print(" Modello caricato e spostato su GPU.")
-    # else:
-    #     print(" Nessun modello pretrained specificato, tutti i pesi saranno inizializzati random.")
     
-
-
 
     lightning_model = LitModel_finetune(config, model)
 
