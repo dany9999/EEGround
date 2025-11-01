@@ -214,8 +214,8 @@ if __name__ == "__main__":
     # Step 2️ - calcolo statistiche globali
     mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
 
-    mu = np.save("mu_train_finetuning_4s_18channel.npy")
-    sigma = np.save("sigma_train_finetuning_4s_18channel.npy")
+    mu = np.save("mu_train_finetuning_4s_18channel.npy", mu)
+    sigma = np.save("sigma_train_finetuning_4s_18channel.npy", sigma)
 
     # Loader
     loader_train = make_loader(train_patients, dataset_path, gt_path, config,

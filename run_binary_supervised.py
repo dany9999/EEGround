@@ -224,22 +224,25 @@ def prepare_CHB_MIT_dataloader(config):
 
                   
     # udersampoling
-    train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                           shuffle=True, balanced=True, neg_to_pos_ratio=5)
-    val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-                           shuffle=False, balanced=False)
-    test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-                           shuffle=False, balanced=False)
-
-    # mu = np.load("mu_train_finetuning_8s_18channel.npy")
-    # sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
-
     # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-    #                        shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
+    #                        shuffle=True, balanced=True, neg_to_pos_ratio=5)
     # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-    #                        shuffle=False, mu=mu, sigma=sigma)
+    #                        shuffle=False, balanced=False)
     # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-    #                        shuffle=False, mu=mu, sigma=sigma)
+    #                        shuffle=False, balanced=False)
+
+    #mu = np.load("mu_train_finetuning_8s_18channel.npy")
+    #sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
+
+    mu = np.load("mu_train_finetuning_4s_18channel.npy")
+    sigma = np.load("sigma_train_finetuning_4s_18channel.npy")
+
+    train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+                           shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
+    val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
+                           shuffle=False, mu=mu, sigma=sigma)
+    test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
+                           shuffle=False, mu=mu, sigma=sigma)
 
 
     return train_loader, test_loader, val_loader
