@@ -14,7 +14,7 @@ from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
 from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-
+import re
 
 
 
@@ -81,6 +81,39 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
             global_step_val += 1
     avg_loss = running_loss / len(dataloader)
     return avg_loss, global_step_val
+
+# save checkpoint function
+def save_both_full_and_encoder(model, save_dir, epoch):
+    """
+    Salva sia il checkpoint completo del modello di pretraining (UnsupervisedPretrain)
+    sia solo i pesi dell'encoder BIOTEMB, rinominati per il fine-tuning.
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    # --- 1 Salva il modello completo ---
+    full_ckpt = {
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+    }
+    full_path = os.path.join(save_dir, f"full_model_epoch_{epoch}.pt")
+    torch.save(full_ckpt, full_path)
+    print(f"[✔] Checkpoint completo salvato in {full_path}")
+
+    # --- 2️⃣ Estrai solo i pesi dell'encoder (BIOTEMB) ---
+    raw_state = model.state_dict()
+    encoder_state = {}
+    for k, v in raw_state.items():
+        key = k
+        if key.startswith("module."):
+            key = key[len("module."):]  # rimuove prefisso DataParallel
+        if key.startswith("encoder."):
+            key = re.sub(r"^encoder\.", "biot.", key)  # rinomina per BIOTClassifier
+            encoder_state[key] = v
+
+    encoder_path = os.path.join(save_dir, f"encoder_only_epoch_{epoch}.pt")
+    torch.save(encoder_state, encoder_path)
+    print(f" Encoder salvato in {encoder_path}")
+
 
 # ==== Main Training Loop ====
 
@@ -185,12 +218,11 @@ def train_model(config):
             epochs_without_improvement += 1
             print(f"No improvement for {epochs_without_improvement} epoch(s).")
 
-        if epochs_without_improvement >= config["early_stopping_patience"]:
-            print("Early stopping triggered.")
-            break
+
 
 
         if (epoch + 1) % config.get("save_every", 1) == 0:
+            # --- Salva checkpoint completo (come prima) ---
             save_path = os.path.join(log_dir, f"model_epoch_{epoch+1}.pt")
             torch.save({
                 'epoch': epoch + 1,
@@ -199,7 +231,14 @@ def train_model(config):
                 'global_step': global_step,
                 'global_step_val': global_step_val
             }, save_path)
-            print(f"Saved model checkpoint to {save_path}")
+            print(f"[✔] Checkpoint completo salvato in {save_path}")
+
+            # --- Salva anche encoder-only ---
+            save_both_full_and_encoder(model, log_dir, epoch + 1)
+        
+        if epochs_without_improvement >= config["early_stopping_patience"]:
+            print("Early stopping triggered.")
+            break
 
     writer.close()
 

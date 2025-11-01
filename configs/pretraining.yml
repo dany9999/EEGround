@@ -1,6 +1,6 @@
 
 
-epochs: 100
+epochs: 1
 batch_size: 256
 
 
@@ -19,7 +19,7 @@ hop_length: 125
 mask_ratio: 0.3
 
 early_stopping_patience: 10
-save_every: 5
+save_every: 1
 
 dataset_path: "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH"
 log_dir: ./logs/pretrain
