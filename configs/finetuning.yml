@@ -45,7 +45,7 @@ finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encode
 # =====================
 # DATASET PATHS
 # =====================
-dataset_path_4s: "../../Datasets/Bipolar/chb_mit/bipolar_data"
+dataset_path_4s: "../../Datasets/Bipolar/chb_mit/raw"
 dataset_path_8s: "../../Datasets/Bipolar/chb_mit/8sec"
 gt_path: "../../Datasets/chb_mit/GT"  # utile se la pipeline la richiede
 pretrain_model_path: "logs/pretrain/encoder_only_epoch_50.pt"
