@@ -300,14 +300,14 @@ def supervised(config):
         hop_length=config["hop_length"],
     )
 
-    # #  Carica i pesi pretrained se specificato
-    # if config.get("pretrain_model_path", ""):
-    #     ckpt_path = config["pretrain_model_path"]
-    #     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #     print(f"\n Carico encoder pretrainato da {ckpt_path} su {device}")
-    #     model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
-    # else:
-    #     print(" Nessun modello pretrained specificato, pesi random.")
+    #  Carica i pesi pretrained se specificato
+    if config.get("pretrain_model_path", ""):
+        ckpt_path = config["pretrain_model_path"]
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(f"\n Carico encoder pretrainato da {ckpt_path} su {device}")
+        model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
+    else:
+        print(" Nessun modello pretrained specificato, pesi random.")
 
 
     
