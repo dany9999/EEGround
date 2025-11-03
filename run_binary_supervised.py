@@ -306,6 +306,12 @@ def supervised(config):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print(f"\n Carico encoder pretrainato da {ckpt_path} su {device}")
         model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
+        
+        # --- Freeza l'encoder (prima modifica singola) ---
+        for name, param in model.named_parameters():
+            if name.startswith("biot."):
+                param.requires_grad = False
+        print(" Encoder congelato: alleno solo la testa di classificazione")
     else:
         print(" Nessun modello pretrained specificato, pesi random.")
 
@@ -407,10 +413,8 @@ if __name__ == "__main__":
 
 #     # Suggerisci iperparametri
 #     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
-#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
-#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
 #     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
-#     config["epochs"] = 100
+#     config["epochs"] = 50
 
 #     # Allena il modello e restituisci la metrica monitorata
 #     results = supervised(config)
