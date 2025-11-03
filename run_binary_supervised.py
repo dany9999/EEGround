@@ -308,10 +308,10 @@ def supervised(config):
         model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
         
         # --- Freeza l'encoder (prima modifica singola) ---
-        # for name, param in model.named_parameters():
-        #     if name.startswith("biot."):
-        #         param.requires_grad = False
-        # print(" Encoder congelato: alleno solo la testa di classificazione")
+        for name, param in model.named_parameters():
+            if name.startswith("biot."):
+                param.requires_grad = False
+        print(" Encoder congelato: alleno solo la testa di classificazione")
     else:
         print(" Nessun modello pretrained specificato, pesi random.")
 
@@ -345,9 +345,9 @@ def supervised(config):
         log_every_n_steps=49, 
     )
 
-    trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-    pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
-    print(pretrain_result)
+    # trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    # pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
+    # print(pretrain_result)
    
     trainer.fit(lightning_model, train_loader, val_loader)
     val_metrics = trainer.validate(model=lightning_model, dataloaders=val_loader, ckpt_path="best")[0]
