@@ -308,10 +308,10 @@ def supervised(config):
         model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
         
         # --- Freeza l'encoder (prima modifica singola) ---
-        for name, param in model.named_parameters():
-            if name.startswith("biot."):
-                param.requires_grad = False
-        print(" Encoder congelato: alleno solo la testa di classificazione")
+        # for name, param in model.named_parameters():
+        #     if name.startswith("biot."):
+        #         param.requires_grad = False
+        # print(" Encoder congelato: alleno solo la testa di classificazione")
     else:
         print(" Nessun modello pretrained specificato, pesi random.")
 

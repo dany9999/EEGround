@@ -3,7 +3,7 @@
 # =====================
 # TRAINING PARAMETERS
 # =====================
-epochs: 10
+epochs: 50
 batch_size: 128
 num_workers: 20
 early_stopping_patience: 15
