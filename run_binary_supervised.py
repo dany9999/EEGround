@@ -242,6 +242,26 @@ class LitModel_finetune(pl.LightningModule):
             weight_decay=float(self.config["weight_decay"]),
         )
         return [optimizer]
+    
+    def configure_optimizers(self):
+        
+        if self.config["finetune_mode"] == "full_finetune":
+          
+            encoder_params = [p for n, p in self.named_parameters() if "biot" in n]
+            head_params = [p for n, p in self.named_parameters() if "biot" not in n]
+
+            optimizer = torch.optim.Adam([
+                {"params": encoder_params, "lr": self.config["encoder_lr"]},
+                {"params": head_params, "lr": self.config["head_lr"]},
+            ], weight_decay=self.config["weight_decay"])
+        else:
+            optimizer = torch.optim.Adam(
+                self.parameters(),
+                lr=self.config["lr"],
+                weight_decay=self.config["weight_decay"],
+            )
+
+        return optimizer
 
 
 def predefined_split():
@@ -301,17 +321,20 @@ def supervised(config):
     )
 
     #  Carica i pesi pretrained se specificato
-    if config.get("pretrain_model_path", ""):
-        ckpt_path = config["pretrain_model_path"]
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        print(f"\n Carico encoder pretrainato da {ckpt_path} su {device}")
-        model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
-        
+    if config["finetune_mode"] == "full_finetune" or config["finetune_mode"] == "frozen_encoder":
+        if config.get("pretrain_model_path", ""):
+            ckpt_path = config["pretrain_model_path"]
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            print(f"\n Carico encoder pretrainato da {ckpt_path} su {device}")
+            model = load_pretrained_encoder_into_biot(model, ckpt_path, device)
+
+            
         # --- Freeza l'encoder (prima modifica singola) ---
-        # for name, param in model.named_parameters():
-        #     if name.startswith("biot."):
-        #         param.requires_grad = False
-        # print(" Encoder congelato: alleno solo la testa di classificazione")
+        if config["finetune_mode"] == "frozen_encoder":
+            for name, param in model.named_parameters():
+                if name.startswith("biot."):
+                    param.requires_grad = False
+            print(" Encoder congelato: alleno solo la testa di classificazione")
     else:
         print(" Nessun modello pretrained specificato, pesi random.")
 
