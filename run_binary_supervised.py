@@ -343,7 +343,8 @@ def supervised(config):
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-4s-pretrained"
+    #version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-4s-pretrained"
+    version = f"encLR{config['encoder_lr']:.1e}_headLR{config['head_lr']:.1e}"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
     early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
@@ -390,86 +391,59 @@ def supervised(config):
 
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)
+
+
+
+
+import optuna
+import pandas as pd
+import os
+
+def objective(trial):
+    # Carica config base
     config = load_config("configs/finetuning.yml")
-    supervised(config)
 
-# import optuna
+    # Suggerisci iperparametri
+    
+    config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-6, 1e-5)
+    config["head_lr"] = trial.suggest_loguniform("head_lr", 5e-5, 1e-3)
+    
+    config["epochs"] = 50
 
-# def objective(trial):
-#     # Carica config base
-#     config = load_config("configs/finetuning.yml")
+    # Allena il modello e restituisci la metrica monitorata
+    results = supervised(config)
+    return results["val_bacc"]
 
-#     # Suggerisci iperparametri
-#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
-#     config["focal_alpha"] = trial.suggest_uniform("focal_alpha", 0.2, 0.9)
-#     config["focal_gamma"] = trial.suggest_uniform("focal_gamma", 1.0, 5.0)
-#     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
-#     #config["threshold"] = trial.suggest_uniform("threshold", 0.1, 0.9)
+if __name__ == "__main__":
+    #  Usa storage persistente per poter riprendere dopo uno stop
+    storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
+    study_name = "finetuning_tuning_val_bacc"
 
-#     # Limita epoche per tuning veloce
-#     config["epochs"] = 100
+    study = optuna.create_study(
+        study_name=study_name,
+        direction="maximize",
+        storage=storage_name,
+        load_if_exists=True,
+    )
 
-#     # Allena e ottieni risultati
-#     results = supervised(config)  # deve ritornare i risultati
-#     return results["val_pr_auc"]  # metriche monitorate
+    #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
+    study.optimize(objective, n_trials=15)
 
-# if __name__ == "__main__":
-#     study = optuna.create_study(direction="maximize")
-#     study.optimize(objective, n_trials=10)
+    #  Stampa il risultato migliore
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
 
-#     print("Best trial:")
-#     trial = study.best_trial
-#     print(f"Value: {trial.value}")
-#     print("Params:")
-#     for k, v in trial.params.items():
-#         print(f"  {k}: {v}")
+    # Esporta risultati su CSV
+    df = study.trials_dataframe()
 
-
-# import optuna
-# import pandas as pd
-# import os
-
-# def objective(trial):
-#     # Carica config base
-#     config = load_config("configs/finetuning.yml")
-
-#     # Suggerisci iperparametri
-#     config["lr"] = trial.suggest_loguniform("lr", 1e-6, 1e-4)
-#     config["weight_decay"] = trial.suggest_loguniform("weight_decay", 1e-6, 1e-2)
-#     config["epochs"] = 50
-
-#     # Allena il modello e restituisci la metrica monitorata
-#     results = supervised(config)
-#     return results["val_bacc"]
-
-# if __name__ == "__main__":
-#     #  Usa storage persistente per poter riprendere dopo uno stop
-#     storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
-#     study_name = "finetuning_tuning_val_bacc"
-
-#     study = optuna.create_study(
-#         study_name=study_name,
-#         direction="maximize",
-#         storage=storage_name,
-#         load_if_exists=True,
-#     )
-
-#     #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
-#     study.optimize(objective, n_trials=15)
-
-#     #  Stampa il risultato migliore
-#     print("Best trial:")
-#     trial = study.best_trial
-#     print(f"  Value: {trial.value}")
-#     for k, v in trial.params.items():
-#         print(f"  {k}: {v}")
-
-#     # Esporta risultati su CSV
-#     df = study.trials_dataframe()
-
-#     # Crea cartella risultati se non esiste
-#     os.makedirs("results", exist_ok=True)
-#     output_path = f"results/{study_name}_results.csv"
-#     df.to_csv(output_path, index=False)
-#     print(f"\n Risultati salvati in {output_path}")
+    # Crea cartella risultati se non esiste
+    os.makedirs("results", exist_ok=True)
+    output_path = f"results/{study_name}_results.csv"
+    df.to_csv(output_path, index=False)
+    print(f"\n Risultati salvati in {output_path}")
