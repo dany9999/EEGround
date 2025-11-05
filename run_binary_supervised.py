@@ -203,8 +203,7 @@ class LitModel_finetune(pl.LightningModule):
             
             sensitivity = tp / (tp + fn + 1e-8)
             specificity = tn / (tn + fp + 1e-8)
-            sensitivity = tp / (tp + fn + 1e-8)
-            specificity = tn / (tn + fp + 1e-8)
+    
 
             results["sensitivity"] = sensitivity
             results["specificity"] = specificity
@@ -282,16 +281,6 @@ def prepare_CHB_MIT_dataloader(config):
     split = predefined_split()
 
                   
-    # udersampoling
-    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-    #                        shuffle=True, balanced=True, neg_to_pos_ratio=5)
-    # val_loader   = make_loader(split["val"], dataset_path, gt_path, config,
-    #                        shuffle=False, balanced=False)
-    # test_loader  = make_loader(split["test"], dataset_path, gt_path, config,
-    #                        shuffle=False, balanced=False)
-
-    #mu = np.load("mu_train_finetuning_8s_18channel.npy")
-    #sigma = np.load("sigma_train_finetuning_8s_18channel.npy")
 
     mu = np.load("mu_train_finetuning_4s_18channel_raw.npy")
     sigma = np.load("sigma_train_finetuning_4s_18channel_raw.npy")
@@ -367,9 +356,7 @@ def supervised(config):
         log_every_n_steps=49, 
     )
 
-    # trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-    # pretrain_result = trainer.test(model=lightning_model, dataloaders=test_loader, ckpt_path="best")[0]
-    # print(pretrain_result)
+  
    
     trainer.fit(lightning_model, train_loader, val_loader)
     val_metrics = trainer.validate(model=lightning_model, dataloaders=val_loader, ckpt_path="best")[0]
