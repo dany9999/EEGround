@@ -287,8 +287,7 @@ class LitModel_finetune(pl.LightningModule):
             mode='min',       # minimizza val_loss
             factor=0.5,       # riduce il LR del 50%
             patience=5,       # dopo 5 epoche senza miglioramenti
-            min_lr=1e-7,
-            verbose=True
+            min_lr=1e-7
         )
 
         # ===  Combina i due scheduler ===
