@@ -347,7 +347,7 @@ def supervised(config):
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-n"
+    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}"
     #version = f"encLR{config['encoder_lr']:.1e}_headLR{config['head_lr']:.1e}"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
