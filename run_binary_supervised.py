@@ -331,7 +331,7 @@ def supervised(config):
     lightning_model = LitModel_finetune(config, model)
 
     version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-frozen_encoder"
-    #version = f"encLR{config['encoder_lr']:.1e}_headLR{config['head_lr']:.1e}-frozen_encoder"
+    #version = f"encLR{config['encoder_lr']:.1e}_headLR{config['head_lr']:.1e}-full_finetune"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
     early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
