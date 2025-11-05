@@ -98,29 +98,29 @@ class BIOTEncoder(nn.Module):
             torch.LongTensor(range(n_channels)), requires_grad=False
         )
 
-    # def stft(self, sample):
-    #     spectral = torch.stft( 
-    #         input = sample.squeeze(1),
-    #         n_fft = self.n_fft,
-    #         hop_length = self.hop_length,
-    #         center = False,
-    #         onesided = True,
-    #         return_complex = True,
-    #     )
-    #     return torch.abs(spectral)
-    
     def stft(self, sample):
-        window = torch.hann_window(self.n_fft, device=sample.device)
-        spectral = torch.stft(
-            input=sample.squeeze(1),
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            window=window,
-            center=False,
-            onesided=True,
-            return_complex=True,
+        spectral = torch.stft( 
+            input = sample.squeeze(1),
+            n_fft = self.n_fft,
+            hop_length = self.hop_length,
+            center = False,
+            onesided = True,
+            return_complex = True,
         )
         return torch.abs(spectral)
+    
+    # def stft(self, sample):
+    #     window = torch.hann_window(self.n_fft, device=sample.device)
+    #     spectral = torch.stft(
+    #         input=sample.squeeze(1),
+    #         n_fft=self.n_fft,
+    #         hop_length=self.hop_length,
+    #         window=window,
+    #         center=False,
+    #         onesided=True,
+    #         return_complex=True,
+    #     )
+    #     return torch.abs(spectral)
 
     def forward(self, x, n_channel_offset=0, perturb=False):
         """
