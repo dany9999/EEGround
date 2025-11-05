@@ -19,7 +19,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
 from sklearn.metrics import confusion_matrix
-
+from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau, SequentialLR
 
 
 # se CHBMITLoader è nella cartella padre
@@ -235,33 +235,76 @@ class LitModel_finetune(pl.LightningModule):
 
     
 
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(
+    #         self.model.parameters(),
+    #         lr=self.config["lr"],
+    #         weight_decay=float(self.config["weight_decay"]),
+    #     )
+    #     return [optimizer]
+    
+    # def configure_optimizers(self):
+        
+    #     if self.config["finetune_mode"] == "full_finetune":
+          
+    #         encoder_params = [p for n, p in self.named_parameters() if "biot" in n]
+    #         head_params = [p for n, p in self.named_parameters() if "biot" not in n]
+
+    #         optimizer = torch.optim.Adam([
+    #             {"params": encoder_params, "lr": self.config["encoder_lr"]},
+    #             {"params": head_params, "lr": self.config["head_lr"]},
+    #         ], weight_decay=float(self.config["weight_decay"]))
+    #     else:
+    #         optimizer = torch.optim.Adam(
+    #             self.parameters(),
+    #             lr=self.config["lr"],
+    #             weight_decay=float(self.config["weight_decay"]),
+    #         )
+
+    #     return optimizer
+    
+
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=self.config["lr"],
+            self.parameters(),
+            lr=self.config["lr"],  # learning rate massimo
             weight_decay=float(self.config["weight_decay"]),
         )
-        return [optimizer]
-    
-    def configure_optimizers(self):
-        
-        if self.config["finetune_mode"] == "full_finetune":
-          
-            encoder_params = [p for n, p in self.named_parameters() if "biot" in n]
-            head_params = [p for n, p in self.named_parameters() if "biot" not in n]
 
-            optimizer = torch.optim.Adam([
-                {"params": encoder_params, "lr": self.config["encoder_lr"]},
-                {"params": head_params, "lr": self.config["head_lr"]},
-            ], weight_decay=float(self.config["weight_decay"]))
-        else:
-            optimizer = torch.optim.Adam(
-                self.parameters(),
-                lr=self.config["lr"],
-                weight_decay=float(self.config["weight_decay"]),
-            )
+        # Numero di epoche per il warmup (10% del totale, minimo 1)
+        warmup_epochs = max(1, int(0.1 * self.config["epochs"]))
 
-        return optimizer
+        # === Warmup lineare ===
+        warmup_scheduler = LambdaLR(
+            optimizer,
+            lr_lambda=lambda epoch: float(epoch + 1) / float(warmup_epochs)
+        )
+
+        # ===  ReduceLROnPlateau ===
+        plateau_scheduler = ReduceLROnPlateau(
+            optimizer,
+            mode='min',       # minimizza val_loss
+            factor=0.5,       # riduce il LR del 50%
+            patience=5,       # dopo 5 epoche senza miglioramenti
+            min_lr=1e-7,
+            verbose=True
+        )
+
+        # ===  Combina i due scheduler ===
+        scheduler = {
+            "scheduler": SequentialLR(
+                optimizer,
+                schedulers=[warmup_scheduler, plateau_scheduler],
+                milestones=[warmup_epochs],
+            ),
+            "monitor": "val_loss",  # metrica monitorata
+            "interval": "epoch",
+            "frequency": 1,
+            "name": "warmup_then_plateau"
+        }
+
+        return [optimizer], [scheduler]
 
 
 def predefined_split():
