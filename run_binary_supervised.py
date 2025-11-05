@@ -268,39 +268,21 @@ class LitModel_finetune(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=self.config["lr"],  # learning rate massimo
+            lr=self.config["lr"],
             weight_decay=float(self.config["weight_decay"]),
         )
 
-        # Numero di epoche per il warmup (10% del totale, minimo 1)
-        warmup_epochs = max(1, int(0.1 * self.config["epochs"]))
-
-        # === Warmup lineare ===
-        warmup_scheduler = LambdaLR(
-            optimizer,
-            lr_lambda=lambda epoch: float(epoch + 1) / float(warmup_epochs)
-        )
-
-        # ===  ReduceLROnPlateau ===
-        plateau_scheduler = ReduceLROnPlateau(
-            optimizer,
-            mode='min',       # minimizza val_loss
-            factor=0.5,       # riduce il LR del 50%
-            patience=5,       # dopo 5 epoche senza miglioramenti
-            min_lr=1e-7
-        )
-
-        # ===  Combina i due scheduler ===
         scheduler = {
-            "scheduler": SequentialLR(
+            "scheduler": torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
-                schedulers=[warmup_scheduler, plateau_scheduler],
-                milestones=[warmup_epochs],
+                max_lr=self.config["lr"],
+                total_steps=self.trainer.estimated_stepping_batches,
+                pct_start=0.3,      # 30% warmup
+                anneal_strategy="linear",
+                final_div_factor=1e4
             ),
-            "monitor": "val_loss",  # metrica monitorata
-            "interval": "epoch",
-            "frequency": 1,
-            "name": "warmup_then_plateau"
+            "interval": "step",     # aggiorna ad ogni batch
+            "name": "one_cycle"
         }
 
         return [optimizer], [scheduler]
