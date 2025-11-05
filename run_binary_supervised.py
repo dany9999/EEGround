@@ -235,33 +235,27 @@ class LitModel_finetune(pl.LightningModule):
 
     
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=self.config["lr"],
-            weight_decay=float(self.config["weight_decay"]),
-        )
-        return [optimizer]
+
     
-    # def configure_optimizers(self):
+    def configure_optimizers(self):
         
-    #     if self.config["finetune_mode"] == "full_finetune":
+        if self.config["finetune_mode"] == "full_finetune":
           
-    #         encoder_params = [p for n, p in self.named_parameters() if "biot" in n]
-    #         head_params = [p for n, p in self.named_parameters() if "biot" not in n]
+            encoder_params = [p for n, p in self.named_parameters() if "biot" in n]
+            head_params = [p for n, p in self.named_parameters() if "biot" not in n]
 
-    #         optimizer = torch.optim.Adam([
-    #             {"params": encoder_params, "lr": self.config["encoder_lr"]},
-    #             {"params": head_params, "lr": self.config["head_lr"]},
-    #         ], weight_decay=float(self.config["weight_decay"]))
-    #     else:
-    #         optimizer = torch.optim.Adam(
-    #             self.parameters(),
-    #             lr=self.config["lr"],
-    #             weight_decay=float(self.config["weight_decay"]),
-    #         )
+            optimizer = torch.optim.Adam([
+                {"params": encoder_params, "lr": self.config["encoder_lr"]},
+                {"params": head_params, "lr": self.config["head_lr"]},
+            ], weight_decay=float(self.config["weight_decay"]))
+        else:
+            optimizer = torch.optim.Adam(
+                self.parameters(),
+                lr=self.config["lr"],
+                weight_decay=float(self.config["weight_decay"]),
+            )
 
-    #     return optimizer
+        return optimizer
     
 
 
@@ -347,7 +341,7 @@ def supervised(config):
 
     lightning_model = LitModel_finetune(config, model)
 
-    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}"
+    version = f"lr{config['lr']}-channels{config['n_channels']}-nfft{config['n_fft']}-hop{config['hop_length']}-n"
     #version = f"encLR{config['encoder_lr']:.1e}_headLR{config['head_lr']:.1e}"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
