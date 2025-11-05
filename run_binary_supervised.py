@@ -235,13 +235,13 @@ class LitModel_finetune(pl.LightningModule):
 
     
 
-    # def configure_optimizers(self):
-    #     optimizer = torch.optim.Adam(
-    #         self.model.parameters(),
-    #         lr=self.config["lr"],
-    #         weight_decay=float(self.config["weight_decay"]),
-    #     )
-    #     return [optimizer]
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(
+            self.model.parameters(),
+            lr=self.config["lr"],
+            weight_decay=float(self.config["weight_decay"]),
+        )
+        return [optimizer]
     
     # def configure_optimizers(self):
         
@@ -265,27 +265,7 @@ class LitModel_finetune(pl.LightningModule):
     
 
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.config["lr"],
-            weight_decay=float(self.config["weight_decay"]),
-        )
 
-        scheduler = {
-            "scheduler": torch.optim.lr_scheduler.OneCycleLR(
-                optimizer,
-                max_lr=self.config["lr"],
-                total_steps=self.trainer.estimated_stepping_batches,
-                pct_start=0.3,      # 30% warmup
-                anneal_strategy="linear",
-                final_div_factor=1e4
-            ),
-            "interval": "step",     # aggiorna ad ogni batch
-            "name": "one_cycle"
-        }
-
-        return [optimizer], [scheduler]
 
 
 def predefined_split():
