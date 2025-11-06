@@ -84,7 +84,7 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
     return avg_loss, global_step_val
 
 # save checkpoint function
-def save_both_full_and_encoder(model, save_dir, epoch):
+def save_best_model(model, save_dir, epoch):
     """
     Salva sia il checkpoint completo del modello di pretraining (UnsupervisedPretrain)
     sia solo i pesi dell'encoder BIOTEMB, rinominati per il fine-tuning.
@@ -97,9 +97,9 @@ def save_both_full_and_encoder(model, save_dir, epoch):
         "epoch": epoch,
         "model_state_dict": model.state_dict(),
     }
-    full_path = os.path.join(save_dir, f"full_model_epoch_{epoch}.pt")
+    full_path = os.path.join(save_dir, f"best_full_model.pt")
     torch.save(full_ckpt, full_path)
-    print(f" Checkpoint completo salvato in {full_path}")
+    print(f" Miglior model_state_dict salvato in {full_path}")
 
     # --- Estrai solo i pesi dell'encoder (BIOTEMB) ---
     raw_state = model.state_dict()
@@ -114,8 +114,9 @@ def save_both_full_and_encoder(model, save_dir, epoch):
         if key.startswith("biot."):
             encoder_state[key] = v
 
-    encoder_path = os.path.join(save_dir, f"encoder_only_epoch_{epoch}.pt")
+    encoder_path = os.path.join(save_dir, f"best_encoder_only.pt")
     torch.save(encoder_state, encoder_path)
+    
     print(f" Encoder salvato in {encoder_path} ({len(encoder_state)} layer)")
 
 
@@ -187,7 +188,7 @@ def train_model(config):
     best_val_loss = float('inf')
     epochs_without_improvement = 0
 
-    checkpoints = sorted(glob(os.path.join(log_dir, "model_epoch_*.pt")))
+    checkpoints = sorted(glob(os.path.join(log_dir, "checkpoint_epoch_*.pt")))
     if checkpoints:
         latest_ckpt = checkpoints[-1]
         print(f"Loading checkpoint: {latest_ckpt}")
@@ -215,27 +216,35 @@ def train_model(config):
         train_loss = sum(train_losses) / len(train_losses) 
         val_loss = sum(val_losses) / len(val_losses) 
 
+        #scheduler.step(val_loss)
+        scheduler.step()
+
+        
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
         writer.add_scalar("Loss/Train", train_loss, epoch + 1)
         writer.add_scalar("Loss/Val", val_loss, epoch + 1)
         writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch + 1)
 
-        #scheduler.step(val_loss)
-        scheduler.step()
 
+
+   
         if val_loss < best_val_loss:
+            print(f" New best val_loss: {val_loss:.4f} (prev {best_val_loss:.4f})")
             best_val_loss = val_loss
             epochs_without_improvement = 0
+
+            # Salva best full model e encoder separatamente
+            save_best_model(model, log_dir, epoch + 1)
+            print(f" Best model saved at epoch {epoch+1}")
+
         else:
             epochs_without_improvement += 1
             print(f"No improvement for {epochs_without_improvement} epoch(s).")
 
 
-
-
-        if (epoch + 1) % config.get("save_every", 1) == 0:
-            # --- Salva checkpoint completo (come prima) ---
-            save_path = os.path.join(log_dir, f"model_epoch_{epoch+1}.pt")
+        if (epoch + 1) % config.get("save_every", 10) == 0:
+            # Salva solo il modello completo (per ripristino training)
+            save_path = os.path.join(log_dir, f"checkpoint_epoch_{epoch+1}.pt")
             torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
@@ -243,10 +252,7 @@ def train_model(config):
                 'global_step': global_step,
                 'global_step_val': global_step_val
             }, save_path)
-            print(f"[✔] Checkpoint completo salvato in {save_path}")
-
-            # --- Salva anche encoder-only ---
-            save_both_full_and_encoder(model, log_dir, epoch + 1)
+            print(f" Checkpoint (solo full model) salvato in {save_path}")
         
         if epochs_without_improvement >= config["early_stopping_patience"]:
             print("Early stopping triggered.")
