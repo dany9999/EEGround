@@ -3,7 +3,7 @@
 # =====================
 # TRAINING PARAMETERS
 # =====================
-epochs: 1
+epochs: 100
 batch_size: 128
 num_workers: 20
 early_stopping_patience: 10
@@ -43,7 +43,7 @@ threshold: 0.5
 # =====================
 # FINETUNING SETTINGS
 # =====================
-finetune_mode: "frozen_encoder"  # "from_scratch", "full_finetune", "frozen_encoder"
+finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
 
 
 # =====================
