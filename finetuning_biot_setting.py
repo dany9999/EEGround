@@ -377,20 +377,7 @@ def supervised(config, run_id=1):
 
 
 
-if __name__ == "__main__":
-    config = load_config("configs/finetuning.yml")
 
-    # === RUN 1 ===
-    val1, test1 = supervised(config, run_id=1)
-
-    # === RUN 2 ===
-    val2, test2 = supervised(config, run_id=2)
-
-    print("\n===  RISULTATI FINALI ===")
-    print("RUN 1 - Val:", val1)
-    print("RUN 1 - Test:", test1)
-    print("RUN 2 - Val:", val2)
-    print("RUN 2 - Test:", test2)
 
 
 
