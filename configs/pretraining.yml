@@ -4,8 +4,8 @@ epochs: 100
 batch_size: 256
 
 
-lr: 0.001
-weight_decay: 1e-5
+lr: 0.0005
+weight_decay: 1e-4
 
 num_workers: 24
 

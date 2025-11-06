@@ -14,6 +14,7 @@ from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
 from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 import re
 
 
@@ -98,7 +99,7 @@ def save_both_full_and_encoder(model, save_dir, epoch):
     }
     full_path = os.path.join(save_dir, f"full_model_epoch_{epoch}.pt")
     torch.save(full_ckpt, full_path)
-    print(f"[✔] Checkpoint completo salvato in {full_path}")
+    print(f" Checkpoint completo salvato in {full_path}")
 
     # --- Estrai solo i pesi dell'encoder (BIOTEMB) ---
     raw_state = model.state_dict()
@@ -170,7 +171,13 @@ def train_model(config):
     
 
     optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
+    #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
+    scheduler = CosineAnnealingWarmRestarts(
+    optimizer,
+    T_0=10,      # 10 epoche per il primo ciclo
+    T_mult=2,    # ogni volta raddoppia la lunghezza del ciclo
+    eta_min=1e-6
+)
     writer = SummaryWriter(log_dir=log_dir)
     mean_std_loader = MeanStdLoader()
 
@@ -211,8 +218,10 @@ def train_model(config):
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
         writer.add_scalar("Loss/Train", train_loss, epoch + 1)
         writer.add_scalar("Loss/Val", val_loss, epoch + 1)
+        writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch + 1)
 
-        scheduler.step(val_loss)
+        #scheduler.step(val_loss)
+        scheduler.step()
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
