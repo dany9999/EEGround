@@ -3,10 +3,10 @@
 # =====================
 # TRAINING PARAMETERS
 # =====================
-epochs: 100
+epochs: 1
 batch_size: 128
 num_workers: 20
-early_stopping_patience: 15
+early_stopping_patience: 10
 save_every: 10
 resume: false  # può essere true per riprendere da checkpoint
 
@@ -43,7 +43,7 @@ threshold: 0.5
 # =====================
 # FINETUNING SETTINGS
 # =====================
-finetune_mode: "full_finetune"  # "from_scratch", "full_finetune", "frozen_encoder"
+finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
 
 
 # =====================
