@@ -301,9 +301,15 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
     torch.cuda.manual_seed_all(42)
     split = predefined_split(run_id)
 
-    tmp_loader = make_loader(split["train"], dataset_path, gt_path, config, shuffle=False, balanced=False)
-    # Calcolo statistiche globali
-    mu, sigma = compute_global_channel_stats(tmp_loader, n_channels=config["n_channels"])
+
+
+    if run_id == 1:
+        mu = np.load("mu_train_finetuning_4s_run1.npy")
+        sigma = np.load("sigma_train_finetuning_4s_run1.npy")
+    else:
+        mu = np.load("mu_train_finetuning_4s_run2.npy")
+        sigma = np.load("sigma_train_finetuning_4s_run2.npy")
+    
 
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,

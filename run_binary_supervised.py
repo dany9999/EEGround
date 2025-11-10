@@ -113,7 +113,7 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
-            self.threshold = np.sort(result)[-int(np.sum(gt))]
+           # self.threshold = np.sort(result)[-int(np.sum(gt))]
 
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
@@ -264,9 +264,13 @@ class LitModel_finetune(pl.LightningModule):
 def predefined_split():
 
 
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
-    val_patients   = [f"chb{str(i).zfill(2)}" for i in range(20, 22)]
-    test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    # train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
+    # val_patients   = [f"chb{str(i).zfill(2)}" for i in range(10, 20)]
+    # test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 18)] + ["chb20", "chb21"]
+    val_patients   = ["chb18", "chb19"]
+    test_patients  = ["chb22", "chb23"]
     return {"train": train_patients, "val": val_patients, "test": test_patients}
 
 
@@ -282,8 +286,8 @@ def prepare_CHB_MIT_dataloader(config):
 
                   
 
-    mu = np.load("mu_train_finetuning_4s_18channel_raw.npy")
-    sigma = np.load("sigma_train_finetuning_4s_18channel_raw.npy")
+    mu = np.load("mu_train_finetuning_4s_run1.npy")
+    sigma = np.load("sigma_train_finetuning_4s_run1.npy")
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                            shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
@@ -376,59 +380,60 @@ def supervised(config):
 
 
 
-if __name__ == "__main__":
-    config = load_config("configs/finetuning.yml")
-    supervised(config)
-
-
-
-
-# import optuna
-# import pandas as pd
-# import os
-
-# def objective(trial):
-#     # Carica config base
-#     config = load_config("configs/finetuning.yml")
-
-#     # Suggerisci iperparametri
-    
-#     config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-6, 1e-5)
-#     config["head_lr"] = trial.suggest_loguniform("head_lr", 5e-5, 1e-3)
-    
-#     config["epochs"] = 50
-
-#     # Allena il modello e restituisci la metrica monitorata
-#     results = supervised(config)
-#     return results["val_bacc"]
-
 # if __name__ == "__main__":
-#     #  Usa storage persistente per poter riprendere dopo uno stop
-#     storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
-#     study_name = "finetuning_tuning_val_bacc"
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)
 
-#     study = optuna.create_study(
-#         study_name=study_name,
-#         direction="maximize",
-#         storage=storage_name,
-#         load_if_exists=True,
-#     )
 
-#     #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
-#     study.optimize(objective, n_trials=15)
 
-#     #  Stampa il risultato migliore
-#     print("Best trial:")
-#     trial = study.best_trial
-#     print(f"  Value: {trial.value}")
-#     for k, v in trial.params.items():
-#         print(f"  {k}: {v}")
 
-#     # Esporta risultati su CSV
-#     df = study.trials_dataframe()
+import optuna
+import pandas as pd
+import os
 
-#     # Crea cartella risultati se non esiste
-#     os.makedirs("results", exist_ok=True)
-#     output_path = f"results/{study_name}_results.csv"
-#     df.to_csv(output_path, index=False)
-#     print(f"\n Risultati salvati in {output_path}")
+def objective(trial):
+    # Carica config base
+    config = load_config("configs/finetuning.yml")
+
+    # Suggerisci iperparametri
+    
+    config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-6, 1e-5)
+    config["head_lr"] = trial.suggest_loguniform("head_lr", 5e-5, 1e-3)
+    config["threshold"] = trial.suggest_uniform("threshold", 0.3, 0.7)
+    
+    config["epochs"] = 50
+
+    # Allena il modello e restituisci la metrica monitorata
+    results = supervised(config)
+    return results["val_bacc"]
+
+if __name__ == "__main__":
+    #  Usa storage persistente per poter riprendere dopo uno stop
+    storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
+    study_name = "finetuning_tuning_val_bacc"
+
+    study = optuna.create_study(
+        study_name=study_name,
+        direction="maximize",
+        storage=storage_name,
+        load_if_exists=True,
+    )
+
+    #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
+    study.optimize(objective, n_trials=15)
+
+    #  Stampa il risultato migliore
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
+
+    # Esporta risultati su CSV
+    df = study.trials_dataframe()
+
+    # Crea cartella risultati se non esiste
+    os.makedirs("results", exist_ok=True)
+    output_path = f"results/{study_name}_results.csv"
+    df.to_csv(output_path, index=False)
+    print(f"\n Risultati salvati in {output_path}")
