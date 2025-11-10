@@ -37,13 +37,13 @@ hop_length: 125
 criterion_name: "focal"   # "bce" o "focal"
 focal_alpha: 0.25
 focal_gamma: 1.7
-threshold: 0.5
+threshold: 0.3
 
 
 # =====================
 # FINETUNING SETTINGS
 # =====================
-finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
+finetune_mode: "full_finetune"  # "from_scratch", "full_finetune", "frozen_encoder"
 
 
 # =====================
