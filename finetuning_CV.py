@@ -3,7 +3,7 @@ import argparse
 import pickle
 import sys
 import random
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
 import re
 import torch.nn as nn
@@ -192,7 +192,8 @@ def run_fold(config, fold_idx, train_patients, val_patients, test_patients):
 
     trainer = pl.Trainer(
         accelerator="gpu",
-        devices=1,
+        devices=2,
+        strategy="ddp",
         max_epochs=config["epochs"],
         logger=logger,
         callbacks=[ckpt, early_stop],
