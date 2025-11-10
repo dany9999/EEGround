@@ -397,8 +397,8 @@ def objective(trial):
 
     # Suggerisci iperparametri
     
-    config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-6, 1e-5)
-    config["head_lr"] = trial.suggest_loguniform("head_lr", 5e-5, 1e-3)
+    config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-7, 1e-5)
+    config["head_lr"] = trial.suggest_loguniform("head_lr", 1e-5, 1e-3)
     config["threshold"] = trial.suggest_uniform("threshold", 0.3, 0.7)
     
     config["epochs"] = 50
