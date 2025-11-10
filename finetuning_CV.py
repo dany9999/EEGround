@@ -187,8 +187,8 @@ def run_fold(config, fold_idx, train_patients, val_patients, test_patients):
     lightning_model = LitModel_finetune(config, model)
 
     logger = TensorBoardLogger(save_dir="./", name="cv4fold_logs", version=f"fold{fold_idx+1}")
-    ckpt = ModelCheckpoint(monitor="val_bacc", mode="max", save_top_k=1, filename="best-model")
-    early_stop = EarlyStopping(monitor="val_bacc", mode="max", patience=config["early_stopping_patience"])
+    ckpt = ModelCheckpoint(monitor="val_balanced_accuracy", mode="max", save_top_k=1, filename="best-model")
+    early_stop = EarlyStopping(monitor="val_balanced_accuracy", mode="max", patience=config["early_stopping_patience"])
 
     trainer = pl.Trainer(
         accelerator="gpu",
