@@ -16,7 +16,7 @@ resume: false  # può essere true per riprendere da checkpoint
 lr: 0.00005         # learning rate iniziale
 
 encoder_lr: 0.000001086  # learning rate per l'encoder se si fa full finetuning
-head_lr: 0.000768      # learning rate per la testa di classificazione
+head_lr: 0.00001      # learning rate per la testa di classificazione
 
 weight_decay: 1e-6
 
@@ -35,9 +35,9 @@ hop_length: 125
 # LOSS FUNCTION
 # =====================
 criterion_name: "focal"   # "bce" o "focal"
-focal_alpha: 0.25
-focal_gamma: 1.7
-threshold: 0.3
+focal_alpha: 0.75
+focal_gamma: 2.0
+threshold: 0.4
 
 
 # =====================
