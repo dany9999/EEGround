@@ -37,7 +37,7 @@ hop_length: 125
 criterion_name: "focal"   # "bce" o "focal"
 focal_alpha: 0.75
 focal_gamma: 2.0
-threshold: 0.4
+threshold: 0.3
 
 
 # =====================
