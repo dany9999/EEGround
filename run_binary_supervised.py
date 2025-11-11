@@ -113,7 +113,7 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
-           # self.threshold = np.sort(result)[-int(np.sum(gt))]
+            self.threshold = np.sort(result)[-int(np.sum(gt))]
 
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
@@ -399,7 +399,7 @@ def objective(trial):
     
     config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-7, 1e-5)
     config["head_lr"] = trial.suggest_loguniform("head_lr", 1e-5, 1e-3)
-    config["threshold"] = trial.suggest_uniform("threshold", 0.3, 0.7)
+    
     
     config["epochs"] = 50
 
