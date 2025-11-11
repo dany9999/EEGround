@@ -115,7 +115,7 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
-            #self.threshold = np.sort(result)[-int(np.sum(gt))]
+            self.threshold = np.sort(result)[-int(np.sum(gt))]
 
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
@@ -355,7 +355,7 @@ def supervised(config, run_id=1):
     #version = f"encLR{config['encoder_lr']:.1e}_headLR{config['head_lr']:.1e}-full_finetune"
     logger = TensorBoardLogger(save_dir="./", version=version, name=config["log_dir"])
 
-    early_stop_callback = EarlyStopping(monitor="val_loss", patience=config["early_stopping_patience"], verbose=False, mode="min")
+    early_stop_callback = EarlyStopping(monitor="val_bacc", patience=config["early_stopping_patience"], verbose=False, mode="max")
     checkpoint_callback = ModelCheckpoint(
         monitor="val_bacc",
         mode="max",
