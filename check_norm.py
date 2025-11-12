@@ -1,91 +1,75 @@
-import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-# === CONFIG ===
-# Cartella base del pretrain
-BASE_DIR = "/home/inbit/Scrivania/Datasets/Bipolar/TUH/Dataset_bipolar_TUH"
-# Cartella corrente = dove hai le medie del finetuning
-CURRENT_DIR = os.getcwd()
+# === Percorsi statici ===
+pretrain_paths = {
+    "TUAB_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/LE",
+    "TUAB_Normal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Normal/LE",
+    "TUEP_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEP/Abnormal/LE",
+    "TUEP_Normal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEP/Normal/LE",
+    "TUSZ_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUSZ/Abnormal/LE",
+    "TUEV_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEV/Abnormal/LE",
+}
 
-# === 1️⃣ Scansione del pretrain ===
+# === Percorsi finetuning ===
+finetune_paths = {
+    "FINETUNE_run1": "mu_train_finetuning_4s_run1.npy",
+    "FINETUNE_run2": "mu_train_finetuning_4s_run2.npy",
+}
+finetune_sigmas = {
+    "FINETUNE_run1": "sigma_train_finetuning_4s_run1.npy",
+    "FINETUNE_run2": "sigma_train_finetuning_4s_run2.npy",
+}
+
+
+def load_stats(name, mean_path, std_path):
+    try:
+        mu = np.load(mean_path).squeeze()
+        sigma = np.load(std_path).squeeze()
+        if mu.ndim != 1 or sigma.ndim != 1:
+            print(f"⚠️ Forma non 1D in {name}: {mu.shape}, {sigma.shape}")
+        return name, mu, sigma
+    except Exception as e:
+        print(f"❌ Errore caricando {name}: {e}")
+        return None
+
+
 stats = []
 
-for root, dirs, files in os.walk(BASE_DIR):
-    if "mean.npy" in files and "standard_deviation.npy" in files:
-        mu_path = os.path.join(root, "mean.npy")
-        sigma_path = os.path.join(root, "standard_deviation.npy")
+# --- Pretrain ---
+for name, path in pretrain_paths.items():
+    mean_path = f"{path}/mean.npy"
+    std_path = f"{path}/standard_deviation.npy"
+    s = load_stats(name, mean_path, std_path)
+    if s:
+        stats.append(s)
 
-        mu = np.load(mu_path)
-        sigma = np.load(sigma_path)
+# --- Finetune ---
+for name, mu_path in finetune_paths.items():
+    if name in finetune_sigmas:
+        sigma_path = finetune_sigmas[name]
+        s = load_stats(name, mu_path, sigma_path)
+        if s:
+            stats.append(s)
 
-        stats.append({
-            "source": root.replace(BASE_DIR + "/", ""),
-            "mu": mu,
-            "sigma": sigma
-        })
+# --- Riepilogo ---
+print("\n=== RIEPILOGO ===")
+for name, mu, sigma in stats:
+    print(f"{name:<25} | μ_mean={np.mean(mu):>7.3f} | σ_mean={np.mean(sigma):>7.3f}")
 
-if not stats:
-    print("❌ Nessun file mean/std trovato nel dataset TUH!")
-    exit()
-
-print(f"✅ Trovati {len(stats)} sottodataset TUH con mean/std.\n")
-
-# === 2️⃣ Aggiunge le statistiche del finetuning ===
-finetune_stats = []
-for file in os.listdir(CURRENT_DIR):
-    if file.startswith("mu_train_finetuning") and file.endswith(".npy"):
-        run_id = file.split("_")[-1].replace(".npy", "")
-        sigma_file = f"sigma_train_finetuning_{run_id}.npy"
-        sigma_path = os.path.join(CURRENT_DIR, sigma_file)
-        if os.path.exists(sigma_path):
-            mu = np.load(os.path.join(CURRENT_DIR, file))
-            sigma = np.load(sigma_path)
-            finetune_stats.append({
-                "source": f"FINETUNE_{run_id}",
-                "mu": mu,
-                "sigma": sigma
-            })
-
-if finetune_stats:
-    stats += finetune_stats
-    print(f"✅ Aggiunti {len(finetune_stats)} set di finetuning locali.\n")
-else:
-    print("⚠️ Nessun file finetuning trovato nella cartella corrente.\n")
-
-# === 3️⃣ Stampa riepilogo numerico ===
-print("=== RIEPILOGO MEDIE GLOBALI ===")
-for s in stats:
-    print(f"{s['source']:<50} | μ_mean={np.mean(s['mu']):>7.3f} | σ_mean={np.mean(s['sigma']):>7.3f}")
-
-# === 4️⃣ Plot comparativo ===
+# --- Plot comparativo ---
 plt.figure(figsize=(12, 5))
-for s in stats:
-    plt.plot(s["mu"], label=f"{s['source']} μ")
+for name, mu, _ in stats:
+    plt.plot(mu, label=f"{name} μ")
 plt.title("Media per canale (μ)")
-plt.xlabel("Canale")
 plt.legend(fontsize=8)
 plt.tight_layout()
 plt.show()
 
 plt.figure(figsize=(12, 5))
-for s in stats:
-    plt.plot(s["sigma"], label=f"{s['source']} σ")
+for name, _, sigma in stats:
+    plt.plot(sigma, label=f"{name} σ")
 plt.title("Deviazione standard per canale (σ)")
-plt.xlabel("Canale")
 plt.legend(fontsize=8)
 plt.tight_layout()
 plt.show()
-
-# === 5️⃣ Analisi comparativa (solo se c'è finetune) ===
-if finetune_stats:
-    mu_ft = finetune_stats[0]["mu"]
-    sigma_ft = finetune_stats[0]["sigma"]
-
-    print("\n=== CONFRONTO CON FINETUNE ===")
-    for s in stats:
-        if "FINETUNE" in s["source"]:
-            continue
-        ratio = sigma_ft / s["sigma"]
-        shift = (mu_ft - s["mu"]) / s["sigma"]
-        print(f"{s['source']:<50} | mean ratio σ_ft/σ_pre = {np.mean(ratio):.3f} ± {np.std(ratio):.3f} | mean shift (μ_ft-μ_pre)/σ_pre = {np.mean(np.abs(shift)):.3f}")
