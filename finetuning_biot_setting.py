@@ -67,7 +67,7 @@ def load_pretrained_encoder_into_biot(model, ckpt_path, device="cpu"):
 
     return model
 
-def find_best_threshold(gt, probs, mode="f1"):
+def find_best_threshold(gt, probs, mode="f2"):
     """
     Trova la soglia ottimale in base a:
       - 'youden' → massimizza (TPR - FPR)
@@ -144,7 +144,7 @@ class LitModel_finetune(pl.LightningModule):
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
             #self.threshold = np.sort(result)[-int(np.sum(gt))]
-            self.threshold, score = find_best_threshold(gt, result, mode="f1")
+            self.threshold, score = find_best_threshold(gt, result, mode="f2")
             print(f"  [YOUDEN] Soglia ottimale trovata: {self.threshold:.4f} (score={score:.4f})")
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
