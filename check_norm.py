@@ -57,19 +57,3 @@ print("\n=== RIEPILOGO ===")
 for name, mu, sigma in stats:
     print(f"{name:<25} | μ_mean={np.mean(mu):>7.3f} | σ_mean={np.mean(sigma):>7.3f}")
 
-# --- Plot comparativo ---
-plt.figure(figsize=(12, 5))
-for name, mu, _ in stats:
-    plt.plot(mu, label=f"{name} μ")
-plt.title("Media per canale (μ)")
-plt.legend(fontsize=8)
-plt.tight_layout()
-plt.show()
-
-plt.figure(figsize=(12, 5))
-for name, _, sigma in stats:
-    plt.plot(sigma, label=f"{name} σ")
-plt.title("Deviazione standard per canale (σ)")
-plt.legend(fontsize=8)
-plt.tight_layout()
-plt.show()
