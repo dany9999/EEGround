@@ -22,7 +22,7 @@ from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, load_config
 from sklearn.metrics import confusion_matrix
 from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau, SequentialLR
-
+from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix
 
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -67,7 +67,35 @@ def load_pretrained_encoder_into_biot(model, ckpt_path, device="cpu"):
 
     return model
 
+def find_best_threshold(gt, probs, mode="youden"):
+    """
+    Trova la soglia ottimale in base a:
+      - 'youden' → massimizza (TPR - FPR)
+      - 'f1' → massimizza F1
+      - 'f2' → massimizza F2 (più sensibile al recall)
+    """
+    gt = np.array(gt).astype(int)
+    probs = np.array(probs).flatten()
 
+    if np.sum(gt) == 0 or np.sum(gt) == len(gt):
+        return 0.5, 0.0  # fallback
+
+    if mode.lower() == "youden":
+        fpr, tpr, ths = roc_curve(gt, probs)
+        j_scores = tpr - fpr
+        idx = np.argmax(j_scores)
+        return float(ths[idx]), float(j_scores[idx])
+
+    elif mode.lower() in ["f1", "f2"]:
+        beta = 1.0 if mode.lower() == "f1" else 2.0
+        prec, rec, ths = precision_recall_curve(gt, probs)
+        f_scores = (1 + beta**2) * (prec * rec) / (beta**2 * prec + rec + 1e-8)
+        idx = np.nanargmax(f_scores)
+        best_th = ths[idx] if idx < len(ths) else 0.5
+        return float(best_th), float(f_scores[idx])
+
+    else:
+        return 0.5, 0.0
 
 class LitModel_finetune(pl.LightningModule):
     def __init__(self, config, model):
@@ -115,8 +143,9 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
-            self.threshold = np.sort(result)[-int(np.sum(gt))]
-
+            #self.threshold = np.sort(result)[-int(np.sum(gt))]
+            self.threshold, score = find_best_threshold(gt, result, mode="youden")
+            print(f"  [YOUDEN] Soglia ottimale trovata: {self.threshold:.4f} (score={score:.4f})")
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
             results = binary_metrics_fn(
@@ -304,16 +333,16 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
 
 
     if run_id == 1:
-        # mu = np.load("mu_train_finetuning_4s_run1.npy")
-        # sigma = np.load("sigma_train_finetuning_4s_run1.npy")
-        mu = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy").squeeze()
-        sigma = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/standard_deviation.npy").squeeze()
+        mu = np.load("mu_train_finetuning_4s_run1.npy")
+        sigma = np.load("sigma_train_finetuning_4s_run1.npy")
+        # mu = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy").squeeze()
+        # sigma = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/standard_deviation.npy").squeeze()
     else:
-        #mu = np.load("mu_train_finetuning_4s_run2.npy")
-        #sigma = np.load("sigma_train_finetuning_4s_run2.npy")
-        mu = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy").squeeze()
-        sigma = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/standard_deviation.npy").squeeze()
-    
+        mu = np.load("mu_train_finetuning_4s_run2.npy")
+        sigma = np.load("sigma_train_finetuning_4s_run2.npy")
+        # mu = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy").squeeze()
+        # sigma = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/standard_deviation.npy").squeeze()
+
 
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
