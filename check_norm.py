@@ -57,6 +57,6 @@ print("\n=== RIEPILOGO ===")
 for name, mu, sigma in stats:
     print(f"{name:<25} | μ_mean={np.mean(mu):>7} | σ_mean={np.mean(sigma):>7}")
 
-x = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/LE/mean.npy")
+x = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy")
 print(x.shape)
 print(x)
