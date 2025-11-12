@@ -304,11 +304,15 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
 
 
     if run_id == 1:
-        mu = np.load("mu_train_finetuning_4s_run1.npy")
-        sigma = np.load("sigma_train_finetuning_4s_run1.npy")
+        # mu = np.load("mu_train_finetuning_4s_run1.npy")
+        # sigma = np.load("sigma_train_finetuning_4s_run1.npy")
+        mu = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy")
+        sigma = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/standard_deviation.npy")
     else:
-        mu = np.load("mu_train_finetuning_4s_run2.npy")
-        sigma = np.load("sigma_train_finetuning_4s_run2.npy")
+        #mu = np.load("mu_train_finetuning_4s_run2.npy")
+        #sigma = np.load("sigma_train_finetuning_4s_run2.npy")
+        mu = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/mean.npy")
+        sigma = np.load("../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF/standard_deviation.npy")
     
 
 
