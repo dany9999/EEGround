@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 
 # === Percorsi statici ===
 pretrain_paths = {
-    "TUAB_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/LE",
-    "TUAB_Normal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Normal/LE",
-    "TUEP_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEP/Abnormal/LE",
-    "TUEP_Normal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEP/Normal/LE",
-    "TUSZ_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUSZ/Abnormal/LE",
-    "TUEV_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEV/Abnormal/LE",
+    "TUAB_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Abnormal/REF",
+    "TUAB_Normal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUAB/Normal/REF",
+    "TUEP_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEP/Abnormal/REF",
+    "TUEP_Normal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEP/Normal/REF",
+    "TUSZ_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUSZ/Abnormal/REF",
+    "TUEV_Abnormal_LE": "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH/TUEV/Abnormal/REF",
 }
 
 # === Percorsi finetuning ===
