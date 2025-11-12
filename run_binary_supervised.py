@@ -18,10 +18,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, compute_global_stats, load_config
-from sklearn.metrics import confusion_matrix
-from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau, SequentialLR
-from sklearn.metrics import precision_recall_curve
 
+from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau, SequentialLR
+
+from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix
 # se CHBMITLoader è nella cartella padre
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from CHBMITLoader_4s import make_loader
@@ -65,7 +65,35 @@ def load_pretrained_encoder_into_biot(model, ckpt_path, device="cpu"):
 
     return model
 
+def find_best_threshold(gt, probs, mode="f2"):
+    """
+    Trova la soglia ottimale in base a:
+      - 'youden' → massimizza (TPR - FPR)
+      - 'f1' → massimizza F1
+      - 'f2' → massimizza F2 (più sensibile al recall)
+    """
+    gt = np.array(gt).astype(int)
+    probs = np.array(probs).flatten()
 
+    if np.sum(gt) == 0 or np.sum(gt) == len(gt):
+        return 0.5, 0.0  # fallback
+
+    if mode.lower() == "youden":
+        fpr, tpr, ths = roc_curve(gt, probs)
+        j_scores = tpr - fpr
+        idx = np.argmax(j_scores)
+        return float(ths[idx]), float(j_scores[idx])
+
+    elif mode.lower() in ["f1", "f2"]:
+        beta = 1.0 if mode.lower() == "f1" else 2.0
+        prec, rec, ths = precision_recall_curve(gt, probs)
+        f_scores = (1 + beta**2) * (prec * rec) / (beta**2 * prec + rec + 1e-8)
+        idx = np.nanargmax(f_scores)
+        best_th = ths[idx] if idx < len(ths) else 0.5
+        return float(best_th), float(f_scores[idx])
+
+    else:
+        return 0.5, 0.0
 
 class LitModel_finetune(pl.LightningModule):
     def __init__(self, config, model):
@@ -88,8 +116,8 @@ class LitModel_finetune(pl.LightningModule):
         X, y = batch["x"], batch["y"]
         y = y.float().unsqueeze(1)
         logits = self.model(X)
-        loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
-       #loss = self.criterion(logits, y)
+        #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+        loss = self.criterion(logits, y)
         self.log("train_loss", loss)
         return loss
 
@@ -98,8 +126,8 @@ class LitModel_finetune(pl.LightningModule):
         y = y.float().unsqueeze(1) 
         with torch.no_grad():
             logits = self.model(X)
-            loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
-            #loss = self.criterion(logits, y)
+            #loss = focal_loss(logits, y, alpha=self.alpha_focal, gamma=self.gamma_focal)
+            loss = self.criterion(logits, y)
             step_result = torch.sigmoid(logits).cpu().numpy()
             step_gt = y.cpu().numpy()
         self.val_results["preds"].append(step_result)
@@ -113,13 +141,9 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
 
-       
-        prec, recall, thresholds = precision_recall_curve(gt, result)
-        f1 = 2 * (prec * recall) / (prec + recall + 1e-8)
-        best_threshold = thresholds[np.argmax(f1)]
         if sum(gt) * (len(gt) - sum(gt)) != 0:  # prevenzione AUROC error
-            self.threshold = best_threshold
-
+            self.threshold, score = find_best_threshold(gt, result, mode="f2")
+            print(f"  [YOUDEN] Soglia ottimale trovata: {self.threshold:.4f} (score={score:.4f})")
             print(f"  Nuova soglia ottimale: {self.threshold}")
 
             results = binary_metrics_fn(
@@ -362,7 +386,7 @@ def supervised(config):
         logger=logger,
         max_epochs=config["epochs"],
         callbacks=[early_stop_callback, checkpoint_callback],
-        log_every_n_steps=49, 
+        log_every_n_steps=105, 
     )
 
   
@@ -385,60 +409,60 @@ def supervised(config):
 
 
 
-if __name__ == "__main__":
-    config = load_config("configs/finetuning.yml")
-    supervised(config)
-
-
-
-
-# import optuna
-# import pandas as pd
-# import os
-
-# def objective(trial):
-#     # Carica config base
-#     config = load_config("configs/finetuning.yml")
-
-#     # Suggerisci iperparametri
-    
-#     config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-7, 1e-5)
-#     config["head_lr"] = trial.suggest_loguniform("head_lr", 1e-5, 1e-3)
-    
-    
-#     config["epochs"] = 50
-
-#     # Allena il modello e restituisci la metrica monitorata
-#     results = supervised(config)
-#     return results["val_bacc"]
-
 # if __name__ == "__main__":
-#     #  Usa storage persistente per poter riprendere dopo uno stop
-#     storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
-#     study_name = "finetuning_tuning_val_bacc"
+#     config = load_config("configs/finetuning.yml")
+#     supervised(config)
 
-#     study = optuna.create_study(
-#         study_name=study_name,
-#         direction="maximize",
-#         storage=storage_name,
-#         load_if_exists=True,
-#     )
 
-#     #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
-#     study.optimize(objective, n_trials=15)
 
-#     #  Stampa il risultato migliore
-#     print("Best trial:")
-#     trial = study.best_trial
-#     print(f"  Value: {trial.value}")
-#     for k, v in trial.params.items():
-#         print(f"  {k}: {v}")
 
-#     # Esporta risultati su CSV
-#     df = study.trials_dataframe()
+import optuna
+import pandas as pd
+import os
 
-#     # Crea cartella risultati se non esiste
-#     os.makedirs("results", exist_ok=True)
-#     output_path = f"results/{study_name}_results.csv"
-#     df.to_csv(output_path, index=False)
-#     print(f"\n Risultati salvati in {output_path}")
+def objective(trial):
+    # Carica config base
+    config = load_config("configs/finetuning.yml")
+
+    # Suggerisci iperparametri
+    
+    config["encoder_lr"] = trial.suggest_loguniform("encoder_lr", 1e-7, 1e-5)
+    config["head_lr"] = trial.suggest_loguniform("head_lr", 1e-6, 1e-3)
+    
+    
+    config["epochs"] = 100
+
+    # Allena il modello e restituisci la metrica monitorata
+    results = supervised(config)
+    return results["val_bacc"]
+
+if __name__ == "__main__":
+    #  Usa storage persistente per poter riprendere dopo uno stop
+    storage_name = "sqlite:///optuna_finetuning_val_bacc.db"
+    study_name = "finetuning_tuning_val_bacc"
+
+    study = optuna.create_study(
+        study_name=study_name,
+        direction="maximize",
+        storage=storage_name,
+        load_if_exists=True,
+    )
+
+    #  Esegui l’ottimizzazione (puoi interrompere e riprendere)
+    study.optimize(objective, n_trials=15)
+
+    #  Stampa il risultato migliore
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    for k, v in trial.params.items():
+        print(f"  {k}: {v}")
+
+    # Esporta risultati su CSV
+    df = study.trials_dataframe()
+
+    # Crea cartella risultati se non esiste
+    os.makedirs("results", exist_ok=True)
+    output_path = f"results/{study_name}_results.csv"
+    df.to_csv(output_path, index=False)
+    print(f"\n Risultati salvati in {output_path}")

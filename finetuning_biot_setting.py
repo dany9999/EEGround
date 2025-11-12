@@ -20,7 +20,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from BIOT_vanilla.biot import BIOTClassifier
 from utils import focal_loss, load_config
-from sklearn.metrics import confusion_matrix
+
 from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau, SequentialLR
 from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix
 
@@ -405,7 +405,7 @@ def supervised(config, run_id=1):
         logger=logger,
         max_epochs=config["epochs"],
         callbacks=[early_stop_callback, checkpoint_callback],
-        log_every_n_steps=49,
+        log_every_n_steps=105,
     )
 
     trainer.fit(lightning_model, train_loader, val_loader)
