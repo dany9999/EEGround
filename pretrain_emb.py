@@ -17,6 +17,42 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 import re
 
+# ==== CALCOLO GLOBAL MEAN & STD SU TRAIN ====
+
+def compute_global_mean_std(file_list):
+    print("\nComputing GLOBAL mean/std over training set...")
+    sum_x = None
+    sum_x2 = None
+    total_samples = 0
+
+    for fpath in tqdm(file_list, desc="Mean/Std"):
+        with h5py.File(fpath, "r") as f:
+            data = f["signals"][:]   # shape: [N, C, T]
+
+        # somma su batch
+        x = data  # (N,C,T)
+        N = x.shape[0]
+
+        x_sum = x.sum(axis=(0, 2))          # (C,)
+        x2_sum = (x ** 2).sum(axis=(0, 2))  # (C,)
+
+        if sum_x is None:
+            sum_x = x_sum
+            sum_x2 = x2_sum
+        else:
+            sum_x += x_sum
+            sum_x2 += x2_sum
+
+        total_samples += N * x.shape[2]     # totale punti per canale
+
+    mean = sum_x / total_samples
+    var = sum_x2 / total_samples - mean ** 2
+    std = np.sqrt(var + 1e-8)
+
+    print("\nGLOBAL mean:", mean)
+    print("GLOBAL std:", std)
+    return mean.astype(np.float32), std.astype(np.float32)
+
 
 
 # ==== Training ====
@@ -26,7 +62,7 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
         data = f["signals"][:]
 
    
-    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean, std = mean_std_loader.get_mean_std()
     mean_exp = mean.view(1, -1, 1)
     std_exp = std.view(1, -1, 1)
 
@@ -58,7 +94,7 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]
 
-    mean, std = mean_std_loader.get_mean_std_for_file(file_path, device)
+    mean, std  = mean_std_loader.get_mean_std()
     mean_exp = mean.view(1, -1, 1)
     std_exp = std.view(1, -1, 1)
 
@@ -169,7 +205,14 @@ def train_model(config):
     )
     model = torch.nn.DataParallel(model).to(device)
 
-    
+        # === calcola solo una volta ===
+    global_mean, global_std = compute_global_mean_std(train_files)
+
+    # salvalo per sicurezza
+    np.save( "global_mean.npy", global_mean)
+    np.save( "global_std.npy", global_std)
+
+    mean_std_loader = MeanStdLoader(global_mean, global_std, device)
 
     optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
     #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
@@ -180,7 +223,7 @@ def train_model(config):
     eta_min=1e-6
 )
     writer = SummaryWriter(log_dir=log_dir)
-    mean_std_loader = MeanStdLoader()
+   
 
     start_epoch = 0
     global_step = 0
@@ -198,6 +241,8 @@ def train_model(config):
         start_epoch = checkpoint.get('epoch', 0)
         global_step = checkpoint.get('global_step', 0)
         global_step_val = checkpoint.get('global_step_val', 0)
+    
+
 
     for epoch in range(start_epoch, config["epochs"]):
         print(f"\nEpoch {epoch+1}/{config['epochs']}")
