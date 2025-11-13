@@ -75,6 +75,8 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     for batch_raw in dataloader:
         batch_raw = batch_raw.to(device)
         batch_norm = (batch_raw - mean_exp) / std_exp
+        print(batch_norm.shape)
+        print(batch_norm.mean().item(), batch_norm.std().item())
         optimizer.zero_grad()
 
         emb, mask, _, pred_emb = model(batch_norm)
@@ -206,11 +208,12 @@ def train_model(config):
     model = torch.nn.DataParallel(model).to(device)
 
         # === calcola solo una volta ===
-    global_mean, global_std = compute_global_mean_std(train_files)
-
+    #global_mean, global_std = compute_global_mean_std(train_files)
+    global_mean = np.load("global_mean.npy")
+    global_std = np.load("global_std.npy")
     # salvalo per sicurezza
-    np.save( "global_mean.npy", global_mean)
-    np.save( "global_std.npy", global_std)
+    #np.save( "global_mean.npy", global_mean)
+    #np.save( "global_std.npy", global_std)
 
     mean_std_loader = MeanStdLoader(global_mean, global_std, device)
 
