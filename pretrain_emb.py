@@ -71,12 +71,20 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
 
     model.train()
     running_loss = 0.0
-
+    first_batch = True
     for batch_raw in dataloader:
         batch_raw = batch_raw.to(device)
         batch_norm = (batch_raw - mean_exp) / std_exp
-        print(batch_norm.shape)
-        print(batch_norm.mean().item(), batch_norm.std().item())
+        # DEBUG solo una volta
+        if first_batch:
+            # mean/std per canale
+            ch_mean = batch_norm.mean(dim=(0, 2)).cpu().numpy()
+            ch_std  = batch_norm.std(dim=(0, 2)).cpu().numpy()
+            print("\n[DEBUG] Per-channel mean after norm:", ch_mean)
+            print("[DEBUG] Per-channel std after norm:", ch_std)
+            print("[DEBUG] global mean:", batch_norm.mean().item(),
+                  "global std:", batch_norm.std().item())
+            first_batch = False
         optimizer.zero_grad()
 
         emb, mask, _, pred_emb = model(batch_norm)
