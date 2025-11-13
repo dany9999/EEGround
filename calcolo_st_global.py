@@ -7,7 +7,7 @@ from tqdm import tqdm
 # ====== CONFIG ==========================================================
 global_mean = np.load("global_mean.npy")   # shape (C,)
 global_std  = np.load("global_std.npy")    # shape (C,)
-train_files = np.load("log/pretrain-new/file_split.npy", allow_pickle=True).item()["train"]
+train_files = np.load("logs/pretrain-new/file_split.npy", allow_pickle=True).item()["train"]
 
 global_mean_t = torch.tensor(global_mean, dtype=torch.float32)
 global_std_t  = torch.tensor(global_std, dtype=torch.float32)
