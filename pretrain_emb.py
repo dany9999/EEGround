@@ -304,9 +304,7 @@ def train_model(config):
             }, save_path)
             print(f" Checkpoint (solo full model) salvato in {save_path}")
         
-        if epochs_without_improvement >= config["early_stopping_patience"]:
-            print("Early stopping triggered.")
-            break
+      
 
     writer.close()
 
