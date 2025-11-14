@@ -209,13 +209,13 @@ def train_model(config):
 
         # === calcola solo una volta ===
     
-    #global_mean = np.load("global_mean.npy")
-    #global_std = np.load("global_std.npy")
+    global_mean = np.load("global_mean.npy")
+    global_std = np.load("global_std.npy")
     
     # salvalo per sicurezza
-    global_mean, global_std = compute_global_mean_std(train_files)
-    np.save( "global_mean.npy", global_mean)
-    np.save( "global_std.npy", global_std)
+    #global_mean, global_std = compute_global_mean_std(train_files)
+    #np.save( "global_mean.npy", global_mean)
+    #np.save( "global_std.npy", global_std)
 
     mean_std_loader = MeanStdLoader(global_mean, global_std, device)
 
