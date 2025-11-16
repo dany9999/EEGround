@@ -76,7 +76,7 @@ if __name__ == "__main__":
     model_loaded = BIOTClassifier(n_channels=18, n_fft=250, hop_length=125)
     model_loaded.to(device)
 
-    ckpt_path = "logs/pretrain/encoder_only_epoch_50.pt"   
+    ckpt_path = "logs/pretrain-new/best_encoder_only.pt"
 
     model_loaded = load_pretrained_encoder_into_biot(
         model_loaded, ckpt_path, device
