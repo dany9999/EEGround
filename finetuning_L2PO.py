@@ -180,13 +180,13 @@ class LitModel_finetune(pl.LightningModule):
             return torch.optim.Adam(
                 [{"params": enc_params, "lr": self.config["encoder_lr"]},
                  {"params": head_params, "lr": self.config["head_lr"]}],
-                weight_decay=self.config["weight_decay"]
+                weight_decay=float(self.config["weight_decay"])
             )
 
         return torch.optim.Adam(
             self.parameters(),
             lr=self.config["lr"],
-            weight_decay=self.config["weight_decay"]
+            weight_decay=float(self.config["weight_decay"])
         )
 
 
