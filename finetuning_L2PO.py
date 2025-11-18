@@ -211,17 +211,27 @@ class LitModel_finetune(pl.LightningModule):
 # =====================================================================
 #                  SPLIT: VAL FISSO + 10 RUN TEST
 # =====================================================================
-def predefined_split(run_id=1):
+def predefined_split(run_id=1, seed=42):
+    """
+    Crea 10 split:
+      - Validation fisso = chb20, chb21, chb22
+      - I restanti 20 soggetti sono randomizzati e divisi in 10 coppie test
+      - Ogni test contiene 2 soggetti unici
+    """
+
+    rng = np.random.default_rng(seed)
 
     all_subjects = [f"chb{str(i).zfill(2)}" for i in range(1, 24)]
     val = ["chb20", "chb21", "chb22"]
 
-    test_pairs = [
-        ["chb01", "chb02"], ["chb03", "chb04"], ["chb05", "chb06"],
-        ["chb07", "chb08"], ["chb09", "chb10"], ["chb11", "chb12"],
-        ["chb13", "chb14"], ["chb15", "chb16"], ["chb17", "chb18"],
-        ["chb19", "chb23"],
-    ]
+    # Candidati per test: 20 soggetti
+    candidates = [s for s in all_subjects if s not in val]
+
+    # Permutazione random dei soggetti
+    shuffled = list(rng.permutation(candidates))
+
+    # Creiamo le 10 coppie
+    test_pairs = [shuffled[i:i+2] for i in range(0, len(shuffled), 2)]
 
     if not (1 <= run_id <= 10):
         raise ValueError("run_id deve essere tra 1 e 10")
@@ -259,14 +269,14 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
     test_loader = make_loader(split["test"], dataset_path, gt_path, config,
                               shuffle=False, mu=mu, sigma=sigma)
 
-    return train_loader, test_loader, val_loader
+    return train_loader, val_loader, test_loader
 
 
 # =====================================================================
 #                       SUPERVISED FINETUNING
 # =====================================================================
 def supervised(config, run_id=1):
-    train_loader, test_loader, val_loader = prepare_CHB_MIT_dataloader(config, run_id)
+    train_loader, val_loader, test_loader = prepare_CHB_MIT_dataloader(config, run_id)
 
     model = BIOTClassifier(
         n_channels=config["n_channels"],
