@@ -129,15 +129,28 @@ class LitModel_finetune(pl.LightningModule):
                                         threshold=self.threshold)
 
             preds_bin = (preds >= self.threshold).astype(int)
-            tn, fp, fn, tp = confusion_matrix(gt, preds_bin).ravel()
+            
+            cm = confusion_matrix(gt, preds_bin)
+            tn, fp, fn, tp = cm.ravel()
+            print("\nConfusion Matrix:")
+            print(cm)
+            print(f"TN={tn}, FP={fp}, FN={fn}, TP={tp}\n")
+            sensitivity = tp / (tp + fn + 1e-8)
+            specificity = tn / (tn + fp + 1e-8)
+
 
             results["sensitivity"] = tp / (tp + fn + 1e-8)
             results["specificity"] = tn / (tn + fp + 1e-8)
         else:
             results = {m: 0.0 for m in ["accuracy","balanced_accuracy","pr_auc","roc_auc","sensitivity","specificity"]}
 
-        for k, v in results.items():
-            self.log(f"val_{k}", v, sync_dist=True)
+        # Log metrics
+        self.log("val_acc", results["accuracy"], sync_dist=True)
+        self.log("val_bacc", results["balanced_accuracy"], sync_dist=True)
+        self.log("val_pr_auc", results["pr_auc"], sync_dist=True)
+        self.log("val_auroc", results["roc_auc"], sync_dist=True)
+        self.log("val_sensitivity", results["sensitivity"], sync_dist=True)
+        self.log("val_specificity", results["specificity"], sync_dist=True)
 
         self.val_results = {"preds": [], "targets": []}
 
@@ -167,8 +180,13 @@ class LitModel_finetune(pl.LightningModule):
         else:
             results = {m: 0.0 for m in ["accuracy","balanced_accuracy","pr_auc","roc_auc","sensitivity","specificity"]}
 
-        for k, v in results.items():
-            self.log(f"test_{k}", v, sync_dist=True)
+        # Log metrics
+        self.log("test_acc", results["accuracy"], sync_dist=True)
+        self.log("test_bacc", results["balanced_accuracy"], sync_dist=True)
+        self.log("test_pr_auc", results["pr_auc"], sync_dist=True)
+        self.log("test_auroc", results["roc_auc"], sync_dist=True)
+        self.log("test_sensitivity", results["sensitivity"], sync_dist=True)
+        self.log("test_specificity", results["specificity"], sync_dist=True)
 
         self.test_results = {"preds": [], "targets": []}
 
