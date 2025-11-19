@@ -11,31 +11,29 @@ from sklearn.preprocessing import StandardScaler
 # Dataset CHB-MIT con segmenti da 4s a 250 Hz
 # =====================================================
 def compute_global_channel_stats(loader, n_channels):
-    """
-    Calcola media e deviazione standard per canale su tutto il TRAIN loader in modo incrementale.
-    """
-    print("\n Calcolo statistiche globali per canale (StandardScaler)...")
+    print("\n Calcolo statistiche globali per canale...")
 
-    # uno scaler per ogni canale
-    scalers = [StandardScaler(copy=False) for _ in range(n_channels)]
+    sum_channels = np.zeros(n_channels, dtype=np.float64)
+    sum_squares = np.zeros(n_channels, dtype=np.float64)
+    count = 0
 
     for batch_idx, batch in enumerate(loader):
         x = batch["x"].numpy()  # [B, C, T]
         B, C, T = x.shape
 
-        # Appiattisci la dimensione (B*T) per ogni canale e aggiorna in streaming
-        for c in range(C):
-            data_c = x[:, c, :].reshape(-1, 1)
-            scalers[c].partial_fit(data_c)
+        # somma su batch e tempo
+        sum_channels += x.sum(axis=(0, 2))
+        sum_squares += (x ** 2).sum(axis=(0, 2))
+        count += B * T
 
         if batch_idx % 10 == 0:
             print(f"  Elaborati {batch_idx+1}/{len(loader)} batch...")
 
-    mu = np.array([sc.mean_[0] for sc in scalers])
-    sigma = np.array([np.sqrt(sc.var_[0]) for sc in scalers])
-    sigma = np.clip(sigma, 1e-6, np.inf)
+    mu = sum_channels / count
+    sigma = np.sqrt(sum_squares / count - mu**2)
+    sigma = np.clip(sigma, 1e-6, None)
 
-    print("\n Statistiche globali calcolate:")
+    print("\nStatistiche globali calcolate:")
     for i, (m, s) in enumerate(zip(mu, sigma)):
         print(f"  Ch {i+1:02}: μ={m:.6e}, σ={s:.6e}")
 

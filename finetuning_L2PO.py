@@ -15,12 +15,12 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from BIOT_vanilla.biot import BIOTClassifier
-from utils import focal_loss, load_config
+from utils import focal_loss, load_config, compute_global_stats
 
 from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader_4s import make_loader
+from CHBMITLoader_4s import make_loader, compute_global_channel_stats
 
 
 # =====================================================================
@@ -256,8 +256,17 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
     gt_path = "../../Datasets/chb_mit/GT"
 
     split = predefined_split(run_id)
-    mu = np.load("global_mean.npy")
-    sigma = np.load("global_std.npy")
+
+ 
+    loader_tmp = make_loader(split["train"], dataset_path, gt_path, config, shuffle=False, balanced=False)
+
+   
+    mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
+
+    
+
+    #mu = np.load("global_mean.npy")
+    #sigma = np.load("global_std.npy")
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                                shuffle=True, balanced=True, neg_to_pos_ratio=5,
