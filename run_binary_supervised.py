@@ -321,8 +321,8 @@ def prepare_CHB_MIT_dataloader(config):
 
                   
 
-    mu = np.load("mu_train_finetuning_4s_run1.npy")
-    sigma = np.load("sigma_train_finetuning_4s_run1.npy")
+    mu = np.load("global_mean.npy")
+    sigma = np.load("global_std.npy")
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                            shuffle=True, balanced=True, neg_to_pos_ratio=5, mu=mu, sigma=sigma)
