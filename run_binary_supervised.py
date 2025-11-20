@@ -290,18 +290,24 @@ class LitModel_finetune(pl.LightningModule):
 
 
 
+
+
 def predefined_split():
-
-
+    
     # train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 20)]
     # val_patients   = [f"chb{str(i).zfill(2)}" for i in range(10, 20)]
     # test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
+    
+    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 7)] \
+                   + [f"chb{str(i).zfill(2)}" for i in range(8, 19)]
+    val_patients   = ["chb20", "chb21", "chb22"]
+    test_patients  = ["chb07", "chb23"]
 
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 18)] + ["chb20", "chb21"]
-    val_patients   = ["chb18", "chb19"]
-    test_patients  = ["chb22", "chb23"]
+    print("Train:", train_patients)
+    print("Val:", val_patients)
+    print("Test:", test_patients)
+
     return {"train": train_patients, "val": val_patients, "test": test_patients}
-
 
 def prepare_CHB_MIT_dataloader(config):
     dataset_path = config["dataset_path_4s"]
