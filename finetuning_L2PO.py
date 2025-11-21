@@ -378,7 +378,7 @@ if __name__ == "__main__":
     summary = {"val_runs": all_val, "test_runs": all_test,
                "val_mean_std": val_stats, "test_mean_std": test_stats}
 
-    with open("finetuning_results_summary_from_scratch.json", "w") as f:
+    with open("finetuning_results_summary_full_finetuning.json", "w") as f:
         json.dump(summary, f, indent=4)
 
-    print("\nRisultati salvati in finetuning_results_summary.json")
+    print("\nRisultati salvati in finetuning_results_summary_full_finetuning.json")
