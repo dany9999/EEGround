@@ -258,15 +258,15 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
     split = predefined_split(run_id)
 
  
-    loader_tmp = make_loader(split["train"], dataset_path, gt_path, config, shuffle=False, balanced=False)
+    #loader_tmp = make_loader(split["train"], dataset_path, gt_path, config, shuffle=False, balanced=False)
 
    
-    mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
+    #mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
 
     
 
-    #mu = np.load("global_mean.npy")
-    #sigma = np.load("global_std.npy")
+    mu = np.load("global_mean.npy")
+    sigma = np.load("global_std.npy")
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                                shuffle=True, balanced=True, neg_to_pos_ratio=5,
