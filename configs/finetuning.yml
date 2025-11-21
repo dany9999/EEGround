@@ -59,7 +59,7 @@ pretrain_model_path: "logs/pretrain-new/best_encoder_only.pt"
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_finetuning_from_scratch_CHB-MIT"
+log_dir: "log_finetuning_full_finetuning_CHB-MIT"
 
 # =====================
 # OPTUNA SETTINGS
