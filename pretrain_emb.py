@@ -62,9 +62,9 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
         data = f["signals"][:]
 
    
-    mean, std = mean_std_loader.get_mean_std()
-    mean_exp = mean.view(1, -1, 1)
-    std_exp = std.view(1, -1, 1)
+    #mean, std = mean_std_loader.get_mean_std()
+    #mean_exp = mean.view(1, -1, 1)
+    #std_exp = std.view(1, -1, 1)
 
     dataset = EEGDataset(data)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -73,13 +73,14 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     running_loss = 0.0
     
     for batch_raw in dataloader:
+        #batch_raw = batch_raw.to(device)
+        #batch_norm = (batch_raw - mean_exp) / std_exp
         batch_raw = batch_raw.to(device)
-        batch_norm = (batch_raw - mean_exp) / std_exp
-        
+
        
         optimizer.zero_grad()
 
-        emb, mask, _, pred_emb = model(batch_norm)
+        emb, mask, _, pred_emb = model(batch_raw)
         loss = F.mse_loss(pred_emb[mask], emb[mask])
         loss.backward()
         optimizer.step()
@@ -96,9 +97,9 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]
 
-    mean, std  = mean_std_loader.get_mean_std()
-    mean_exp = mean.view(1, -1, 1)
-    std_exp = std.view(1, -1, 1)
+    #mean, std  = mean_std_loader.get_mean_std()
+    #mean_exp = mean.view(1, -1, 1)
+    #std_exp = std.view(1, -1, 1)
 
     dataset = EEGDataset(data)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -108,11 +109,12 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
 
     with torch.no_grad():
         for batch_raw in dataloader:
+            #batch_raw = batch_raw.to(device)
+            #batch_norm = (batch_raw - mean_exp) / std_exp
+
             batch_raw = batch_raw.to(device)
-            batch_norm = (batch_raw - mean_exp) / std_exp
             
-            
-            emb, mask, _, pred_emb = model(batch_norm)
+            emb, mask, _, pred_emb = model(batch_raw)
             loss = F.mse_loss(pred_emb[mask], emb[mask])
 
             running_loss += loss.item()
@@ -223,8 +225,8 @@ def train_model(config):
     #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
     scheduler = CosineAnnealingWarmRestarts(
     optimizer,
-    T_0=10,      # 10 epoche per il primo ciclo
-    T_mult=2,    # ogni volta raddoppia la lunghezza del ciclo
+    T_0=50,      # 10 epoche per il primo ciclo
+    T_mult=1,    # ogni volta raddoppia la lunghezza del ciclo
     eta_min=1e-6
 )
     writer = SummaryWriter(log_dir=log_dir)
