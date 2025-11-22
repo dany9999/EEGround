@@ -72,6 +72,16 @@ class MeanStdLoader:
 
 # ==== Dataset ====
 
+# class EEGDataset(Dataset):
+#     def __init__(self, data_array):
+#         self.data = torch.tensor(data_array, dtype=torch.float32)
+
+#     def __len__(self):
+#         return len(self.data)
+
+#     def __getitem__(self, idx):
+#         return self.data[idx]
+    
 class EEGDataset(Dataset):
     def __init__(self, data_array):
         self.data = torch.tensor(data_array, dtype=torch.float32)
@@ -80,9 +90,14 @@ class EEGDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx]
-    
+        x = self.data[idx]  # shape [C, T]
 
+        # --- Normalizzazione per-segmento come BIOT ---
+        p95 = torch.quantile(x.abs(), 0.95, dim=1, keepdim=True)  # shape [C, 1]
+        p95 = torch.clamp(p95, min=1e-8)
+        x = x / p95
+
+        return x
 
 
 
