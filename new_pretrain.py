@@ -1,6 +1,5 @@
 
 
-
 import os
 import h5py
 import numpy as np
@@ -11,12 +10,14 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import Dataset, DataLoader
 from glob import glob
 from tqdm import tqdm
-from SelfSupervisedPretrainRaw import UnsupervisedPretrain
+from model.SelfSupervisedPretrainEMB import UnsupervisedPretrain
 from utils import MeanStdLoader, EEGDataset, load_config, collect_h5_files
 import random
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 import re
+
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
 
 # ==== CALCOLO GLOBAL MEAN & STD SU TRAIN ====
 
@@ -63,9 +64,9 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
         data = f["signals"][:]
 
    
-    mean, std = mean_std_loader.get_mean_std()
-    mean_exp = mean.view(1, -1, 1)
-    std_exp = std.view(1, -1, 1)
+    #mean, std = mean_std_loader.get_mean_std()
+    #mean_exp = mean.view(1, -1, 1)
+    #std_exp = std.view(1, -1, 1)
 
     dataset = EEGDataset(data)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -74,14 +75,16 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
     running_loss = 0.0
     
     for batch_raw in dataloader:
+        #batch_raw = batch_raw.to(device)
+        #batch_norm = (batch_raw - mean_exp) / std_exp
         batch_raw = batch_raw.to(device)
-        batch_norm = (batch_raw - mean_exp) / std_exp
-        
+
        
         optimizer.zero_grad()
+        emb, masked_emb, mask, pred_emb = model(batch_raw)
 
-        emb, pred_emb, mask = model(batch_norm)
         loss = F.mse_loss(pred_emb[mask], emb[mask])
+       
         loss.backward()
         optimizer.step()
 
@@ -97,9 +100,9 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
     with h5py.File(file_path, 'r') as f:
         data = f["signals"][:]
 
-    mean, std  = mean_std_loader.get_mean_std()
-    mean_exp = mean.view(1, -1, 1)
-    std_exp = std.view(1, -1, 1)
+    #mean, std  = mean_std_loader.get_mean_std()
+    #mean_exp = mean.view(1, -1, 1)
+    #std_exp = std.view(1, -1, 1)
 
     dataset = EEGDataset(data)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -109,11 +112,13 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
 
     with torch.no_grad():
         for batch_raw in dataloader:
+            #batch_raw = batch_raw.to(device)
+            #batch_norm = (batch_raw - mean_exp) / std_exp
+
             batch_raw = batch_raw.to(device)
-            batch_norm = (batch_raw - mean_exp) / std_exp
             
-            
-            emb, pred_emb, mask = model(batch_norm)
+            emb, masked_emb, mask, pred_emb = model(batch_raw)
+
             loss = F.mse_loss(pred_emb[mask], emb[mask])
 
             running_loss += loss.item()
@@ -124,7 +129,11 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
 
 # save checkpoint function
 def save_best_model(model, save_dir, epoch):
-
+    """
+    Salva sia il checkpoint completo del modello di pretraining (UnsupervisedPretrain)
+    sia solo i pesi dell'encoder BIOTEMB, rinominati per il fine-tuning.
+    Gestisce modelli wrappati in nn.DataParallel.
+    """
     os.makedirs(save_dir, exist_ok=True)
 
     # ---  Salva il modello completo ---
@@ -216,14 +225,29 @@ def train_model(config):
 
     mean_std_loader = MeanStdLoader(global_mean, global_std, device)
 
-    optimizer = optim.Adam(model.parameters(), lr=float(config["lr"]), weight_decay=float(config["weight_decay"]))
-    #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
-    scheduler = CosineAnnealingWarmRestarts(
-    optimizer,
-    T_0=10,      # 10 epoche per il primo ciclo
-    T_mult=2,    # ogni volta raddoppia la lunghezza del ciclo
-    eta_min=1e-6
+    optimizer = optim.Adam(
+    model.parameters(),
+    lr=config["lr"],
+    weight_decay=float(config["weight_decay"])
 )
+
+    warmup = LinearLR(
+        optimizer,
+        start_factor=0.001,
+        total_iters=5
+    )
+
+    cosine = CosineAnnealingLR(
+        optimizer,
+        T_max=config["epochs"] - 5,
+        eta_min=1e-6
+    )
+
+    scheduler = SequentialLR(
+        optimizer,
+        schedulers=[warmup, cosine],
+        milestones=[5]
+    )
     writer = SummaryWriter(log_dir=log_dir)
    
 
