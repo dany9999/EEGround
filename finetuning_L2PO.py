@@ -265,18 +265,27 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
 
     
 
-    mu = np.load("global_mean.npy")
-    sigma = np.load("global_std.npy")
+    # mu = np.load("global_mean.npy")
+    # sigma = np.load("global_std.npy")
+
+    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
+    #                            shuffle=True, balanced=True, neg_to_pos_ratio=5,
+    #                            mu=mu, sigma=sigma)
+
+    # val_loader = make_loader(split["val"], dataset_path, gt_path, config,
+    #                          shuffle=False, mu=mu, sigma=sigma)
+
+    # test_loader = make_loader(split["test"], dataset_path, gt_path, config,
+    #                           shuffle=False, mu=mu, sigma=sigma)
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                               shuffle=True, balanced=True, neg_to_pos_ratio=5,
-                               mu=mu, sigma=sigma)
+                               shuffle=True, balanced=True, neg_to_pos_ratio=5)
 
     val_loader = make_loader(split["val"], dataset_path, gt_path, config,
-                             shuffle=False, mu=mu, sigma=sigma)
+                             shuffle=False)
 
     test_loader = make_loader(split["test"], dataset_path, gt_path, config,
-                              shuffle=False, mu=mu, sigma=sigma)
+                              shuffle=False)
 
     return train_loader, val_loader, test_loader
 

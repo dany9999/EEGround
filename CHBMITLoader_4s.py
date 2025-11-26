@@ -134,10 +134,11 @@ class CHBMITAllSegmentsLabeledDataset(Dataset):
         # Normalizzazione
         #x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
         
-        if self.mu is not None and self.sigma is not None:
-            x = apply_zscore(x, self.mu, self.sigma)
-        #else:
-        #    print(" Attenzione: nessuna normalizzazione applicata!")
+        # if self.mu is not None and self.sigma is not None:
+        #     x = apply_zscore(x, self.mu, self.sigma)
+        
+           
+        x = x / (np.quantile(np.abs(x), q=0.95, axis=-1, keepdims=True) + 1e-8)
 
         # Tensor conversion
         x = torch.tensor(x, dtype=torch.float32)
