@@ -377,17 +377,30 @@ if __name__ == "__main__":
             out[k] = {"mean": float(vals.mean()), "std": float(vals.std())}
         return out
 
-    val_stats = mean_std_dict(all_val)
+
+
+    print("\n\n=========== MEDIA E STD SU 10 RUN ===========")
+
+    def print_stats(title, stats):
+        print(f"\n{title}")
+        for k in ["accuracy", "balanced_accuracy", "pr_auc", "roc_auc", "sensitivity", "specificity"]:
+            mean = stats[k]["mean"]
+            std  = stats[k]["std"]
+            print(f"{k:20s}: {mean:.4f} ± {std:.4f}")
+
+    val_stats  = mean_std_dict(all_val)
     test_stats = mean_std_dict(all_test)
 
-    print("\nValidation Mean ± Std:\n", val_stats)
-    print("\nTest Mean ± Std:\n", test_stats)
+    print_stats("\nValidation Mean ± Std:\n", val_stats)
+    print_stats("\nTest Mean ± Std:\n", test_stats)
+
+
 
     import json
     summary = {"val_runs": all_val, "test_runs": all_test,
                "val_mean_std": val_stats, "test_mean_std": test_stats}
 
-    with open("finetuning_results_summary_frozen_encoder.json", "w") as f:
+    with open("finetuning_results_summary_full_finetuning_new_mask.json", "w") as f:
         json.dump(summary, f, indent=4)
 
-    print("\nRisultati salvati in finetuning_results_summary_frozen_encoder.json")
+    print("\nRisultati salvati in finetuning_results_summary_full_finetuning_new_mask.json")
