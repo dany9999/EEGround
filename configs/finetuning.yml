@@ -59,7 +59,7 @@ pretrain_model_path: "logs/pretrain-new-mask/best_encoder_only.pt"
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_full_finetuning_perc_norm_CHB-MIT_new mask"
+log_dir: "log_full_finetuning_perc_norm_CHB-MIT_new_mask"
 
 # =====================
 # OPTUNA SETTINGS

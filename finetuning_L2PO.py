@@ -381,18 +381,21 @@ if __name__ == "__main__":
 
     print("\n\n=========== MEDIA E STD SU 10 RUN ===========")
 
-    def print_stats(title, stats):
+ 
+
+    def print_stats(title, stats, prefix):
         print(f"\n{title}")
-        for k in ["accuracy", "balanced_accuracy", "pr_auc", "roc_auc", "sensitivity", "specificity"]:
-            mean = stats[k]["mean"]
-            std  = stats[k]["std"]
-            print(f"{k:20s}: {mean:.4f} ± {std:.4f}")
+        for k in ["acc", "bacc", "pr_auc", "auroc", "sensitivity", "specificity"]:
+            key = f"{prefix}_{k}"
+            mean = stats[key]["mean"]
+            std  = stats[key]["std"]
+            print(f"{key:20s}: {mean:.4f} ± {std:.4f}")
 
     val_stats  = mean_std_dict(all_val)
     test_stats = mean_std_dict(all_test)
 
-    print_stats("\nValidation Mean ± Std:\n", val_stats)
-    print_stats("\nTest Mean ± Std:\n", test_stats)
+    print_stats("Validation Mean ± Std:", val_stats, prefix="val")
+    print_stats("Test Mean ± Std:", test_stats, prefix="test")
 
 
 
