@@ -304,7 +304,7 @@ class BIOTEncoder(nn.Module):
 
 
     # ---------------------------------------------------------
-    # 🔥 MAE-style TOKEN MASKING (mask intere patch, non valori)
+    #  MAE-style TOKEN MASKING (mask intere patch, non valori)
     # ---------------------------------------------------------
     def random_masking(self, x):
         """
@@ -373,7 +373,7 @@ class BIOTEncoder(nn.Module):
 
 
         # ---------------------------------------------------------
-        # 🔥 MASKING MAE
+        #  MASKING MAE
         # ---------------------------------------------------------
         if self.pretraining:
             masked_emb, mask = self.random_masking(emb)
