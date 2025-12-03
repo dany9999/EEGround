@@ -529,7 +529,7 @@ class BIOTEncoder(nn.Module):
         n_channels=18,
         n_fft=250,
         hop_length=125,
-        mask_ratio=0.15,
+        mask_ratio=0.3,
         pretraining=False,
         **kwargs
     ):
@@ -626,13 +626,17 @@ class BIOTEncoder(nn.Module):
             patch_clean = self.patch_embedding(spec_clean)     # (B, T, D)
             patch_masked = self.patch_embedding(spec_masked)
 
-            B, T, D = patch_clean.shape
+            batch_size, ts, _ = patch_clean.shape
 
-            channel_token = self.channel_tokens(self.index[i + n_channel_offset]) \
-                .view(1, 1, D).repeat(B, T, 1)
+            channel_token_emb = (
+                self.channel_tokens(self.index[i + n_channel_offset])
+                .unsqueeze(0)
+                .unsqueeze(0)
+                .repeat(batch_size, ts, 1)
+            )
 
-            emb_clean = self.positional_encoding(patch_clean + channel_token)
-            emb_masked = self.positional_encoding(patch_masked + channel_token)
+            emb_clean = self.positional_encoding(patch_clean + channel_token_emb)
+            emb_masked = self.positional_encoding(patch_masked + channel_token_emb)
 
             emb_clean_seq.append(emb_clean)
             emb_masked_seq.append(emb_masked)
@@ -661,7 +665,7 @@ if __name__ == "__main__":
         n_channels=C,
         n_fft=250,
         hop_length=125,
-        mask_ratio=0.75,
+        mask_ratio=0.30,
         pretraining=True
     )
 
