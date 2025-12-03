@@ -1,6 +1,6 @@
 
 
-epochs: 200
+epochs: 1
 batch_size: 256
 
 
@@ -16,10 +16,10 @@ depth: 4
 n_channels: 18
 n_fft: 250
 hop_length: 125
-mask_ratio: 0.75
+mask_ratio: 0.30
 
 early_stopping_patience: 10
 save_every: 10
 
 dataset_path: "../../Datasets/Bipolar/TUH/Dataset_bipolar_TUH"
-log_dir: ./logs/pretrain-new-mask
+log_dir: ./logs/pretrain-new-mask_stft

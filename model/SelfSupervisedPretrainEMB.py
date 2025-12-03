@@ -57,10 +57,8 @@ class UnsupervisedPretrain(nn.Module):
         )
 
     def forward(self, x, n_channel_offset=0):
-        emb, masked_emb, out_biot,  mask = self.biot(x, n_channel_offset)
-        
+        emb_clean, emb_masked, out_biot, time_masks = self.biot(x, n_channel_offset)
         pred_emb = self.prediction(out_biot)
-
-        
-        return emb, masked_emb, mask, pred_emb
+        return emb_clean, emb_masked, pred_emb, time_masks
     
+
