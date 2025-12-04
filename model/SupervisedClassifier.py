@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from BIOTEMB import BIOTEncoder
+from model.BIOTEMB import BIOTEncoder
 
 
 class ClassificationHead(nn.Sequential):
