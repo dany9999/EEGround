@@ -14,7 +14,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
-from BIOT_vanilla.biot import BIOTClassifier
+#from BIOT_vanilla.biot import BIOTClassifier
+from model.SupervisedClassifier import BIOTClassifier
 from utils import focal_loss, load_config, compute_global_stats
 
 from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix

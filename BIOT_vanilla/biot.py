@@ -153,7 +153,7 @@ class BIOTEncoder(nn.Module):
 
        
         emb = torch.cat(emb_seq, dim=1) # (batch_size, 16 * ts, emb)
-        emb = self.transformer(emb) # (batch_size, emb)
+        emb = self.transformer(emb).mean(dim=1) # (batch_size, emb)
         
         return emb
 

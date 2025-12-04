@@ -647,6 +647,7 @@ class BIOTEncoder(nn.Module):
 
         # -------- TRANSFORMER --------
         out = self.transformer(emb_masked)
+        print(f" BIOTEncoder output -> {out.shape}")
 
         if self.pretraining:
             return emb_clean, emb_masked, out, time_masks

@@ -18,7 +18,8 @@ from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from BIOT_vanilla.biot import BIOTClassifier
+#from BIOT_vanilla.biot import BIOTClassifier
+from model.SupervisedClassifier import BIOTClassifier
 from utils import focal_loss, load_config
 
 from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau, SequentialLR
