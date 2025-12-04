@@ -623,8 +623,11 @@ class BIOTEncoder(nn.Module):
                 spec_masked = spec_clean
 
             # -------- Patch embedding --------
+            if self.pretraining:
+               patch_masked = self.patch_embedding(spec_masked)
+
             patch_clean = self.patch_embedding(spec_clean)     # (B, T, D)
-            patch_masked = self.patch_embedding(spec_masked)
+            
 
             batch_size, ts, _ = patch_clean.shape
 
@@ -636,27 +639,31 @@ class BIOTEncoder(nn.Module):
             )
 
             emb_clean = self.positional_encoding(patch_clean + channel_token_emb)
-            emb_masked = self.positional_encoding(patch_masked + channel_token_emb)
-
             emb_clean_seq.append(emb_clean)
-            emb_masked_seq.append(emb_masked)
+
+            if self.pretraining:
+                emb_masked = self.positional_encoding(patch_masked + channel_token_emb)
+                emb_masked_seq.append(emb_masked)
 
         # -------- CONCATENAZIONE FINALE --------
         emb_clean = torch.cat(emb_clean_seq, dim=1)   # (B, 126, 256)
-        emb_masked = torch.cat(emb_masked_seq, dim=1)
+        if self.pretraining:
+            emb_masked = torch.cat(emb_masked_seq, dim=1)
 
         # -------- TRANSFORMER --------
         out = self.transformer(emb_masked)
-        print(f" BIOTEncoder output -> {out.shape}")
+        
 
         if self.pretraining:
+            out = self.transformer(emb_masked)
             return emb_clean, emb_masked, out, time_masks
         else:
+            out = self.transformer(emb_clean)
             return out
            
 
 if __name__ == "__main__":
-    B, C, T = 1, 18, 1000
+    B, C, T = 1, 1, 1000
     x = torch.randn(B, C, T)
 
     enc = BIOTEncoder(
