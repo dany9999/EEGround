@@ -619,8 +619,7 @@ class BIOTEncoder(nn.Module):
             if self.pretraining:
                 spec_masked, tmask = self.time_masking_stft(spec_clean)
                 time_masks.append(tmask)   # (B, T)
-            else:
-                spec_masked = spec_clean
+  
 
             # -------- Patch embedding --------
             if self.pretraining:
@@ -651,9 +650,7 @@ class BIOTEncoder(nn.Module):
             emb_masked = torch.cat(emb_masked_seq, dim=1)
 
         # -------- TRANSFORMER --------
-        out = self.transformer(emb_masked)
-        
-
+     
         if self.pretraining:
             out = self.transformer(emb_masked)
             return emb_clean, emb_masked, out, time_masks
