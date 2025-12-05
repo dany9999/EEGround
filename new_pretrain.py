@@ -17,7 +17,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 import re
 
-from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
+
 
 # ==== CALCOLO GLOBAL MEAN & STD SU TRAIN ====
 
@@ -229,25 +229,18 @@ def train_model(config):
     model.parameters(),
     lr=config["lr"],
     weight_decay=float(config["weight_decay"])
-)
-
-    warmup = LinearLR(
-        optimizer,
-        start_factor=0.001,
-        total_iters=5
     )
 
-    cosine = CosineAnnealingLR(
-        optimizer,
-        T_max=config["epochs"] - 5,
-        eta_min=1e-6
+    scheduler = ReduceLROnPlateau(
+    optimizer,
+    mode="min",
+    factor=0.5,
+    patience=5,
+    threshold=1e-4,
+    min_lr=1e-6,
+    verbose=False
     )
 
-    scheduler = SequentialLR(
-        optimizer,
-        schedulers=[warmup, cosine],
-        milestones=[5]
-    )
     writer = SummaryWriter(log_dir=log_dir)
    
 
@@ -287,8 +280,8 @@ def train_model(config):
         train_loss = sum(train_losses) / len(train_losses) 
         val_loss = sum(val_losses) / len(val_losses) 
 
-        #scheduler.step(val_loss)
-        scheduler.step()
+        scheduler.step(val_loss)
+       
 
         
         print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")

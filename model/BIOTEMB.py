@@ -609,16 +609,20 @@ class BIOTEncoder(nn.Module):
         emb_clean_seq = []
         emb_masked_seq = []
         time_masks = []
+        #stft_clean_list = []
+        #stft_masked_list = []
 
         for i in range(x.shape[1]):
 
             # -------- STFT PULITA --------
             spec_clean = self.stft(x[:, i:i+1, :])   # (B, F, T)
+            #stft_clean_list.append(spec_clean.detach())
 
             # -------- STFT MASCHERATA NEL TEMPO --------
             if self.pretraining:
                 spec_masked, tmask = self.time_masking_stft(spec_clean)
                 time_masks.append(tmask)   # (B, T)
+                #stft_masked_list.append(spec_masked.detach())
   
 
             # -------- Patch embedding --------
@@ -654,13 +658,18 @@ class BIOTEncoder(nn.Module):
         if self.pretraining:
             out = self.transformer(emb_masked)
             return emb_clean, emb_masked, out, time_masks
+            #return emb_clean, emb_masked, out, time_masks, stft_clean_list, stft_masked_list
+        
+        
         else:
             out = self.transformer(emb_clean)
             return out
            
 
 if __name__ == "__main__":
-    B, C, T = 1, 1, 1000
+    import matplotlib.pyplot as plt
+
+    B, C, T = 1, 3, 1000   # metti 18 se vuoi plottarle tutte
     x = torch.randn(B, C, T)
 
     enc = BIOTEncoder(
@@ -675,11 +684,41 @@ if __name__ == "__main__":
     )
 
     with torch.no_grad():
-        emb_clean, emb_masked, out, time_masks = enc(x)
+        emb_clean, emb_masked, out, time_masks, stft_clean, stft_masked = enc(x)
 
-    print("emb_clean:",  emb_clean.shape)   # (B, 126, 256)
-    print("emb_masked:", emb_masked.shape)  # (B, 126, 256)
-    print("out:",        out.shape)         # (B, 126, 256)
-    print("len(time_masks):", len(time_masks))  # = C
-    print("time_masks[0].shape:", time_masks[0].shape)  # (B, T=7)
-      
+    print("emb_clean:", emb_clean.shape)
+    print("emb_masked:", emb_masked.shape)
+    print("out:", out.shape)
+
+    # ===============================
+    #  PLOT DI TUTTI I CANALI
+    # ===============================
+    for ch in range(C):
+
+        clean = stft_clean[ch][0].cpu().numpy()    # (F, T)
+        masked = stft_masked[ch][0].cpu().numpy()
+        mask = time_masks[ch][0].cpu().numpy()
+
+        plt.figure(figsize=(15, 4))
+
+        plt.subplot(1, 3, 1)
+        plt.title(f"Channel {ch} - STFT CLEAN")
+        plt.imshow(clean, aspect="auto", origin="lower")
+        plt.colorbar()
+
+        plt.subplot(1, 3, 2)
+        plt.title(f"Channel {ch} - STFT MASKED")
+        plt.imshow(masked, aspect="auto", origin="lower")
+        plt.colorbar()
+
+        plt.subplot(1, 3, 3)
+        plt.title(f"Channel {ch} - TIME MASK")
+        plt.imshow(mask[None, :], aspect="auto", cmap="gray_r")
+        plt.xlabel("Time Frames")
+        plt.yticks([])
+
+        plt.tight_layout()
+        plt.show()
+
+
+
