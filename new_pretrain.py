@@ -237,8 +237,7 @@ def train_model(config):
     factor=0.5,
     patience=5,
     threshold=1e-4,
-    min_lr=1e-6,
-    verbose=False
+    min_lr=1e-6
     )
 
     writer = SummaryWriter(log_dir=log_dir)
