@@ -502,7 +502,7 @@ class PatchFrequencyEmbedding(nn.Module):
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_len: int = 1000):
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=0.1)
+        self.dropout = nn.Dropout(p=0.0)
 
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len).unsqueeze(1).float()
@@ -549,8 +549,8 @@ class BIOTEncoder(nn.Module):
             heads=heads,
             depth=depth,
             max_seq_len=1024,
-            attn_layer_dropout=0.2,
-            attn_dropout=0.2,
+            attn_layer_dropout=0.0,
+            attn_dropout=0.0,
         )
 
         self.positional_encoding = PositionalEncoding(emb_size)
