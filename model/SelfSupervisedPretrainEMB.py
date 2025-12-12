@@ -40,7 +40,7 @@
 
 
 
-from BIOTEMB import BIOTEncoder
+from model.BIOTEMB import BIOTEncoder
 import torch.nn as nn
 import torch
 
