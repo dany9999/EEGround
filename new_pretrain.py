@@ -82,8 +82,8 @@ def train_one_file(model, optimizer, file_path, batch_size, device, writer, glob
        
         optimizer.zero_grad()
         
-        emb_clean, emb_masked, pred_emb, time_masks = model(batch_raw)
-        loss = F.mse_loss(pred_emb, emb_clean)
+        pred_stft, stft_clean_cat, token_mask = model(batch_raw)
+        loss = F.mse_loss(pred_stft[token_mask], stft_clean_cat[token_mask])
         
        
         loss.backward()
@@ -118,8 +118,8 @@ def validate_one_file(model, file_path, batch_size, device, writer, global_step_
 
             batch_raw = batch_raw.to(device)
             
-            emb_clean, emb_masked, pred_emb, time_masks = model(batch_raw)
-            loss = F.mse_loss(pred_emb, emb_clean)
+            pred_stft, stft_clean_cat, token_mask = model(batch_raw)
+            loss = F.mse_loss(pred_stft[token_mask], stft_clean_cat[token_mask])
 
             running_loss += loss.item()
             writer.add_scalar("BatchLoss/Val", loss.item(), global_step_val)

@@ -16,7 +16,7 @@ depth: 4
 n_channels: 18
 n_fft: 250
 hop_length: 125
-mask_ratio: 0.30
+mask_ratio: 0.0
 
 early_stopping_patience: 10
 save_every: 10
