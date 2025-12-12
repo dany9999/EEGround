@@ -40,7 +40,7 @@
 
 
 
-from model.BIOTEMB import BIOTEncoder
+from BIOTEMB import BIOTEncoder
 import torch.nn as nn
 import torch
 
@@ -55,11 +55,20 @@ class UnsupervisedPretrain(nn.Module):
     def forward(self, x, n_channel_offset=0):
         out, stft_clean_cat, time_masks = self.biot(x)
 
-        token_mask = time_masks.repeat(1, x.shape[1]).unsqueeze(1)
+        
         # ---- decode STFT
         pred_stft = self.stft_decoder(out)      # (B, Seq, F)
         pred_stft = pred_stft.permute(0, 2, 1)  # (B, F, Seq)
 
+        # time_masks: (B, Tpatch)
+        # Seq = C * Tpatch
+
+        # 1) espandi la mask sui canali (token-level)
+        token_mask = time_masks.repeat(1, x.shape[1])  # (B, Seq)
+
+        # 2) espandi sulle frequenze
+        token_mask = token_mask.unsqueeze(1).expand(-1, pred_stft.shape[1], -1)
+        # shape finale: (B, F, Seq)
         return pred_stft, stft_clean_cat, token_mask
     
 
