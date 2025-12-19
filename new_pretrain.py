@@ -246,7 +246,7 @@ def train_model(config):
     start_epoch = 0
     global_step = 0
     global_step_val = 0
-    best_val_loss = float('inf')
+    best_val_loss = 5.7350
     epochs_without_improvement = 0
 
     checkpoints = sorted(glob(os.path.join(log_dir, "checkpoint_epoch_*.pt")))
