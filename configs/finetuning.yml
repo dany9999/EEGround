@@ -44,7 +44,7 @@ threshold: 0.5
 # =====================
 # FINETUNING SETTINGS
 # =====================
-finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
+finetune_mode: "full_finetune"  # "from_scratch", "full_finetune", "frozen_encoder"
 
 
 # =====================
@@ -53,13 +53,13 @@ finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encode
 dataset_path_4s: "../../Datasets/Bipolar/chb_mit/raw"
 dataset_path_8s: "../../Datasets/Bipolar/chb_mit/8sec"
 gt_path: "../../Datasets/chb_mit/GT"  # utile se la pipeline la richiede
-pretrain_model_path: "logs/pretrain-new-norm/best_encoder_only.pt"
+pretrain_model_path: "logs/pretrain-new-mask_stft/best_encoder_only.pt"
 
 # =====================
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_full_finetuning_perc_norm_CHB-MIT_new_mask"
+log_dir: "log_full_finetuning_perc_norm_CHB-MIT_new_mask_stft"
 
 # =====================
 # OPTUNA SETTINGS

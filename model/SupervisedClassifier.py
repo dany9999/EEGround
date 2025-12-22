@@ -1,5 +1,3 @@
-import time
-import math
 
 import torch
 import torch.nn as nn
@@ -32,7 +30,7 @@ class BIOTClassifier(nn.Module):
 
     def forward(self, x):
         x = self.biot(x)
-        x = x.mean(dim=1)        # (B, 256)
+        x = x.mean(dim=1)       
         x = self.classifier(x)
         return x
     
