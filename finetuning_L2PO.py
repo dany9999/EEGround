@@ -213,30 +213,33 @@ class LitModel_finetune(pl.LightningModule):
 # =====================================================================
 #                  SPLIT: VAL FISSO + 10 RUN TEST
 # =====================================================================
-def predefined_split(run_id=1, seed=42):
+import numpy as np
+
+def predefined_split(run_id=1, seed=42, n_val=3):
     """
-    Crea 10 split:
-      - Validation fisso = chb20, chb21, chb22
-      - I restanti 20 soggetti sono randomizzati e divisi in 10 coppie test
+    Crea 10 split subject-independent:
+      - Validation scelto random una sola volta (n_val soggetti)
+      - I restanti soggetti sono randomizzati e divisi in 10 coppie test
       - Ogni test contiene 2 soggetti unici
+      - Train = soggetti rimanenti
     """
+
+    if not (1 <= run_id <= 10):
+        raise ValueError("run_id deve essere tra 1 e 10")
 
     rng = np.random.default_rng(seed)
 
     all_subjects = [f"chb{str(i).zfill(2)}" for i in range(1, 24)]
-    val = ["chb20", "chb21", "chb22"]
 
-    # Candidati per test: 20 soggetti
+    # 1) Selezione random del validation set (fisso dato il seed)
+    val = list(rng.choice(all_subjects, size=n_val, replace=False))
+
+    # 2) Candidati per test
     candidates = [s for s in all_subjects if s not in val]
 
-    # Permutazione random dei soggetti
+    # 3) Randomizzazione e creazione delle coppie test
     shuffled = list(rng.permutation(candidates))
-
-    # Creiamo le 10 coppie
     test_pairs = [shuffled[i:i+2] for i in range(0, len(shuffled), 2)]
-
-    if not (1 <= run_id <= 10):
-        raise ValueError("run_id deve essere tra 1 e 10")
 
     test = test_pairs[run_id - 1]
     train = [s for s in all_subjects if s not in val + test]
