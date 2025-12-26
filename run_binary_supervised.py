@@ -298,10 +298,11 @@ def predefined_split():
     # val_patients   = [f"chb{str(i).zfill(2)}" for i in range(10, 20)]
     # test_patients  = [f"chb{str(i).zfill(2)}" for i in range(22, 24)]
     
-    train_patients = [f"chb{str(i).zfill(2)}" for i in range(1, 7)] \
-                   + [f"chb{str(i).zfill(2)}" for i in range(8, 19)]
-    val_patients   = ["chb20", "chb21", "chb22"]
-    test_patients  = ["chb07", "chb23"]
+    train_patients = ["chb01", "chb03", "chb04", "chb05", "chb06", "chb07", "chb08", "chb09", 
+                      "chb10", "chb11", "chb12", "chb13", "chb14", "chb15", "chb17", "chb21", "chb22", "chb23"]
+     
+    val_patients   = ["chb18", "chb16", "chb02"]
+    test_patients  = ["chb019", "chb20"]
 
     print("Train:", train_patients)
     print("Val:", val_patients)
