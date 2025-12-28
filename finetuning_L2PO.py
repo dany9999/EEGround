@@ -69,8 +69,10 @@ def find_best_threshold(gt, probs, mode="f2"):
     if np.sum(gt) == 0 or np.sum(gt) == len(gt):
         return 0.5, 0.0
 
-    if mode.lower() in ["f1", "f2"]:
+    if mode.lower() in ["f1", "f2", "f3"]:
         beta = 1.0 if mode.lower() == "f1" else 2.0
+        if mode.lower() == "f3":
+            beta = 3.0
         prec, rec, ths = precision_recall_curve(gt, probs)
         f_scores = (1 + beta**2) * (prec * rec) / (beta**2 * prec + rec + 1e-8)
         idx = np.nanargmax(f_scores)
