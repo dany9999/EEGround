@@ -126,11 +126,11 @@ class LitModel_finetune(pl.LightningModule):
         gt = np.concatenate(self.val_results["targets"])
 
         if np.sum(gt) not in [0, len(gt)]:
-            self.threshold, _ = find_best_threshold(gt, preds, mode="f3")
+            #self.threshold, _ = find_best_threshold(gt, preds, mode="f3")
             self.threshold =  np.sort(preds)[-int(np.sum(gt))]
-            #results = binary_metrics_fn(gt, preds,
-            #                            metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
-            #                            threshold=self.threshold)
+            results = binary_metrics_fn(gt, preds,
+                                        metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
+                                        threshold=self.threshold)
 
             preds_bin = (preds >= self.threshold).astype(int)
             
