@@ -13,7 +13,7 @@ resume: false  # può essere true per riprendere da checkpoint
 # =====================
 # OPTIMIZER
 # =====================
-lr: 0.00005       # learning rate iniziale
+lr: 0.0001      # learning rate iniziale
 
 encoder_lr: 0.000009355  # learning rate per l'encoder se si fa full finetuning
 head_lr: 0.00096     # learning rate per la testa di classificazione
