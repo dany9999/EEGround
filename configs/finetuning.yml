@@ -44,7 +44,7 @@ threshold: 0.5
 # =====================
 # FINETUNING SETTINGS
 # =====================
-finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
+finetune_mode: "full_finetune"  # "from_scratch", "full_finetune", "frozen_encoder"
 
 
 # =====================
