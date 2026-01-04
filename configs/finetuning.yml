@@ -15,8 +15,8 @@ resume: false  # può essere true per riprendere da checkpoint
 # =====================
 lr: 0.001      # learning rate iniziale
 
-encoder_lr: 0.000009355  # learning rate per l'encoder se si fa full finetuning
-head_lr: 0.00096     # learning rate per la testa di classificazione
+encoder_lr: 0.000006792  # learning rate per l'encoder se si fa full finetuning
+head_lr: 0.000007317     # learning rate per la testa di classificazione
 
 
 weight_decay: 1e-6
@@ -59,7 +59,7 @@ pretrain_model_path: "logs/pretrain-new-mask_stft/best_encoder_only.pt"
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_from_scratch_perc_norm_CHB-MIT_pos_threshold"
+log_dir: "log_full_finetuning_perc_norm_CHB-MIT_pos_threshold"
 
 # =====================
 # OPTUNA SETTINGS
