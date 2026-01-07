@@ -302,8 +302,8 @@ def predefined_split():
     train_patients = ["chb01","chb02", "chb03", "chb04", "chb05", "chb06", "chb07", "chb08", "chb09", 
                       "chb10", "chb11", "chb12", "chb13", "chb14", "chb15","chb16", "chb17", "chb18", "chb19"]
      
-    val_patients   = ["chb20", "chb21"]
-    test_patients  = ["chb22", "chb23"]
+    val_patients   = ["chb22", "chb23"]
+    test_patients  = ["chb20", "chb21"]
 
     print("Train:", train_patients)
     print("Val:", val_patients)
