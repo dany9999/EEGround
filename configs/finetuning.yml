@@ -6,7 +6,7 @@
 epochs: 100
 batch_size: 128
 num_workers: 20
-early_stopping_patience: 5
+early_stopping_patience: 7
 save_every: 10
 resume: false  # può essere true per riprendere da checkpoint
 
