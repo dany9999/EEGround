@@ -6,7 +6,7 @@
 epochs: 100
 batch_size: 128
 num_workers: 20
-early_stopping_patience: 10
+early_stopping_patience: 5
 save_every: 10
 resume: false  # può essere true per riprendere da checkpoint
 
@@ -59,7 +59,7 @@ pretrain_model_path: "logs/pretrain-new-mask_stft/best_encoder_only.pt"
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_full_finetuning_perc_norm_CHB-MIT_pos_threshold"
+log_dir: "log_from_scratch"
 
 # =====================
 # OPTUNA SETTINGS
