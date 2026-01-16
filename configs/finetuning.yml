@@ -44,7 +44,7 @@ threshold: 0.5
 # =====================
 # FINETUNING SETTINGS
 # =====================
-finetune_mode: "from_scratch"  # "from_scratch", "full_finetune", "frozen_encoder"
+finetune_mode: "from_scratch"  # "frozen_encoder", "full_finetune", "frozen_encoder"
 
 
 # =====================
@@ -59,7 +59,7 @@ pretrain_model_path: "logs/pretrain-new-mask_stft/best_encoder_only.pt"
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_from_scratch_2"
+log_dir: "log_frozen_encoder"
 
 # =====================
 # OPTUNA SETTINGS
