@@ -32,18 +32,21 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, logits, targets):
-        """
-        logits: (N,) o (N, 1) output del modello (non passato nel sigmoid)
-        targets: (N,) valori 0/1
-        """
+        # logits: (N,) or (N,1)
+        # targets: (N,) or (N,1), values 0/1
+
+        # squeeze extra dimension if present
         if logits.dim() > 1 and logits.size(1) == 1:
-            logits = logits.view(-1)
+            logits = logits.squeeze(1)
+        if targets.dim() > 1 and targets.size(1) == 1:
+            targets = targets.squeeze(1)
+
         targets = targets.float()
 
         # p = sigmoid(logits)
         p = torch.sigmoid(logits)
 
-        # BCE per ogni campione
+        # BCE per campione
         bce = F.binary_cross_entropy(p, targets, reduction="none")
 
         # p_t = p se y=1, 1-p se y=0
