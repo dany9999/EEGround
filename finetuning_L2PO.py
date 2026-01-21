@@ -16,12 +16,12 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 #from BIOT_vanilla.biot import BIOTClassifier
 from model.SupervisedClassifier import BIOTClassifier
-from utils import focal_loss, load_config, compute_global_stats
+from utils import FocalLoss, load_config
 
 from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from CHBMITLoader_4s import make_loader, compute_global_channel_stats
+from CHBMITLoader_4s import make_loader
 
 
 # =====================================================================
@@ -95,7 +95,11 @@ class LitModel_finetune(pl.LightningModule):
         self.threshold = config["threshold"]
         self.config = config
 
-        self.criterion = nn.BCEWithLogitsLoss()
+        if self.config["criterion_name"] == "focal":
+            self.criterion = FocalLoss(alpha=self.config["focal_alpha"], gamma=self.config["focal_gamma"])
+        elif self.config["criterion_name"] == "bce":
+            self.criterion = nn.BCEWithLogitsLoss()
+        
         self.val_results = {"preds": [], "targets": []}
         self.test_results = {"preds": [], "targets": []}
 
@@ -286,7 +290,7 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
     #                           shuffle=False, mu=mu, sigma=sigma)
 
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-                               shuffle=True, balanced=False, neg_to_pos_ratio=5)
+                               shuffle=True, balanced=True, neg_to_pos_ratio=10)
 
     val_loader = make_loader(split["val"], dataset_path, gt_path, config,
                              shuffle=False)

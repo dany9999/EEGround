@@ -19,7 +19,50 @@ from torchmetrics import Metric
 
 
 # ==== Utils ====
+# utils.py
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0, reduction="mean"):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, logits, targets):
+        """
+        logits: (N,) o (N, 1) output del modello (non passato nel sigmoid)
+        targets: (N,) valori 0/1
+        """
+        if logits.dim() > 1 and logits.size(1) == 1:
+            logits = logits.view(-1)
+        targets = targets.float()
+
+        # p = sigmoid(logits)
+        p = torch.sigmoid(logits)
+
+        # BCE per ogni campione
+        bce = F.binary_cross_entropy(p, targets, reduction="none")
+
+        # p_t = p se y=1, 1-p se y=0
+        p_t = p * targets + (1 - p) * (1 - targets)
+
+        # fattore focal
+        focal_factor = (1 - p_t) ** self.gamma
+
+        # bilanciamento alpha
+        alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+
+        loss = alpha_t * focal_factor * bce
+
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        else:
+            return loss
 
 # define focal loss on binary classification
 def focal_loss(y_hat, y, alpha=0.8, gamma=0.7):
