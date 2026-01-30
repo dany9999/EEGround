@@ -131,7 +131,8 @@ class LitModel_finetune(pl.LightningModule):
 
         if np.sum(gt) not in [0, len(gt)]:
             #self.threshold, _ = find_best_threshold(gt, preds, mode="f2")
-            self.threshold =  np.sort(preds)[-int(np.sum(gt))]
+            #self.threshold =  np.sort(preds)[-int(np.sum(gt))]
+            self.threshold = float(np.sort(preds.reshape(-1))[-int(np.sum(gt))])
             results = binary_metrics_fn(gt, preds,
                                         metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
                                         threshold=self.threshold)
@@ -271,26 +272,6 @@ def prepare_CHB_MIT_dataloader(config, run_id=1):
     split = predefined_split(run_id)
 
  
-    #loader_tmp = make_loader(split["train"], dataset_path, gt_path, config, shuffle=False, balanced=False)
-
-   
-    #mu, sigma = compute_global_channel_stats(loader_tmp, n_channels=18)
-
-    
-
-    # mu = np.load("global_mean.npy")
-    # sigma = np.load("global_std.npy")
-
-    # train_loader = make_loader(split["train"], dataset_path, gt_path, config,
-    #                            shuffle=True, balanced=True, neg_to_pos_ratio=5,
-    #                            mu=mu, sigma=sigma)
-
-    # val_loader = make_loader(split["val"], dataset_path, gt_path, config,
-    #                          shuffle=False, mu=mu, sigma=sigma)
-
-    # test_loader = make_loader(split["test"], dataset_path, gt_path, config,
-    #                           shuffle=False, mu=mu, sigma=sigma)
-
     train_loader = make_loader(split["train"], dataset_path, gt_path, config,
                                shuffle=True, balanced=True, neg_to_pos_ratio=10)
 
