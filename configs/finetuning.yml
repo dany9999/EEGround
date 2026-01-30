@@ -35,7 +35,7 @@ hop_length: 125
 # =====================
 # LOSS FUNCTION
 # =====================
-criterion_name: "bce"   # "bce" o "focal"
+criterion_name: "focal"   # "bce" o "focal"
 focal_alpha: 0.25
 focal_gamma: 2.0
 threshold: 0.5
@@ -59,7 +59,7 @@ pretrain_model_path: "logs/pretrain-new-mask_stft/best_encoder_only.pt"
 # OUTPUT DIRECTORIES
 # =====================
 save_dir: "./checkpoints_finetuning"
-log_dir: "log_full_finetune_no_undersampling"
+log_dir: "prova"
 
 # =====================
 # OPTUNA SETTINGS

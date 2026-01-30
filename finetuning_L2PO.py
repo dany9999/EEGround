@@ -174,7 +174,9 @@ class LitModel_finetune(pl.LightningModule):
     def on_test_epoch_end(self):
         preds = np.concatenate(self.test_results["preds"])
         gt = np.concatenate(self.test_results["targets"])
-
+        
+        print(f"\n[TEST] Threshold used = {self.threshold:.6f}\n")
+        
         if np.sum(gt) not in [0, len(gt)]:
             results = binary_metrics_fn(gt, preds,
                                         metrics=["pr_auc", "roc_auc", "accuracy", "balanced_accuracy"],
