@@ -176,7 +176,10 @@ class LitModel_finetune(pl.LightningModule):
         preds = np.concatenate(self.test_results["preds"])
         gt = np.concatenate(self.test_results["targets"])
         
-        print(f"\n[TEST] Threshold used = {self.threshold:.6f}\n")
+        th = self.threshold
+        # th può essere numpy scalar o array shape (1,)
+        th = float(np.asarray(th).reshape(-1)[0])
+        print(f"\n[TEST] Threshold used = {th:.6f}\n")
         
         if np.sum(gt) not in [0, len(gt)]:
             results = binary_metrics_fn(gt, preds,
