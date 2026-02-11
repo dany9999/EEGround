@@ -12,28 +12,29 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from model.SupervisedClassifier import BIOTClassifier
 
-
 # =========================
 # CONFIG FISSA
 # =========================
 CKPT_PATH = "checkpoints/best-model-run6.ckpt"
 THRESHOLD = 0.073144
-#THRESHOLD = 0.273427
 
 N_FFT = 250
 HOP_LENGTH = 125
 
-# frequenza di campionamento (Hz) -> fondamentale per l'asse dei secondi
-FS = 250  # <-- CAMBIA QUI se diverso
+FS = 250                 # Hz 
+SEGMENT_SECONDS = 4.0    
 
 APPLY_P95_NORM_FOR_INFERENCE = True
 
-CELL_SIZE = 12
-CELL_GAP = 2
-CELLS_PER_ROW = 80
+CELL_SIZE = 14
+CELL_GAP = 4
+CELLS_PER_ROW = 70
 
-# indici dei 18 canali usati nel training (ordine IDENTICO al training!)
-CHANNEL_IDXS = list(range(18))
+CHANNEL_IDXS = list(range(18))  
+
+# euristica: seizure = almeno 20 secondi di positivi consecutivi
+MIN_SEIZURE_SECONDS = 20.0
+MIN_RUN = int(np.ceil(MIN_SEIZURE_SECONDS / SEGMENT_SECONDS))  # 20/4=5
 # =========================
 
 
@@ -42,19 +43,43 @@ def robust_p95_norm_np(x_ct: np.ndarray) -> np.ndarray:
     return x_ct / p95
 
 
+def red_yellow_from_consecutive(preds, min_run):
+    """
+    Rosso: run di 1 consecutivi lunga >= min_run
+    Giallo: 1 non in run lunga abbastanza
+    """
+    preds = np.asarray(preds).astype(np.int32)
+    N = len(preds)
+
+    red = np.zeros(N, dtype=bool)
+
+    i = 0
+    while i < N:
+        if preds[i] == 1:
+            j = i
+            while j < N and preds[j] == 1:
+                j += 1
+            run_len = j - i
+            if run_len >= min_run:
+                red[i:j] = True
+            i = j
+        else:
+            i += 1
+
+    yellow = (preds == 1) & (~red)
+    return red, yellow
+
+
 def load_ckpt_strip_dataparallel(model: torch.nn.Module, ckpt_path: str, device: torch.device):
     ckpt = torch.load(ckpt_path, map_location=device)
 
-    # Lightning checkpoint: "state_dict"
     if isinstance(ckpt, dict) and "state_dict" in ckpt:
         sd = ckpt["state_dict"]
-    # tuoi checkpoint custom: "model_state_dict"
     elif isinstance(ckpt, dict) and "model_state_dict" in ckpt:
         sd = ckpt["model_state_dict"]
     else:
         sd = ckpt
 
-    # pulizia prefissi
     new_sd = {}
     for k, v in sd.items():
         if k.startswith("module."):
@@ -96,25 +121,25 @@ def predict_prob(model, x_bct: np.ndarray, device: torch.device) -> float:
 class GridDemo:
     def __init__(self, root):
         self.root = root
-        root.title("EEG Segment Classifier Demo (H5 segments → grid + medical plot)")
+        root.title("EEG Seizure Detector Demo ")
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # dati SOLO 18 canali (N,18,T) per inferenza e per plot
-        self.data_18 = None
+        self.data_18 = None   # (N,18,T)
         self.N = 0
         self.C = 0
         self.T = 0
         self.h5_path = None
 
         self.model = None
-        self.threshold = THRESHOLD
+        self.threshold = float(THRESHOLD)
 
         self.probs = None
         self.preds = None
+        self.red_mask = None
+        self.yellow_mask = None
 
         self.selected_idx = 0
-        self.selected_ch = "ALL"  # "ALL" oppure int
 
         # ========= Top controls =========
         top = tk.Frame(root)
@@ -125,16 +150,14 @@ class GridDemo:
         self.btn_run = tk.Button(top, text="Run classification", command=self.run_inference, state=tk.DISABLED)
         self.btn_run.pack(side=tk.LEFT, padx=4)
 
-        
+  
 
-        # canale selector: ALL + 0..17
         tk.Label(top, text="View:").pack(side=tk.LEFT, padx=(14, 4))
         self.ch_var = tk.StringVar(value="ALL")
         self.ch_menu = tk.OptionMenu(top, self.ch_var, "ALL", command=self.on_channel_change)
         self.ch_menu.config(state=tk.DISABLED)
         self.ch_menu.pack(side=tk.LEFT)
 
-        # info line
         self.info = tk.StringVar(value=f"Device={self.device}")
         tk.Label(root, textvariable=self.info, anchor="w").pack(side=tk.TOP, fill=tk.X, padx=8)
 
@@ -175,7 +198,6 @@ class GridDemo:
         menu = self.ch_menu["menu"]
         menu.delete(0, "end")
 
-        # ALL
         menu.add_command(label="ALL", command=lambda: self.ch_var.set("ALL") or self.on_channel_change("ALL"))
         for ch in range(C):
             menu.add_command(label=str(ch), command=lambda v=ch: self.ch_var.set(str(v)) or self.on_channel_change(str(v)))
@@ -205,7 +227,6 @@ class GridDemo:
 
         N, Cfull, T = data.shape
 
-        # check CHANNEL_IDXS
         if len(CHANNEL_IDXS) != 18:
             messagebox.showerror("Error", f"CHANNEL_IDXS deve avere 18 indici. Ora: {len(CHANNEL_IDXS)}")
             return
@@ -213,19 +234,18 @@ class GridDemo:
             messagebox.showerror("Error", f"CHANNEL_IDXS fuori range. File ha C={Cfull}, idx max={max(CHANNEL_IDXS)}")
             return
 
-        # tieni solo 18 canali (anche per plot, come richiesto)
         data_18 = data[:, CHANNEL_IDXS, :]  # (N,18,T)
 
-        # sanity: segment length seconds
+        # sanity check durata segmento
         seg_sec = T / float(FS)
-        if abs(seg_sec - 5.0) > 0.25:
-            print(f"[WARNING] Segment length ~= {seg_sec:.3f}s (T={T}, FS={FS}). Se non è 5s, controlla FS.")
+        if abs(seg_sec - SEGMENT_SECONDS) > 0.25:
+            print(f"[WARNING] Segment length ~= {seg_sec:.3f}s (T={T}, FS={FS}). Atteso ~{SEGMENT_SECONDS}s.")
 
         self.h5_path = path
         self.data_18 = data_18
         self.N, self.C, self.T = data_18.shape  # C=18
 
-        # build model e carica pesi
+        # modello
         self.model = BIOTClassifier(
             n_channels=self.C,
             n_fft=N_FFT,
@@ -239,20 +259,20 @@ class GridDemo:
         missing, unexpected, loaded_ok = load_ckpt_strip_dataparallel(self.model, CKPT_PATH, self.device)
         self.model.eval()
 
+        # reset
         self.probs = None
         self.preds = None
+        self.red_mask = None
+        self.yellow_mask = None
         self.selected_idx = 0
-        self.selected_ch = "ALL"
 
         self._set_channel_menu(self.C)
         self.btn_run.config(state=tk.NORMAL)
 
-        self.info.set(
-            f"Loaded {os.path.basename(self.h5_path)}| device={self.device} |  "
-        )
+        self.info.set(f"Loaded {os.path.basename(self.h5_path)}")
 
         self.draw_grid(initial=True)
-        self.plot_segment(0, "ALL")
+        self.plot_segment(0, self.ch_var.get())
 
     # ---------------- Inference ----------------
     def run_inference(self):
@@ -277,13 +297,16 @@ class GridDemo:
         self.probs = probs
         self.preds = preds
 
+        # euristica: rosso/giallo (solo run consecutive >= MIN_RUN)
+        self.red_mask, self.yellow_mask = red_yellow_from_consecutive(self.preds, min_run=MIN_RUN)
+
         self.draw_grid(initial=False)
         self.plot_segment(self.selected_idx, self.ch_var.get())
 
         n_pos = int(preds.sum())
+        n_red = int(self.red_mask.sum())
         self.info.set(
-            #f"Done. N={self.N} | positives={n_pos} ({n_pos/self.N:.2%})"
-            f"click a square to inspect EEG"
+            f"EEG_file: {os.path.basename(self.h5_path)} | pos={n_pos} ({n_pos/self.N:.2%})"
         )
 
     # ---------------- Grid ----------------
@@ -307,7 +330,13 @@ class GridDemo:
             if initial or self.preds is None:
                 fill = "#DDDDDD"
             else:
-                fill = "#E74C3C" if self.preds[idx] == 1 else "#D0D0D0"
+                # Rosso = run lunga (seizure), Giallo = sospetto, Grigio = no
+                if self.red_mask is not None and self.red_mask[idx]:
+                    fill = "#E74C3C"  # rosso
+                elif self.yellow_mask is not None and self.yellow_mask[idx]:
+                    fill = "#F1C40F"  # giallo
+                else:
+                    fill = "#D0D0D0"  # grigio
 
             rect = self.canvas.create_rectangle(x0, y0, x1, y1, fill=fill, outline="#888888", width=1)
             self.rect_to_idx[rect] = idx
@@ -342,60 +371,55 @@ class GridDemo:
             return
         self.plot_segment(self.selected_idx, self.ch_var.get())
 
-    # ---------------- Medical-ish plot ----------------
+    # ---------------- Plot ----------------
     def plot_segment(self, idx: int, ch_choice):
         if self.data_18 is None:
             return
 
         idx = int(np.clip(idx, 0, self.N - 1))
-
         seg = self.data_18[idx]  # (18,T)
 
-        # time axis in seconds (absolute, based on segment index)
+        # asse tempo assoluto in secondi (senza gap/bug)
         seg_len_s = self.T / float(FS)
         t0 = idx * seg_len_s
         t = np.arange(self.T) / float(FS) + t0
         t1 = t0 + seg_len_s
 
-        # title extras
-
         self.ax.clear()
-
-        # style "più medico": griglia leggera + linee sottili
         self.ax.grid(True, alpha=0.25)
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Amplitude")
 
+        # info pred (se disponibile)
+       
+        if self.probs is not None:
+            p = float(self.probs[idx])
+
+            
+
         if str(ch_choice).upper() == "ALL":
-            # stacked plot (tipico EEG)
-            # offset robusto: usa percentili per non farsi dominare dagli spike
             scale = np.percentile(np.abs(seg), 95)
             scale = max(scale, 1e-6)
-
-            # step fra canali
             step = 3.5 * scale
 
-            offsets = np.arange(self.C)[::-1] * step  # canale 0 in alto
+            offsets = np.arange(self.C)[::-1] * step
             for ch in range(self.C):
                 y = seg[ch] + offsets[ch]
                 self.ax.plot(t, y, linewidth=0.8)
 
-            # y ticks come etichette canali
             self.ax.set_yticks(offsets)
             self.ax.set_yticklabels([f"Ch {ch}" for ch in range(self.C)][::-1])
 
             title = f"Segment {idx}/{self.N-1} | {t0:.2f}s → {t1:.2f}s | ALL channels"
             self.ax.set_title(title)
-
         else:
             ch = int(ch_choice)
             ch = int(np.clip(ch, 0, self.C - 1))
             y = seg[ch]
             self.ax.plot(t, y, linewidth=1.0)
-            title = f"Segment {idx}/{self.N-1}  | {t0:.2f}s → {t1:.2f}s | Channel {ch}"
+            title = f"Segment {idx}/{self.N-1} | {t0:.2f}s → {t1:.2f}s | Channel {ch}"
             self.ax.set_title(title)
 
-        # limita x a quel segmento
         self.ax.set_xlim(t0, t1)
         self.fig.tight_layout()
         self.fig_canvas.draw()
